@@ -1,0 +1,19 @@
+import logging
+from .const import DOMAIN as DOMAIN, OAUTH2_SCOPES as OAUTH2_SCOPES
+from collections.abc import Mapping
+from homeassistant.config_entries import ConfigFlowResult as ConfigFlowResult, SOURCE_REAUTH as SOURCE_REAUTH, SOURCE_RECONFIGURE as SOURCE_RECONFIGURE
+from homeassistant.helpers import config_entry_oauth2_flow as config_entry_oauth2_flow
+from typing import Any
+
+class OAuth2FlowHandler(config_entry_oauth2_flow.AbstractOAuth2FlowHandler, domain=DOMAIN):
+    VERSION: int
+    MINOR_VERSION: int
+    DOMAIN = DOMAIN
+    @property
+    def logger(self) -> logging.Logger: ...
+    @property
+    def extra_authorize_data(self) -> dict[str, Any]: ...
+    async def async_step_reauth(self, entry_data: Mapping[str, Any]) -> ConfigFlowResult: ...
+    async def async_step_reauth_confirm(self, user_input: Mapping[str, Any] | None = None) -> ConfigFlowResult: ...
+    async def async_step_reconfigure(self, user_input: Mapping[str, Any] | None = None) -> ConfigFlowResult: ...
+    async def async_oauth_create_entry(self, data: dict) -> ConfigFlowResult: ...

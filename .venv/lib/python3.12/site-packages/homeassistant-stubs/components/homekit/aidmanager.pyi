@@ -1,0 +1,36 @@
+from .util import get_aid_storage_filename_for_entry_id as get_aid_storage_filename_for_entry_id
+from _typeshed import Incomplete
+from collections.abc import Generator
+from homeassistant.core import HomeAssistant as HomeAssistant, callback as callback
+from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers.storage import Store as Store
+
+AID_MANAGER_STORAGE_VERSION: int
+AID_MANAGER_SAVE_DELAY: int
+ALLOCATIONS_KEY: str
+UNIQUE_IDS_KEY: str
+INVALID_AIDS: Incomplete
+AID_MIN: int
+AID_MAX: int
+
+def get_system_unique_id(entity: er.RegistryEntry, entity_unique_id: str) -> str: ...
+def _generate_aids(unique_id: str | None, entity_id: str) -> Generator[int]: ...
+
+class AccessoryAidStorage:
+    hass: Incomplete
+    allocations: dict[str, int]
+    allocated_aids: set[int]
+    _entry_id: Incomplete
+    store: Store | None
+    _entity_registry: Incomplete
+    def __init__(self, hass: HomeAssistant, entry_id: str) -> None: ...
+    async def async_initialize(self) -> None: ...
+    def get_or_allocate_aid_for_entity_id(self, entity_id: str) -> int: ...
+    def _migrate_unique_id_aid_assignment_if_needed(self, sys_unique_id: str, entry: er.RegistryEntry) -> None: ...
+    def get_or_allocate_aid(self, unique_id: str | None, entity_id: str) -> int: ...
+    def delete_aid(self, storage_key: str) -> None: ...
+    @callback
+    def async_schedule_save(self) -> None: ...
+    async def async_save(self) -> None: ...
+    @callback
+    def _data_to_save(self) -> dict[str, dict[str, int]]: ...

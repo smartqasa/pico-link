@@ -1,0 +1,13 @@
+from . import async_control_connect as async_control_connect
+from .const import DATA_CONFIG_ENTRY as DATA_CONFIG_ENTRY, DOMAIN as DOMAIN, LIVE_TV_APP_ID as LIVE_TV_APP_ID, WEBOSTV_EXCEPTIONS as WEBOSTV_EXCEPTIONS
+from aiowebostv import WebOsClient as WebOsClient
+from homeassistant.core import HomeAssistant as HomeAssistant, callback as callback
+from homeassistant.helpers.device_registry import DeviceEntry as DeviceEntry
+
+@callback
+def async_get_device_entry_by_device_id(hass: HomeAssistant, device_id: str) -> DeviceEntry: ...
+@callback
+def async_get_device_id_from_entity_id(hass: HomeAssistant, entity_id: str) -> str: ...
+@callback
+def async_get_client_by_device_entry(hass: HomeAssistant, device: DeviceEntry) -> WebOsClient: ...
+async def async_get_sources(host: str, key: str) -> list[str]: ...

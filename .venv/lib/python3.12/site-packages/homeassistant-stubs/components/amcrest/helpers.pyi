@@ -1,0 +1,6 @@
+import logging
+from .const import DOMAIN as DOMAIN
+from homeassistant.helpers.typing import UndefinedType as UndefinedType
+
+def service_signal(service: str, *args: str) -> str: ...
+def log_update_error(logger: logging.Logger, action: str, name: str | UndefinedType | None, entity_type: str, error: Exception, level: int = ...) -> None: ...

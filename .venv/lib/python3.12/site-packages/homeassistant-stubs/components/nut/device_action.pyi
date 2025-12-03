@@ -1,0 +1,16 @@
+from . import NutRuntimeData as NutRuntimeData
+from .const import DOMAIN as DOMAIN, INTEGRATION_SUPPORTED_COMMANDS as INTEGRATION_SUPPORTED_COMMANDS
+from _typeshed import Incomplete
+from homeassistant.components.device_automation import InvalidDeviceAutomationConfig as InvalidDeviceAutomationConfig
+from homeassistant.const import CONF_DEVICE_ID as CONF_DEVICE_ID, CONF_DOMAIN as CONF_DOMAIN, CONF_TYPE as CONF_TYPE
+from homeassistant.core import Context as Context, HomeAssistant as HomeAssistant
+from homeassistant.helpers.typing import ConfigType as ConfigType, TemplateVarsType as TemplateVarsType
+
+ACTION_TYPES: Incomplete
+ACTION_SCHEMA: Incomplete
+
+async def async_get_actions(hass: HomeAssistant, device_id: str) -> list[dict[str, str]]: ...
+async def async_call_action_from_config(hass: HomeAssistant, config: ConfigType, variables: TemplateVarsType, context: Context | None) -> None: ...
+def _get_device_action_name(command_name: str) -> str: ...
+def _get_command_name(device_action_name: str) -> str: ...
+def _get_runtime_data_from_device_id(hass: HomeAssistant, device_id: str) -> NutRuntimeData | None: ...

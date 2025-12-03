@@ -1,0 +1,19 @@
+from .const import DOMAIN as DOMAIN, EMPTY_MAC as EMPTY_MAC
+from _typeshed import Incomplete
+from homeassistant.components import zeroconf as zeroconf
+from homeassistant.config_entries import ConfigFlow as ConfigFlow, ConfigFlowResult as ConfigFlowResult, DEFAULT_DISCOVERY_UNIQUE_ID as DEFAULT_DISCOVERY_UNIQUE_ID
+from homeassistant.const import CONF_HOST as CONF_HOST, CONF_NAME as CONF_NAME, CONF_PORT as CONF_PORT, CONF_UUID as CONF_UUID
+from homeassistant.helpers.device_registry import format_mac as format_mac
+from typing import Any
+
+_LOGGER: Incomplete
+
+class MotionMountFlowHandler(ConfigFlow, domain=DOMAIN):
+    VERSION: int
+    discovery_info: dict[str, Any]
+    def __init__(self) -> None: ...
+    async def async_step_user(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult: ...
+    async def async_step_zeroconf(self, discovery_info: zeroconf.ZeroconfServiceInfo) -> ConfigFlowResult: ...
+    async def async_step_zeroconf_confirm(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult: ...
+    async def _validate_input(self, data: dict) -> dict[str, Any]: ...
+    def _show_setup_form(self, errors: dict[str, str] | None = None) -> ConfigFlowResult: ...

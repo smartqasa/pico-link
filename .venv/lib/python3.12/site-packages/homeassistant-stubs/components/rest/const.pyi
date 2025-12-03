@@ -1,0 +1,23 @@
+from _typeshed import Incomplete
+from homeassistant.util.ssl import SSLCipherList as SSLCipherList
+
+DOMAIN: str
+DEFAULT_METHOD: str
+DEFAULT_VERIFY_SSL: bool
+DEFAULT_SSL_CIPHER_LIST: Incomplete
+DEFAULT_FORCE_UPDATE: bool
+DEFAULT_ENCODING: str
+CONF_ENCODING: str
+CONF_SSL_CIPHER_LIST: str
+DEFAULT_BINARY_SENSOR_NAME: str
+DEFAULT_SENSOR_NAME: str
+CONF_JSON_ATTRS: str
+CONF_JSON_ATTRS_PATH: str
+REST_IDX: str
+PLATFORM_IDX: str
+COORDINATOR: str
+REST: str
+REST_DATA: str
+METHODS: Incomplete
+XML_MIME_TYPES: Incomplete
+CONF_PAYLOAD_TEMPLATE: str

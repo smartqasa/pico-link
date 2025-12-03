@@ -1,0 +1,11 @@
+from _typeshed import Incomplete
+
+DOMAIN: str
+ATTR_MANUFACTURER: str
+DATA_COORDINATOR: str
+FIRMWARE_COORDINATOR: str
+SCAN_FIRMWARE_INTERVAL: Incomplete
+LOGGER: Incomplete
+SCAN_INTERVAL: Incomplete
+SCAN_INTERNET_INTERVAL: Incomplete
+UPTIME_DEVIATION: Incomplete

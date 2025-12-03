@@ -1,0 +1,3 @@
+DOMAIN: str
+DEFAULT_HOST: str
+CONF_HAS_PWD: str

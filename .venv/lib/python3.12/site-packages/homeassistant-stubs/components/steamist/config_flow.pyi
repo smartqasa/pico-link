@@ -1,0 +1,29 @@
+from .const import CONNECTION_EXCEPTIONS as CONNECTION_EXCEPTIONS, DISCOVER_SCAN_TIMEOUT as DISCOVER_SCAN_TIMEOUT, DOMAIN as DOMAIN
+from .discovery import async_discover_device as async_discover_device, async_discover_devices as async_discover_devices, async_is_steamist_device as async_is_steamist_device, async_update_entry_from_discovery as async_update_entry_from_discovery
+from _typeshed import Incomplete
+from discovery30303 import Device30303
+from homeassistant.components import dhcp as dhcp
+from homeassistant.config_entries import ConfigEntryState as ConfigEntryState, ConfigFlow as ConfigFlow, ConfigFlowResult as ConfigFlowResult
+from homeassistant.const import CONF_DEVICE as CONF_DEVICE, CONF_HOST as CONF_HOST, CONF_MODEL as CONF_MODEL, CONF_NAME as CONF_NAME
+from homeassistant.core import callback as callback
+from homeassistant.helpers.aiohttp_client import async_get_clientsession as async_get_clientsession
+from homeassistant.helpers.typing import DiscoveryInfoType as DiscoveryInfoType
+from typing import Any, Self
+
+_LOGGER: Incomplete
+
+class SteamistConfigFlow(ConfigFlow, domain=DOMAIN):
+    VERSION: int
+    host: str | None
+    _discovered_devices: dict[str, Device30303]
+    _discovered_device: Device30303 | None
+    def __init__(self) -> None: ...
+    async def async_step_dhcp(self, discovery_info: dhcp.DhcpServiceInfo) -> ConfigFlowResult: ...
+    async def async_step_integration_discovery(self, discovery_info: DiscoveryInfoType) -> ConfigFlowResult: ...
+    async def _async_handle_discovery(self) -> ConfigFlowResult: ...
+    def is_matching(self, other_flow: Self) -> bool: ...
+    async def async_step_discovery_confirm(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult: ...
+    @callback
+    def _async_create_entry_from_device(self, device: Device30303) -> ConfigFlowResult: ...
+    async def async_step_pick_device(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult: ...
+    async def async_step_user(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult: ...

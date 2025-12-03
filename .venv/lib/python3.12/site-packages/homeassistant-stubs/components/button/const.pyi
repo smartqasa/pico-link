@@ -1,0 +1,2 @@
+DOMAIN: str
+SERVICE_PRESS: str

@@ -1,0 +1,26 @@
+from . import YaleConfigEntry as YaleConfigEntry
+from .const import DOMAIN as DOMAIN, STATE_MAP as STATE_MAP, YALE_ALL_ERRORS as YALE_ALL_ERRORS
+from .coordinator import YaleDataUpdateCoordinator as YaleDataUpdateCoordinator
+from .entity import YaleAlarmEntity as YaleAlarmEntity
+from _typeshed import Incomplete
+from homeassistant.components.alarm_control_panel import AlarmControlPanelEntity as AlarmControlPanelEntity, AlarmControlPanelEntityFeature as AlarmControlPanelEntityFeature, AlarmControlPanelState as AlarmControlPanelState
+from homeassistant.core import HomeAssistant as HomeAssistant
+from homeassistant.exceptions import HomeAssistantError as HomeAssistantError
+from homeassistant.helpers.entity_platform import AddEntitiesCallback as AddEntitiesCallback
+
+async def async_setup_entry(hass: HomeAssistant, entry: YaleConfigEntry, async_add_entities: AddEntitiesCallback) -> None: ...
+
+class YaleAlarmDevice(YaleAlarmEntity, AlarmControlPanelEntity):
+    _attr_code_arm_required: bool
+    _attr_supported_features: Incomplete
+    _attr_name: Incomplete
+    _attr_unique_id: Incomplete
+    def __init__(self, coordinator: YaleDataUpdateCoordinator) -> None: ...
+    async def async_alarm_disarm(self, code: str | None = None) -> None: ...
+    async def async_alarm_arm_home(self, code: str | None = None) -> None: ...
+    async def async_alarm_arm_away(self, code: str | None = None) -> None: ...
+    async def async_set_alarm(self, command: str, code: str | None = None) -> None: ...
+    @property
+    def available(self) -> bool: ...
+    @property
+    def alarm_state(self) -> AlarmControlPanelState | None: ...

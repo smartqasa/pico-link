@@ -1,0 +1,14 @@
+from _typeshed import Incomplete
+
+DOMAIN: str
+LOGGER: Incomplete
+ATTR_CONFIG_ENTRY_ID: str
+ATTR_START_DATE: str
+ATTR_END_DATE: str
+ATTR_RECIPE_ID: str
+ATTR_URL: str
+ATTR_INCLUDE_TAGS: str
+ATTR_ENTRY_TYPE: str
+ATTR_NOTE_TITLE: str
+ATTR_NOTE_TEXT: str
+MIN_REQUIRED_MEALIE_VERSION: Incomplete

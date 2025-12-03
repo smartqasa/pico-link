@@ -1,0 +1,7 @@
+DOMAIN: str
+ATTR_MAX: str
+ATTR_MIN: str
+ATTR_MODE: str
+ATTR_PATTERN: str
+ATTR_VALUE: str
+SERVICE_SET_VALUE: str

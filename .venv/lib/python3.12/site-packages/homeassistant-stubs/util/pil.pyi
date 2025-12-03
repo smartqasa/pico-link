@@ -1,0 +1,3 @@
+from PIL.ImageDraw import ImageDraw as ImageDraw
+
+def draw_box(draw: ImageDraw, box: tuple[float, float, float, float], img_width: int, img_height: int, text: str = '', color: tuple[int, int, int] = (255, 255, 0)) -> None: ...

@@ -1,0 +1,5 @@
+CONF_PASSIVE: str
+DOMAIN: str
+HOME_ZONE: str
+ATTR_PASSIVE: str
+ATTR_RADIUS: str

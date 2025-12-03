@@ -1,0 +1,22 @@
+from homeassistant.const import Platform as Platform
+from typing import Final
+
+DOMAIN: Final[str]
+PROJECT_NAME: Final[str]
+PLATFORMS: Final[list[Platform]]
+SSE_LISTENERS: Final[str]
+UART_LISTENERS: Final[str]
+CROWNSTONE_SUFFIX: Final[str]
+SIG_CROWNSTONE_STATE_UPDATE: Final[str]
+SIG_CROWNSTONE_UPDATE: Final[str]
+SIG_UART_STATE_CHANGE: Final[str]
+CONF_USB_PATH: Final[str]
+CONF_USB_MANUAL_PATH: Final[str]
+CONF_USB_SPHERE: Final[str]
+CONF_USE_USB_OPTION: Final[str]
+CONF_USB_SPHERE_OPTION: Final[str]
+DONT_USE_USB: Final[str]
+REFRESH_LIST: Final[str]
+MANUAL_PATH: Final[str]
+CROWNSTONE_INCLUDE_TYPES: Final[dict[str, str]]
+CROWNSTONE_USB: Final[str]

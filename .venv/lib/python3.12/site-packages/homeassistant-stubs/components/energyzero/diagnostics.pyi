@@ -1,0 +1,6 @@
+from .coordinator import EnergyZeroConfigEntry as EnergyZeroConfigEntry, EnergyZeroData as EnergyZeroData
+from homeassistant.core import HomeAssistant as HomeAssistant
+from typing import Any
+
+def get_gas_price(data: EnergyZeroData, hours: int) -> float | None: ...
+async def async_get_config_entry_diagnostics(hass: HomeAssistant, entry: EnergyZeroConfigEntry) -> dict[str, Any]: ...

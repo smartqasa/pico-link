@@ -1,0 +1,2 @@
+DOMAIN: str
+MANUFACTURER: str

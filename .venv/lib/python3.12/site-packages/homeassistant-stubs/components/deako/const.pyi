@@ -1,0 +1,2 @@
+NAME: str
+DOMAIN: str

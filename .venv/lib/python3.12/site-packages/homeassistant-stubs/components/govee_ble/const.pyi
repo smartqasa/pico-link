@@ -1,0 +1,2 @@
+DOMAIN: str
+CONF_DEVICE_TYPE: str

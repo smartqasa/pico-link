@@ -1,0 +1,2 @@
+DOMAIN: str
+ATTRIBUTION: str

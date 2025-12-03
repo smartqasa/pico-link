@@ -1,0 +1,1 @@
+from homeassistant.helpers.http import HomeAssistantView as HomeAssistantView, request_handler_factory as request_handler_factory

@@ -1,0 +1,3 @@
+from awesomeversion import AwesomeVersion
+
+def create_version(version: str) -> AwesomeVersion: ...

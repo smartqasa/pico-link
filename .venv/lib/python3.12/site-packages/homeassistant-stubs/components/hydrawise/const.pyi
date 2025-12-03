@@ -1,0 +1,15 @@
+from _typeshed import Incomplete
+
+LOGGER: Incomplete
+APP_ID: Incomplete
+DOMAIN: str
+DEFAULT_WATERING_TIME: Incomplete
+MANUFACTURER: str
+MAIN_SCAN_INTERVAL: Incomplete
+WATER_USE_SCAN_INTERVAL: Incomplete
+SIGNAL_UPDATE_HYDRAWISE: str
+SERVICE_RESUME: str
+SERVICE_START_WATERING: str
+SERVICE_SUSPEND: str
+ATTR_DURATION: str
+ATTR_UNTIL: str

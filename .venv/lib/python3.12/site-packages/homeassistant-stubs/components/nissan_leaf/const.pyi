@@ -1,0 +1,26 @@
+from _typeshed import Incomplete
+from typing import Final
+
+DOMAIN: Final[str]
+DATA_LEAF: Final[str]
+DATA_BATTERY: Final[str]
+DATA_CHARGING: Final[str]
+DATA_PLUGGED_IN: Final[str]
+DATA_CLIMATE: Final[str]
+DATA_RANGE_AC: Final[str]
+DATA_RANGE_AC_OFF: Final[str]
+CONF_INTERVAL: Final[str]
+CONF_CHARGING_INTERVAL: Final[str]
+CONF_CLIMATE_INTERVAL: Final[str]
+CONF_FORCE_MILES: Final[str]
+CONF_VALID_REGIONS: Final[Incomplete]
+INITIAL_UPDATE: Final[Incomplete]
+MIN_UPDATE_INTERVAL: Final[Incomplete]
+DEFAULT_INTERVAL: Final[Incomplete]
+DEFAULT_CHARGING_INTERVAL: Final[Incomplete]
+DEFAULT_CLIMATE_INTERVAL: Final[Incomplete]
+RESTRICTED_INTERVAL: Final[Incomplete]
+RESTRICTED_BATTERY: Final[int]
+MAX_RESPONSE_ATTEMPTS: Final[int]
+PYCARWINGS2_SLEEP: Final[int]
+SIGNAL_UPDATE_LEAF: str

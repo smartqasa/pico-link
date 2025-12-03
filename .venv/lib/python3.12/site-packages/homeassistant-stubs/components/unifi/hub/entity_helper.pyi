@@ -1,0 +1,56 @@
+import aiounifi
+from _typeshed import Incomplete
+from datetime import datetime
+from homeassistant.core import CALLBACK_TYPE as CALLBACK_TYPE, HomeAssistant as HomeAssistant, callback as callback
+from homeassistant.helpers.dispatcher import async_dispatcher_send as async_dispatcher_send
+from homeassistant.helpers.event import async_call_later as async_call_later, async_track_time_interval as async_track_time_interval
+
+class UnifiEntityHelper:
+    hass: Incomplete
+    api: Incomplete
+    _device_command: Incomplete
+    _heartbeat: Incomplete
+    def __init__(self, hass: HomeAssistant, api: aiounifi.Controller) -> None: ...
+    @callback
+    def reset(self) -> None: ...
+    @callback
+    def initialize(self) -> None: ...
+    @property
+    def signal_heartbeat(self) -> str: ...
+    @callback
+    def update_heartbeat(self, unique_id: str, heartbeat_expire_time: datetime) -> None: ...
+    @callback
+    def remove_heartbeat(self, unique_id: str) -> None: ...
+    @callback
+    def queue_poe_port_command(self, device_id: str, port_idx: int, poe_mode: str) -> None: ...
+
+class UnifiEntityHeartbeat:
+    CHECK_HEARTBEAT_INTERVAL: Incomplete
+    hass: Incomplete
+    _cancel_heartbeat_check: CALLBACK_TYPE | None
+    _heartbeat_time: dict[str, datetime]
+    def __init__(self, hass: HomeAssistant) -> None: ...
+    @callback
+    def reset(self) -> None: ...
+    @callback
+    def initialize(self) -> None: ...
+    @property
+    def signal(self) -> str: ...
+    @callback
+    def update(self, unique_id: str, heartbeat_expire_time: datetime) -> None: ...
+    @callback
+    def remove(self, unique_id: str) -> None: ...
+    @callback
+    def _check_for_stale(self, *_: datetime) -> None: ...
+
+class UnifiDeviceCommand:
+    COMMAND_DELAY: int
+    hass: Incomplete
+    api: Incomplete
+    _command_queue: dict[str, dict[int, str]]
+    _cancel_command: CALLBACK_TYPE | None
+    def __init__(self, hass: HomeAssistant, api: aiounifi.Controller) -> None: ...
+    @callback
+    def reset(self) -> None: ...
+    @callback
+    def queue_poe_command(self, device_id: str, port_idx: int, poe_mode: str) -> None: ...

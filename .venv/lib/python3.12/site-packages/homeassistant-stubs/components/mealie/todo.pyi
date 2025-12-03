@@ -1,0 +1,36 @@
+from .const import DOMAIN as DOMAIN
+from .coordinator import MealieConfigEntry as MealieConfigEntry, MealieShoppingListCoordinator as MealieShoppingListCoordinator
+from .entity import MealieEntity as MealieEntity
+from _typeshed import Incomplete
+from aiomealie import ShoppingItem as ShoppingItem, ShoppingList as ShoppingList
+from homeassistant.components.todo import TodoItem as TodoItem, TodoItemStatus as TodoItemStatus, TodoListEntity as TodoListEntity, TodoListEntityFeature as TodoListEntityFeature
+from homeassistant.core import HomeAssistant as HomeAssistant
+from homeassistant.exceptions import HomeAssistantError as HomeAssistantError
+from homeassistant.helpers.entity_platform import AddEntitiesCallback as AddEntitiesCallback
+
+PARALLEL_UPDATES: int
+TODO_STATUS_MAP: Incomplete
+TODO_STATUS_MAP_INV: Incomplete
+
+def _convert_api_item(item: ShoppingItem) -> TodoItem: ...
+async def async_setup_entry(hass: HomeAssistant, entry: MealieConfigEntry, async_add_entities: AddEntitiesCallback) -> None: ...
+
+class MealieShoppingListTodoListEntity(MealieEntity, TodoListEntity):
+    _attr_supported_features: Incomplete
+    _attr_translation_key: str
+    coordinator: MealieShoppingListCoordinator
+    _shopping_list_id: Incomplete
+    _attr_name: Incomplete
+    def __init__(self, coordinator: MealieShoppingListCoordinator, shopping_list_id: str) -> None: ...
+    @property
+    def shopping_list(self) -> ShoppingList: ...
+    @property
+    def shopping_items(self) -> list[ShoppingItem]: ...
+    @property
+    def todo_items(self) -> list[TodoItem] | None: ...
+    async def async_create_todo_item(self, item: TodoItem) -> None: ...
+    async def async_update_todo_item(self, item: TodoItem) -> None: ...
+    async def async_delete_todo_items(self, uids: list[str]) -> None: ...
+    async def async_move_todo_item(self, uid: str, previous_uid: str | None = None) -> None: ...
+    @property
+    def available(self) -> bool: ...

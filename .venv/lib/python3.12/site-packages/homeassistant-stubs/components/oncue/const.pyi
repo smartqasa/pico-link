@@ -1,0 +1,6 @@
+from _typeshed import Incomplete
+
+DOMAIN: str
+CONNECTION_EXCEPTIONS: Incomplete
+CONNECTION_ESTABLISHED_KEY: str
+VALUE_UNAVAILABLE: str

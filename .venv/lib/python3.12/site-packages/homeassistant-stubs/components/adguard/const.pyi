@@ -1,0 +1,10 @@
+from _typeshed import Incomplete
+
+DOMAIN: str
+LOGGER: Incomplete
+CONF_FORCE: str
+SERVICE_ADD_URL: str
+SERVICE_DISABLE_URL: str
+SERVICE_ENABLE_URL: str
+SERVICE_REFRESH: str
+SERVICE_REMOVE_URL: str

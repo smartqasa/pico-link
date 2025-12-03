@@ -1,0 +1,13 @@
+import psutil_home_assistant as ha_psutil
+from .const import CPU_SENSOR_PREFIXES as CPU_SENSOR_PREFIXES
+from _typeshed import Incomplete
+from homeassistant.core import HomeAssistant as HomeAssistant
+from psutil._common import shwtemp as shwtemp
+
+_LOGGER: Incomplete
+SKIP_DISK_TYPES: Incomplete
+
+def get_all_disk_mounts(hass: HomeAssistant, psutil_wrapper: ha_psutil.PsutilWrapper) -> set[str]: ...
+def get_all_network_interfaces(hass: HomeAssistant, psutil_wrapper: ha_psutil.PsutilWrapper) -> set[str]: ...
+def get_all_running_processes(hass: HomeAssistant) -> set[str]: ...
+def read_cpu_temperature(temps: dict[str, list[shwtemp]]) -> float | None: ...

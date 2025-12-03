@@ -1,0 +1,196 @@
+from _typeshed import Incomplete
+from enum import IntFlag, StrEnum
+from homeassistant.helpers.deprecation import DeprecatedConstantEnum as DeprecatedConstantEnum, all_with_deprecated_constants as all_with_deprecated_constants, check_if_deprecated_constant as check_if_deprecated_constant, dir_with_deprecated_constants as dir_with_deprecated_constants
+
+CONTENT_AUTH_EXPIRY_TIME: Incomplete
+ATTR_APP_ID: str
+ATTR_APP_NAME: str
+ATTR_ENTITY_PICTURE_LOCAL: str
+ATTR_GROUP_MEMBERS: str
+ATTR_INPUT_SOURCE: str
+ATTR_INPUT_SOURCE_LIST: str
+ATTR_MEDIA_ANNOUNCE: str
+ATTR_MEDIA_ALBUM_ARTIST: str
+ATTR_MEDIA_ALBUM_NAME: str
+ATTR_MEDIA_ARTIST: str
+ATTR_MEDIA_CHANNEL: str
+ATTR_MEDIA_CONTENT_ID: str
+ATTR_MEDIA_CONTENT_TYPE: str
+ATTR_MEDIA_DURATION: str
+ATTR_MEDIA_ENQUEUE: str
+ATTR_MEDIA_EXTRA: str
+ATTR_MEDIA_EPISODE: str
+ATTR_MEDIA_PLAYLIST: str
+ATTR_MEDIA_POSITION: str
+ATTR_MEDIA_POSITION_UPDATED_AT: str
+ATTR_MEDIA_REPEAT: str
+ATTR_MEDIA_SEASON: str
+ATTR_MEDIA_SEEK_POSITION: str
+ATTR_MEDIA_SERIES_TITLE: str
+ATTR_MEDIA_SHUFFLE: str
+ATTR_MEDIA_TITLE: str
+ATTR_MEDIA_TRACK: str
+ATTR_MEDIA_VOLUME_LEVEL: str
+ATTR_MEDIA_VOLUME_MUTED: str
+ATTR_SOUND_MODE: str
+ATTR_SOUND_MODE_LIST: str
+DOMAIN: str
+
+class MediaPlayerState(StrEnum):
+    OFF = 'off'
+    ON = 'on'
+    IDLE = 'idle'
+    PLAYING = 'playing'
+    PAUSED = 'paused'
+    STANDBY = 'standby'
+    BUFFERING = 'buffering'
+
+class MediaClass(StrEnum):
+    ALBUM = 'album'
+    APP = 'app'
+    ARTIST = 'artist'
+    CHANNEL = 'channel'
+    COMPOSER = 'composer'
+    CONTRIBUTING_ARTIST = 'contributing_artist'
+    DIRECTORY = 'directory'
+    EPISODE = 'episode'
+    GAME = 'game'
+    GENRE = 'genre'
+    IMAGE = 'image'
+    MOVIE = 'movie'
+    MUSIC = 'music'
+    PLAYLIST = 'playlist'
+    PODCAST = 'podcast'
+    SEASON = 'season'
+    TRACK = 'track'
+    TV_SHOW = 'tv_show'
+    URL = 'url'
+    VIDEO = 'video'
+
+_DEPRECATED_MEDIA_CLASS_ALBUM: Incomplete
+_DEPRECATED_MEDIA_CLASS_APP: Incomplete
+_DEPRECATED_MEDIA_CLASS_ARTIST: Incomplete
+_DEPRECATED_MEDIA_CLASS_CHANNEL: Incomplete
+_DEPRECATED_MEDIA_CLASS_COMPOSER: Incomplete
+_DEPRECATED_MEDIA_CLASS_CONTRIBUTING_ARTIST: Incomplete
+_DEPRECATED_MEDIA_CLASS_DIRECTORY: Incomplete
+_DEPRECATED_MEDIA_CLASS_EPISODE: Incomplete
+_DEPRECATED_MEDIA_CLASS_GAME: Incomplete
+_DEPRECATED_MEDIA_CLASS_GENRE: Incomplete
+_DEPRECATED_MEDIA_CLASS_IMAGE: Incomplete
+_DEPRECATED_MEDIA_CLASS_MOVIE: Incomplete
+_DEPRECATED_MEDIA_CLASS_MUSIC: Incomplete
+_DEPRECATED_MEDIA_CLASS_PLAYLIST: Incomplete
+_DEPRECATED_MEDIA_CLASS_PODCAST: Incomplete
+_DEPRECATED_MEDIA_CLASS_SEASON: Incomplete
+_DEPRECATED_MEDIA_CLASS_TRACK: Incomplete
+_DEPRECATED_MEDIA_CLASS_TV_SHOW: Incomplete
+_DEPRECATED_MEDIA_CLASS_URL: Incomplete
+_DEPRECATED_MEDIA_CLASS_VIDEO: Incomplete
+
+class MediaType(StrEnum):
+    ALBUM = 'album'
+    APP = 'app'
+    APPS = 'apps'
+    ARTIST = 'artist'
+    CHANNEL = 'channel'
+    CHANNELS = 'channels'
+    COMPOSER = 'composer'
+    CONTRIBUTING_ARTIST = 'contributing_artist'
+    EPISODE = 'episode'
+    GAME = 'game'
+    GENRE = 'genre'
+    IMAGE = 'image'
+    MOVIE = 'movie'
+    MUSIC = 'music'
+    PLAYLIST = 'playlist'
+    PODCAST = 'podcast'
+    SEASON = 'season'
+    TRACK = 'track'
+    TVSHOW = 'tvshow'
+    URL = 'url'
+    VIDEO = 'video'
+
+_DEPRECATED_MEDIA_TYPE_ALBUM: Incomplete
+_DEPRECATED_MEDIA_TYPE_APP: Incomplete
+_DEPRECATED_MEDIA_TYPE_APPS: Incomplete
+_DEPRECATED_MEDIA_TYPE_ARTIST: Incomplete
+_DEPRECATED_MEDIA_TYPE_CHANNEL: Incomplete
+_DEPRECATED_MEDIA_TYPE_CHANNELS: Incomplete
+_DEPRECATED_MEDIA_TYPE_COMPOSER: Incomplete
+_DEPRECATED_MEDIA_TYPE_CONTRIBUTING_ARTIST: Incomplete
+_DEPRECATED_MEDIA_TYPE_EPISODE: Incomplete
+_DEPRECATED_MEDIA_TYPE_GAME: Incomplete
+_DEPRECATED_MEDIA_TYPE_GENRE: Incomplete
+_DEPRECATED_MEDIA_TYPE_IMAGE: Incomplete
+_DEPRECATED_MEDIA_TYPE_MOVIE: Incomplete
+_DEPRECATED_MEDIA_TYPE_MUSIC: Incomplete
+_DEPRECATED_MEDIA_TYPE_PLAYLIST: Incomplete
+_DEPRECATED_MEDIA_TYPE_PODCAST: Incomplete
+_DEPRECATED_MEDIA_TYPE_SEASON: Incomplete
+_DEPRECATED_MEDIA_TYPE_TRACK: Incomplete
+_DEPRECATED_MEDIA_TYPE_TVSHOW: Incomplete
+_DEPRECATED_MEDIA_TYPE_URL: Incomplete
+_DEPRECATED_MEDIA_TYPE_VIDEO: Incomplete
+SERVICE_CLEAR_PLAYLIST: str
+SERVICE_JOIN: str
+SERVICE_PLAY_MEDIA: str
+SERVICE_SELECT_SOUND_MODE: str
+SERVICE_SELECT_SOURCE: str
+SERVICE_UNJOIN: str
+
+class RepeatMode(StrEnum):
+    ALL = 'all'
+    OFF = 'off'
+    ONE = 'one'
+
+_DEPRECATED_REPEAT_MODE_ALL: Incomplete
+_DEPRECATED_REPEAT_MODE_OFF: Incomplete
+_DEPRECATED_REPEAT_MODE_ONE: Incomplete
+REPEAT_MODES: Incomplete
+
+class MediaPlayerEntityFeature(IntFlag):
+    PAUSE = 1
+    SEEK = 2
+    VOLUME_SET = 4
+    VOLUME_MUTE = 8
+    PREVIOUS_TRACK = 16
+    NEXT_TRACK = 32
+    TURN_ON = 128
+    TURN_OFF = 256
+    PLAY_MEDIA = 512
+    VOLUME_STEP = 1024
+    SELECT_SOURCE = 2048
+    STOP = 4096
+    CLEAR_PLAYLIST = 8192
+    PLAY = 16384
+    SHUFFLE_SET = 32768
+    SELECT_SOUND_MODE = 65536
+    BROWSE_MEDIA = 131072
+    REPEAT_SET = 262144
+    GROUPING = 524288
+    MEDIA_ANNOUNCE = 1048576
+    MEDIA_ENQUEUE = 2097152
+
+_DEPRECATED_SUPPORT_PAUSE: Incomplete
+_DEPRECATED_SUPPORT_SEEK: Incomplete
+_DEPRECATED_SUPPORT_VOLUME_SET: Incomplete
+_DEPRECATED_SUPPORT_VOLUME_MUTE: Incomplete
+_DEPRECATED_SUPPORT_PREVIOUS_TRACK: Incomplete
+_DEPRECATED_SUPPORT_NEXT_TRACK: Incomplete
+_DEPRECATED_SUPPORT_TURN_ON: Incomplete
+_DEPRECATED_SUPPORT_TURN_OFF: Incomplete
+_DEPRECATED_SUPPORT_PLAY_MEDIA: Incomplete
+_DEPRECATED_SUPPORT_VOLUME_STEP: Incomplete
+_DEPRECATED_SUPPORT_SELECT_SOURCE: Incomplete
+_DEPRECATED_SUPPORT_STOP: Incomplete
+_DEPRECATED_SUPPORT_CLEAR_PLAYLIST: Incomplete
+_DEPRECATED_SUPPORT_PLAY: Incomplete
+_DEPRECATED_SUPPORT_SHUFFLE_SET: Incomplete
+_DEPRECATED_SUPPORT_SELECT_SOUND_MODE: Incomplete
+_DEPRECATED_SUPPORT_BROWSE_MEDIA: Incomplete
+_DEPRECATED_SUPPORT_REPEAT_SET: Incomplete
+_DEPRECATED_SUPPORT_GROUPING: Incomplete
+__getattr__: Incomplete
+__dir__: Incomplete
+__all__: Incomplete

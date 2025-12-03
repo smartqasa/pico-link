@@ -1,0 +1,3 @@
+DOMAIN: str
+EMPTY_MAC: str
+WALL_PRESET_NAME: str

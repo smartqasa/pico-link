@@ -1,0 +1,3 @@
+DOMAIN: str
+DEFAULT_PORT: int
+TIMEOUT: float

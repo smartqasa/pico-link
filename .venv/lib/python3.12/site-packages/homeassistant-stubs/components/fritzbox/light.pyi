@@ -1,0 +1,29 @@
+from .const import COLOR_MODE as COLOR_MODE, LOGGER as LOGGER
+from .coordinator import FritzboxConfigEntry as FritzboxConfigEntry, FritzboxDataUpdateCoordinator as FritzboxDataUpdateCoordinator
+from .entity import FritzBoxDeviceEntity as FritzBoxDeviceEntity
+from _typeshed import Incomplete
+from homeassistant.components.light import ATTR_BRIGHTNESS as ATTR_BRIGHTNESS, ATTR_COLOR_TEMP_KELVIN as ATTR_COLOR_TEMP_KELVIN, ATTR_HS_COLOR as ATTR_HS_COLOR, ColorMode as ColorMode, LightEntity as LightEntity
+from homeassistant.core import HomeAssistant as HomeAssistant, callback as callback
+from homeassistant.helpers.entity_platform import AddEntitiesCallback as AddEntitiesCallback
+from typing import Any
+
+async def async_setup_entry(hass: HomeAssistant, entry: FritzboxConfigEntry, async_add_entities: AddEntitiesCallback) -> None: ...
+
+class FritzboxLight(FritzBoxDeviceEntity, LightEntity):
+    _attr_supported_color_modes: Incomplete
+    _supported_hs: dict[int, list[int]]
+    _attr_max_color_temp_kelvin: Incomplete
+    _attr_min_color_temp_kelvin: Incomplete
+    def __init__(self, coordinator: FritzboxDataUpdateCoordinator, ain: str) -> None: ...
+    @property
+    def is_on(self) -> bool: ...
+    @property
+    def brightness(self) -> int: ...
+    @property
+    def hs_color(self) -> tuple[float, float]: ...
+    @property
+    def color_temp_kelvin(self) -> int: ...
+    @property
+    def color_mode(self) -> ColorMode: ...
+    async def async_turn_on(self, **kwargs: Any) -> None: ...
+    async def async_turn_off(self, **kwargs: Any) -> None: ...

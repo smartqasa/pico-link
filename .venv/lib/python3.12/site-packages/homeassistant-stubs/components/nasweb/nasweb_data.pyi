@@ -1,0 +1,19 @@
+from .const import DOMAIN as DOMAIN, WEBHOOK_URL as WEBHOOK_URL
+from .coordinator import NotificationCoordinator as NotificationCoordinator
+from _typeshed import Incomplete
+from dataclasses import dataclass, field
+from homeassistant.components.webhook import async_generate_id as async_generate_id
+from homeassistant.core import HomeAssistant as HomeAssistant
+from homeassistant.helpers.network import get_url as get_url
+
+_LOGGER: Incomplete
+
+@dataclass
+class NASwebData:
+    notify_coordinator: NotificationCoordinator = field(default_factory=NotificationCoordinator)
+    webhook_id = ...
+    def is_initialized(self) -> bool: ...
+    def can_be_deinitialized(self) -> bool: ...
+    def initialize(self, hass: HomeAssistant) -> None: ...
+    def deinitialize(self, hass: HomeAssistant) -> None: ...
+    def get_webhook_url(self, hass: HomeAssistant) -> str: ...
