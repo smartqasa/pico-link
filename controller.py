@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, Mapping, Optional, Tuple
 
-from homeassistant.core import Event, HomeAssistant, callback
+from homeassistant.core import CALLBACK_TYPE, Event, HomeAssistant, callback
 
 from .config import PicoConfig
 from .const import (
@@ -35,7 +35,8 @@ class PicoController:
         # For future features (double-tap, etc.)
         self._last_press_ts: Dict[str, float] = {btn: 0.0 for btn in SUPPORTED_BUTTONS}
 
-        self._unsub_event: Optional[callable] = None
+        # Unsubscribe callback from hass.bus.async_listen(...)
+        self._unsub_event: Optional[CALLBACK_TYPE] = None
 
         # Convert ms → seconds
         self._hold_time = conf.hold_time_ms / 1000.0
@@ -101,7 +102,8 @@ class PicoController:
     # ---------------------------------------------------------------------
 
     def _map_event_payload(
-        self, data: Dict[str, Any]
+        self,
+        data: Mapping[str, Any],
     ) -> Tuple[Optional[str], Optional[str]]:
         """Translate lutron_caseta event payload into (button, action)."""
         button = data.get("button_type")
