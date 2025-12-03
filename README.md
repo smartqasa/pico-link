@@ -65,7 +65,7 @@ Add one or more Pico mappings in `configuration.yaml`:
 
 ```yaml
 pico_connector:
-  - pico_device_id: f00abdc1ee0fed3b5fd56b1d800154a7
+  - device_id: f00abdc1ee0fed3b5fd56b1d800154a7
     entities:
       - light.office_desk_strip
     profile: paddle # "paddle" or "five_button"
@@ -73,5 +73,4 @@ pico_connector:
     step_pct: 5 # ramp amount per step
     step_time_ms: 200 # time between steps
     brightness_on_pct: 100 # ON button brightness
-
 ```
