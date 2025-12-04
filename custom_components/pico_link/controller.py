@@ -62,6 +62,14 @@ class PicoController(SharedBehaviors):
                 )
                 return
 
+            # DEBUG: see what controller is receiving
+            _LOGGER.error(
+                "*** FOUR DEBUG *** button=%s action=%s profile=%s",
+                button,
+                action,
+                self.conf.profile,
+            )
+
             # Lookup profile handler
             profile_obj = self._profiles.get(self.conf.profile)
             if not profile_obj:
