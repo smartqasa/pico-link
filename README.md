@@ -80,7 +80,7 @@ pico_connector:
   - device_id: f00abdc1ee0fed3b5fd56b1d800154a7
     entities:
       - light.office_desk_strip
-    profile: paddle # "paddle" or "five_button"
+    profile: paddle # "paddle", "five_button", or "two_button"
     hold_time_ms: 250 # paddle only
     step_pct: 5 # brightness step amount
     step_time_ms: 200 # time between ramp steps
