@@ -122,7 +122,7 @@ pico_link:
     step_pct: 5 # paddle and 5 button only - brightness step amount
     step_time_ms: 200 # paddle and 5 button only - time between ramp steps
     on_pct: 100 # initial percentage for on button tap
-    class: light # "light", "fan", or "shade (cover)", "garage (cover)
+    domain: light # "light", "fan", or "cover"
     entities:
       - light.bedroom_color_lights
 
