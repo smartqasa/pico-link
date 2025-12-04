@@ -112,19 +112,23 @@ Add one or more Pico mappings in your `configuration.yaml`:
 | hold_time_ms | No       | 250     | Hold threshold (paddle only).       |
 | step_pct     | No       | 5       | Brightness step size for ramping.   |
 | step_time_ms | No       | 200     | Delay between ramp steps.           |
-| on_pct       | No       | 100     | Brightness for short-press ON.      |
+| on_pct       | No       | 100     | Percent for short-press ON.         |
+| fan_speeds   | No       | 6       | Number of speeds support by fan.    |
 
 ```yaml
 pico_link:
   - device_id: abc123... (see below for how to locate)
-    profile: paddle # "paddle", "five_button", or "two_button"
+    profile: five_button # "five_button", "four_button" or "two_button", or "paddle"
+
+    domain: light # "light", "fan", or "cover"
+    entities:
+      - light.bedroom_color_lights
+
     hold_time_ms: 250 # paddle only
     step_pct: 5 # paddle and 5 button only - brightness step amount
     step_time_ms: 200 # paddle and 5 button only - time between ramp steps
     on_pct: 100 # initial percentage for on button tap
-    domain: light # "light", "fan", or "cover"
-    entities:
-      - light.bedroom_color_lights
+    fan_speeds: 6 # 4 or 6
 
   - device_id: abc123...
     profile: four_button

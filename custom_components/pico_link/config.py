@@ -28,6 +28,7 @@ class PicoConfig:
     step_time_ms: int = 200
     step_pct: int = 5
     on_pct: int = 100
+    fan_speeds: int = 6  # allowed: 4 or 6
 
     # Four-button per-button actions
     buttons: Dict[str, List[Dict]] = field(default_factory=dict)
@@ -104,6 +105,7 @@ def parse_pico_config(raw: Dict[str, Any]) -> PicoConfig:
     step_time_ms = int(raw.get("step_time_ms", 200))
     step_pct = int(raw.get("step_pct", 5))
     on_pct = int(raw.get("on_pct", 100))
+    fan_speeds = int(raw.get("fan_speeds", 6))
 
     buttons = raw.get("buttons", {})
 
@@ -116,6 +118,7 @@ def parse_pico_config(raw: Dict[str, Any]) -> PicoConfig:
         step_time_ms=step_time_ms,
         step_pct=step_pct,
         on_pct=on_pct,
+        fan_speeds=fan_speeds,
         buttons=buttons,
     )
 

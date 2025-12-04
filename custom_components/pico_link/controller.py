@@ -192,7 +192,6 @@ class PicoController:
             self._handle_release_five(button)
 
     def _handle_press_five(self, button: str) -> None:
-
         # Domain-specific STOP
         if button == "stop":
             if self.conf.domain == "cover":
@@ -217,28 +216,24 @@ class PicoController:
             asyncio.create_task(self._short_press_off())
             return
 
-        # Raise/Lower mapping for COVER
+        # Raise/Lower mapping
         if button in ("raise", "lower"):
+            # COVER: simple open/close
             if self.conf.domain == "cover":
                 svc = "open_cover" if button == "raise" else "close_cover"
                 asyncio.create_task(self._call_entity_service(svc, {}))
                 return
 
-            # Raise/Lower for FAN
+            # FAN: discrete speed steps based on configured speeds
             if self.conf.domain == "fan":
-                step = self.conf.step_pct * (1 if button == "raise" else -1)
-                asyncio.create_task(
-                    self._call_entity_service(
-                        "set_percentage",
-                        {"percentage_step": step},
-                    )
-                )
+                direction = 1 if button == "raise" else -1
+                asyncio.create_task(self._fan_step_discrete(direction))
                 return
 
-            # LIGHT (ramp)
+            # LIGHT: ramp brightness while held
             direction = 1 if button == "raise" else -1
 
-            # Cancel opposite task
+            # Cancel any existing raise/lower tasks
             for b in ("raise", "lower"):
                 task = self._tasks.get(b)
                 if task and not task.done():
@@ -373,6 +368,98 @@ class PicoController:
             return False
 
         return True
+
+    # ---------------------------------------------------------------------
+    # FAN discrete speed helpers (domain = fan)
+    # ---------------------------------------------------------------------
+
+    def _get_fan_speed_ladder(self) -> list[int]:
+        """
+        Build the discrete fan speed ladder based on config.speeds.
+
+        speeds = 4 -> ~[0, 33, 67, 100]
+        speeds = 6 -> [0, 20, 40, 60, 80, 100] (default)
+        """
+        speeds = getattr(self.conf, "speeds", 6) or 6
+        if speeds not in (4, 6):
+            speeds = 6
+
+        steps = speeds - 1
+        ladder = [round(i * 100 / steps) for i in range(speeds)]
+        return ladder
+
+    def _get_current_fan_percentage(self) -> Optional[float]:
+        """Return current fan percentage (0–100), or None if unavailable."""
+        if not self.conf.entities:
+            return None
+
+        entity_id = self.conf.entities[0]
+        state = self.hass.states.get(entity_id)
+        if not state:
+            return None
+
+        pct = state.attributes.get("percentage")
+        if pct is None:
+            # Fallback: if fan is off, treat as 0; if on, treat as on_pct
+            if state.state == "off":
+                return 0.0
+            return float(self.conf.on_pct)
+
+        try:
+            return float(pct)
+        except (TypeError, ValueError):
+            return None
+
+    async def _fan_step_discrete(self, direction: int) -> None:
+        """
+        Step fan speed up or down one discrete level based on the configured
+        number of speeds. Does NOT wrap around; clamps at min/max.
+        """
+        if not self.conf.entities:
+            _LOGGER.debug(
+                "Device %s (fan): no entities configured for fan control",
+                self.conf.device_id,
+            )
+            return
+
+        ladder = self._get_fan_speed_ladder()
+        current_pct = self._get_current_fan_percentage()
+
+        if current_pct is None:
+            _LOGGER.debug(
+                "Device %s (fan): unable to determine current percentage; "
+                "no step performed",
+                self.conf.device_id,
+            )
+            return
+
+        # Find nearest speed index
+        current_index = min(
+            range(len(ladder)),
+            key=lambda i: abs(ladder[i] - current_pct),
+        )
+
+        target_index = current_index + direction
+        if target_index < 0:
+            target_index = 0
+        elif target_index >= len(ladder):
+            target_index = len(ladder) - 1
+
+        target_pct = ladder[target_index]
+
+        # If no change, nothing to do
+        if target_pct == current_pct:
+            _LOGGER.debug(
+                "Device %s (fan): percentage already at boundary (%s%%)",
+                self.conf.device_id,
+                target_pct,
+            )
+            return
+
+        await self._call_entity_service(
+            "set_percentage",
+            {"percentage": target_pct},
+        )
 
     # ---------------------------------------------------------------------
     # Generic domain-based service caller
