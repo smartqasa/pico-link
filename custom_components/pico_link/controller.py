@@ -62,14 +62,6 @@ class PicoController(SharedBehaviors):
                 )
                 return
 
-            # DEBUG: see what controller is receiving
-            _LOGGER.error(
-                "*** FOUR DEBUG *** button=%s action=%s profile=%s",
-                button,
-                action,
-                self.conf.profile,
-            )
-
             # Lookup profile handler
             profile_obj = self._profiles.get(self.conf.profile)
             if not profile_obj:
@@ -80,7 +72,6 @@ class PicoController(SharedBehaviors):
                 )
                 return
 
-            # >>>>>> CORRECT DISPATCH <<<<<<
             # Every profile now exposes: handle(button, action)
             try:
                 profile_obj.handle(button, action)  # type: ignore[call-arg]

@@ -306,7 +306,7 @@ class SharedBehaviors:
             self.conf.device_id,
             action,
         )
-        
+
         try:
             domain, service = action["action"].split(".", 1)
         except Exception as err:
@@ -321,18 +321,13 @@ class SharedBehaviors:
         target = action.get("target")
         data = action.get("data", {})
 
-        service_data = {**data}
-        if target:
-            eid = target.get("entity_id")
-            if eid:
-                service_data["entity_id"] = eid
-
         try:
             await self.hass.services.async_call(
                 domain,
                 service,
-                service_data,
+                data,
                 blocking=False,
+                target=target,   # <<<<<<<<<<<<<<<<<<<< FULL TARGET PASSED
             )
         except Exception as err:
             _LOGGER.error(
@@ -342,3 +337,4 @@ class SharedBehaviors:
                 service,
                 err,
             )
+
