@@ -11,34 +11,37 @@
 ## 🌟 Overview
 
 **Pico Connector** is a lightweight, reliable Home Assistant integration that
-turns **Lutron Caseta Pico remotes** into powerful and responsive light
+turns **Lutron Caseta Pico remotes** into powerful and responsive device
 controllers.
 
-It listens directly to `lutron_caseta_button_event` (no polling) and applies
-intuitive dimming logic tailored to the two main Pico families.
+This integration uses async tasks, requires no polling, and is extremely fast.
+
+It listens directly to `lutron_caseta_button_event` and applies intuitive
+dimming logic tailored to the three main Pico families.
 
 ---
 
 ## ✔ Paddle Pico Behavior
 
-- **Short press ON** → sets a configurable brightness (default: 100%)
-- **Short press OFF** → turns the lights off
-- **Long press ON** → ramps brightness up continuously
-- **Long press OFF** → ramps brightness down continuously
-- Ramping automatically halts at max/min brightness
+- **Tap ON** → sets a configurable brightness (default: 100%)
+- **Tap OFF** → turns the lights off
+- **Hold ON** → ramps brightness up continuously
+- **Hold OFF** → ramps brightness down continuously
+- Ramping automatically halts at min/max levels (typically: 0%/100%)
 
 ---
 
-## ✔ 5-Button Pico Behavior
-
-(Pico3RaiseLower & true 5-button models)
+## ✔ Five Button Pico Behavior
 
 - **ON** → immediate ON at configured brightness
 - **OFF** → immediate OFF
 - **STOP** → halts any active ramp
 - **RAISE / LOWER** → ramps brightness while held (no hold timer)
 
-This integration uses async tasks, requires no polling, and is extremely fast.
+## ✔ Two Button Pico Behavior
+
+- **ON** → immediate ON at configured brightness
+- **OFF** → immediate OFF
 
 ---
 
@@ -74,7 +77,7 @@ Add one or more Pico mappings in your `configuration.yaml`:
 
 ```yaml
 pico_connector:
-  - pico_device_id: f00abdc1ee0fed3b5fd56b1d800154a7
+  - device_id: f00abdc1ee0fed3b5fd56b1d800154a7
     entities:
       - light.office_desk_strip
     profile: paddle # "paddle" or "five_button"
@@ -90,7 +93,7 @@ pico_connector:
 
 | Key               | Required | Default | Description                         |
 | ----------------- | -------- | ------- | ----------------------------------- |
-| pico_device_id    | Yes      | —       | Device ID of the Pico (from event). |
+| device_id         | Yes      | —       | Device ID of the Pico (from event). |
 | entities          | Yes      | —       | List of light entities controlled.  |
 | profile           | No       | paddle  | "paddle" or "five_button"           |
 | hold_time_ms      | No       | 250     | Hold threshold (paddle only).       |
@@ -100,7 +103,7 @@ pico_connector:
 
 ---
 
-## 🔍 Finding Your pico_device_id
+## 🔍 Finding Your device_id
 
 1. Go to **Developer Tools → Events**
 2. Under **Listen to events**, enter:

@@ -10,6 +10,7 @@ from .config import PicoConfig
 from .const import (
     PROFILE_FIVE_BUTTON,
     PROFILE_PADDLE,
+    PROFILE_TWO_BUTTON,
     SUPPORTED_BUTTONS,
     PICO_EVENT_TYPE,
 )
@@ -49,7 +50,7 @@ class PicoController:
         def _handle_event(event: Event) -> None:
             data = event.data
 
-            if data.get("device_id") != self.conf.pico_device_id:
+            if data.get("device_id") != self.conf.device_id:
                 return
 
             button, action = self._map_event_payload(data)
@@ -59,21 +60,23 @@ class PicoController:
             if button not in SUPPORTED_BUTTONS:
                 _LOGGER.debug(
                     "Device %s: ignoring unsupported button '%s' (data=%s)",
-                    self.conf.pico_device_id,
+                    self.conf.device_id,
                     button,
                     data,
                 )
                 return
-
             if self.conf.profile == PROFILE_PADDLE:
                 self._handle_paddle_event(button, action)
             elif self.conf.profile == PROFILE_FIVE_BUTTON:
                 self._handle_five_button_event(button, action)
+            elif self.conf.profile == PROFILE_TWO_BUTTON:
+                self._handle_two_button_event(button, action)
+
 
         self._unsub_event = self.hass.bus.async_listen(PICO_EVENT_TYPE, _handle_event)
         _LOGGER.info(
             "PicoController started for device %s controlling entities %s (profile=%s)",
-            self.conf.pico_device_id,
+            self.conf.device_id,
             self.conf.entities,
             self.conf.profile,
         )
@@ -91,7 +94,7 @@ class PicoController:
                 _LOGGER.debug(
                     "Cancelled running task for button '%s' on device %s",
                     button,
-                    self.conf.pico_device_id,
+                    self.conf.device_id,
                 )
             self._tasks[button] = None
 
@@ -112,7 +115,7 @@ class PicoController:
         if button is None or action is None:
             _LOGGER.debug(
                 "Event for device %s missing button_type/action: %s",
-                self.conf.pico_device_id,
+                self.conf.device_id,
                 data,
             )
             return None, None
@@ -123,7 +126,7 @@ class PicoController:
         if action not in ("press", "release"):
             _LOGGER.debug(
                 "Device %s: ignoring unsupported action '%s' (data=%s)",
-                self.conf.pico_device_id,
+                self.conf.device_id,
                 action,
                 data,
             )
@@ -132,7 +135,7 @@ class PicoController:
         return button, action
 
     # ---------------------------------------------------------------------
-    # Paddle profile: press vs hold on ON/OFF
+    # Paddle profile: tap vs hold on ON/OFF
     # ---------------------------------------------------------------------
 
     def _handle_paddle_event(self, button: str, action: str) -> None:
@@ -148,7 +151,7 @@ class PicoController:
     def _handle_press_paddle(self, button: str) -> None:
         _LOGGER.debug(
             "Device %s (paddle): button '%s' press",
-            self.conf.pico_device_id,
+            self.conf.device_id,
             button,
         )
 
@@ -157,7 +160,7 @@ class PicoController:
             old_task.cancel()
             _LOGGER.debug(
                 "Device %s (paddle): cancelled previous task for '%s' (restart)",
-                self.conf.pico_device_id,
+                self.conf.device_id,
                 button,
             )
 
@@ -168,7 +171,7 @@ class PicoController:
     def _handle_release_paddle(self, button: str) -> None:
         _LOGGER.debug(
             "Device %s (paddle): button '%s' release",
-            self.conf.pico_device_id,
+            self.conf.device_id,
             button,
         )
         self._pressed[button] = False
@@ -179,27 +182,27 @@ class PicoController:
             await asyncio.sleep(self._hold_time)
 
             if not self._pressed.get(button, False):
-                # Short press
+                # Tap (short press)
                 if button == "on":
                     await self._short_press_on()
                 else:
                     await self._short_press_off()
                 return
 
-            # Long press -> ramp (on = up, off = down)
+            # Hold (long press) -> ramp (on = up, off = down)
             direction = 1 if button == "on" else -1
             await self._ramp_loop(direction, active_button=button)
 
         except asyncio.CancelledError:
             _LOGGER.debug(
                 "Device %s (paddle): lifecycle task for '%s' cancelled",
-                self.conf.pico_device_id,
+                self.conf.device_id,
                 button,
             )
         except Exception as err:  # noqa: BLE001
             _LOGGER.exception(
                 "Device %s (paddle): error in lifecycle for '%s': %s",
-                self.conf.pico_device_id,
+                self.conf.device_id,
                 button,
                 err,
             )
@@ -220,7 +223,7 @@ class PicoController:
     def _handle_press_five(self, button: str) -> None:
         _LOGGER.debug(
             "Device %s (five_button): button '%s' press",
-            self.conf.pico_device_id,
+            self.conf.device_id,
             button,
         )
 
@@ -243,7 +246,7 @@ class PicoController:
                     self._tasks[btn] = None
             _LOGGER.debug(
                 "Device %s (five_button): STOP pressed; halted ramping",
-                self.conf.pico_device_id,
+                self.conf.device_id,
             )
             return
 
@@ -263,10 +266,40 @@ class PicoController:
             task = asyncio.create_task(self._ramp_loop(direction, active_button=button))
             self._tasks[button] = task
 
+    # ---------------------------------------------------------------------
+    # Two-button profile: simple ON/OFF only
+    # ---------------------------------------------------------------------
+
+    def _handle_two_button_event(self, button: str, action: str) -> None:
+        """Two-button Pico: instant ON or OFF, no holds, no ramp."""
+        if action != "press":
+            # we ignore releases entirely
+            return
+
+        _LOGGER.debug(
+            "Device %s (two_button): button '%s' press",
+            self.conf.device_id,
+            button,
+        )
+
+        if button == "on":
+            asyncio.create_task(self._short_press_on())
+            return
+
+        if button == "off":
+            asyncio.create_task(self._short_press_off())
+            return
+
+        _LOGGER.debug(
+            "Device %s (two_button): ignoring unsupported button '%s'",
+            self.conf.device_id,
+            button,
+        )
+
     def _handle_release_five(self, button: str) -> None:
         _LOGGER.debug(
             "Device %s (five_button): button '%s' release",
-            self.conf.pico_device_id,
+            self.conf.device_id,
             button,
         )
 
@@ -288,7 +321,7 @@ class PicoController:
         """Short ON press: set brightness to configured level."""
         _LOGGER.debug(
             "Device %s: ON → brightness_pct=%s for %s",
-            self.conf.pico_device_id,
+            self.conf.device_id,
             self.conf.brightness_on_pct,
             self.conf.entities,
         )
@@ -301,7 +334,7 @@ class PicoController:
         """Short OFF press: turn lights off."""
         _LOGGER.debug(
             "Device %s: OFF → turn_off for %s",
-            self.conf.pico_device_id,
+            self.conf.device_id,
             self.conf.entities,
         )
         await self._call_light_service("turn_off", {})
@@ -311,7 +344,7 @@ class PicoController:
         step = self.conf.step_pct * direction
         _LOGGER.debug(
             "Device %s: ramp loop start (btn=%s dir=%s step_pct=%s step_time=%ss) for %s",
-            self.conf.pico_device_id,
+            self.conf.device_id,
             active_button,
             direction,
             self.conf.step_pct,
@@ -330,7 +363,7 @@ class PicoController:
                 if not await self._brightness_in_range(direction):
                     _LOGGER.debug(
                         "Device %s: brightness limit reached, stopping ramp",
-                        self.conf.pico_device_id,
+                        self.conf.device_id,
                     )
                     break
 
@@ -338,7 +371,7 @@ class PicoController:
         except asyncio.CancelledError:
             _LOGGER.debug(
                 "Device %s: ramp loop cancelled (btn=%s)",
-                self.conf.pico_device_id,
+                self.conf.device_id,
                 active_button,
             )
 
@@ -355,14 +388,14 @@ class PicoController:
         if brightness is None:
             _LOGGER.debug(
                 "Device %s: entity %s has no brightness attribute; continuing ramp",
-                self.conf.pico_device_id,
+                self.conf.device_id,
                 self.conf.entities[0],
             )
             return True
 
         _LOGGER.debug(
             "Device %s: current brightness for %s is %s",
-            self.conf.pico_device_id,
+            self.conf.device_id,
             self.conf.entities[0],
             brightness,
         )
@@ -392,7 +425,7 @@ class PicoController:
             if continue_on_error:
                 _LOGGER.debug(
                     "Device %s: error calling light.%s(%s): %s",
-                    self.conf.pico_device_id,
+                    self.conf.device_id,
                     service,
                     service_data,
                     err,
@@ -400,7 +433,7 @@ class PicoController:
             else:
                 _LOGGER.error(
                     "Device %s: error calling light.%s(%s): %s",
-                    self.conf.pico_device_id,
+                    self.conf.device_id,
                     service,
                     service_data,
                     err,
