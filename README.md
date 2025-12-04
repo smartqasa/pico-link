@@ -106,7 +106,7 @@ Add one or more Pico mappings in your `configuration.yaml`:
 | Key          | Required | Default | Description                         |
 | ------------ | -------- | ------- | ----------------------------------- |
 | device_id    | Yes      | —       | Device ID of the Pico (from event). |
-| class        | Yes      | light   | Class of the entities controlled.   |
+| domain       | Yes      | light   | Class of the entities controlled.   |
 | entities     | Yes      | —       | List of light entities controlled.  |
 | profile      | No       | paddle  | "paddle" or "five_button"           |
 | hold_time_ms | No       | 250     | Hold threshold (paddle only).       |
@@ -120,7 +120,7 @@ pico_link:
   - device_id: abc123... (see below for how to locate)
     profile: five_button # "five_button", "four_button" or "two_button", or "paddle"
 
-    domain: light # "light", "fan", or "cover"
+    domain: light # "light", "fan", "cover", or "media_player"
     entities:
       - light.bedroom_color_lights
 

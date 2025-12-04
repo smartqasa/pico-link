@@ -22,15 +22,12 @@ class SharedBehaviors:
         # Press state per logical button
         self._pressed: Dict[str, bool] = {btn: False for btn in SUPPORTED_BUTTONS}
 
-        # Task per button to implement lifecycle / ramp
+        # Task per button for ramp-type behaviors
         self._tasks: Dict[str, Optional[asyncio.Task]] = {
             btn: None for btn in SUPPORTED_BUTTONS
         }
 
-        # For future features
         self._last_press_ts: Dict[str, float] = {btn: 0.0 for btn in SUPPORTED_BUTTONS}
-
-        # Unsubscribe callback from hass.bus.async_listen
         self._unsub_event: Optional[CALLBACK_TYPE] = None
 
         # Convert ms → seconds
@@ -43,6 +40,13 @@ class SharedBehaviors:
 
     async def _short_press_on(self) -> None:
         domain = self.conf.domain
+
+        #
+        # MEDIA PLAYER
+        #
+        if domain == "media_player":
+            await self._media_play_pause()
+            return
 
         #
         # LIGHT
@@ -72,20 +76,18 @@ class SharedBehaviors:
                 self.conf.entities[0] if self.conf.entities else None
             )
 
-            # Default: fallback to simple open_cover
             fallback = False
 
             if entity_id:
                 state = self.hass.states.get(entity_id)
-                if state:
-                    # Covers that support position expose current_position
-                    supports_position = "current_position" in state.attributes
-                else:
-                    supports_position = False
+                supports_position = (
+                    "current_position" in state.attributes
+                    if state else False
+                )
             else:
                 supports_position = False
 
-            # Try position-based control if supported
+            # Use position if supported
             if supports_position:
                 try:
                     await self._call_entity_service(
@@ -95,8 +97,7 @@ class SharedBehaviors:
                     return
                 except Exception as err:
                     _LOGGER.debug(
-                        "Device %s (cover): set_cover_position failed (%s), "
-                        "falling back to open_cover",
+                        "Device %s (cover): position failed (%s), fallback to open",
                         self.conf.device_id,
                         err,
                     )
@@ -110,27 +111,63 @@ class SharedBehaviors:
     async def _short_press_off(self) -> None:
         domain = self.conf.domain
 
+        #
+        # MEDIA PLAYER
+        #
+        if domain == "media_player":
+            await self._media_next()
+            return
+
+        #
+        # LIGHT
+        #
         if domain == "light":
             await self._call_entity_service("turn_off", {})
             return
 
+        #
+        # FAN
+        #
         if domain == "fan":
             await self._call_entity_service("turn_off", {})
             return
 
+        #
+        # COVER
+        #
         if domain == "cover":
             await self._call_entity_service("close_cover", {})
             return
+
+    # ---------------------------------------------------------------------
+    # MEDIA PLAYER BEHAVIORS
+    # ---------------------------------------------------------------------
+
+    async def _media_play_pause(self) -> None:
+        """Toggle play/pause."""
+        await self._call_entity_service("media_play_pause", {})
+
+    async def _media_next(self) -> None:
+        """Next track."""
+        await self._call_entity_service("media_next_track", {})
+
+    async def _media_volume_step(self, direction: int) -> None:
+        """
+        direction = +1 → volume_up
+        direction = -1 → volume_down
+        """
+        service = "volume_up" if direction > 0 else "volume_down"
+        await self._call_entity_service(service, {})
 
     # ---------------------------------------------------------------------
     # LIGHT BRIGHTNESS RAMPING (HOLD BEHAVIOR)
     # ---------------------------------------------------------------------
 
     async def _ramp_loop(self, direction: int, active_button: str) -> None:
-        """Repeatedly brightness_step_pct while held (LIGHT ONLY)."""
+        """Repeated brightness_step_pct while held (LIGHT ONLY)."""
 
         if self.conf.domain != "light":
-            return  # only lights support ramping
+            return
 
         step = self.conf.step_pct * direction
 
@@ -151,8 +188,6 @@ class SharedBehaviors:
             pass
 
     async def _brightness_in_range(self, direction: int) -> bool:
-        """Check if brightness is still within valid bounds."""
-
         if not self.conf.entities:
             return False
 
@@ -176,14 +211,9 @@ class SharedBehaviors:
     # ---------------------------------------------------------------------
 
     def _get_fan_speed_ladder(self) -> list[int]:
-        """
-        speeds = 4  -> ~[0, 33, 67, 100]
-        speeds = 6  -> [0, 20, 40, 60, 80, 100] (default)
-        """
         speeds = getattr(self.conf, "speeds", 6) or 6
         if speeds not in (4, 6):
             speeds = 6
-
         steps = speeds - 1
         return [round(i * 100 / steps) for i in range(speeds)]
 
@@ -199,47 +229,31 @@ class SharedBehaviors:
         pct = state.attributes.get("percentage")
 
         if pct is None:
-            # If off → treat as 0%
-            if state.state == "off":
-                return 0.0
-            # Otherwise fall back to on_pct
-            return float(self.conf.on_pct)
+            return 0.0 if state.state == "off" else float(self.conf.on_pct)
 
         try:
             return float(pct)
-        except (TypeError, ValueError):
+        except Exception:
             return None
 
     async def _fan_step_discrete(self, direction: int) -> None:
         if not self.conf.entities:
-            _LOGGER.debug(
-                "Device %s (fan): no entities configured",
-                self.conf.device_id,
-            )
             return
 
         ladder = self._get_fan_speed_ladder()
         current_pct = self._get_current_fan_percentage()
-
         if current_pct is None:
-            _LOGGER.debug(
-                "Device %s (fan): cannot determine percentage",
-                self.conf.device_id,
-            )
             return
 
-        # Pick nearest speed index
         current_index = min(
             range(len(ladder)),
             key=lambda i: abs(ladder[i] - current_pct),
         )
-
         target_index = max(
             0, min(len(ladder) - 1, current_index + direction)
         )
 
         target_pct = ladder[target_index]
-
         if target_pct == current_pct:
             return
 
@@ -258,9 +272,10 @@ class SharedBehaviors:
         data: Dict[str, Any],
         continue_on_error: bool = False,
     ) -> None:
-        domain = self.conf.domain  # light, fan, cover
 
+        domain = self.conf.domain  # light, fan, cover, media_player
         service_data = {**data}
+
         if self.conf.entities:
             service_data["entity_id"] = self.conf.entities
 
@@ -271,7 +286,7 @@ class SharedBehaviors:
                 service_data,
                 blocking=False,
             )
-        except Exception as err:  # noqa: BLE001
+        except Exception as err:
             msg = (
                 f"Device {self.conf.device_id}: error calling "
                 f"{domain}.{service}({service_data}): {err}"
@@ -286,14 +301,6 @@ class SharedBehaviors:
     # ---------------------------------------------------------------------
 
     async def _execute_button_action(self, action: Dict[str, Any]) -> None:
-        """
-        Executes:
-        {
-            "action": "light.turn_on",
-            "target": {"entity_id": "..."},
-            "data": {...}
-        }
-        """
         try:
             domain, service = action["action"].split(".", 1)
         except Exception as err:

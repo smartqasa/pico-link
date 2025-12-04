@@ -103,10 +103,9 @@ def parse_pico_config(raw: Dict[str, Any]) -> PicoConfig:
 
     hold_time_ms = int(raw.get("hold_time_ms", 300))
     step_time_ms = int(raw.get("step_time_ms", 200))
-    step_pct = int(raw.get("step_pct", 5))
     on_pct = int(raw.get("on_pct", 100))
+    step_pct = int(raw.get("step_pct", 5))
     fan_speeds = int(raw.get("fan_speeds", 6))
-
     buttons = raw.get("buttons", {})
 
     conf = PicoConfig(
