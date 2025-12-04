@@ -13,7 +13,7 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class SharedBehaviors:
-    """Mixin providing shared state and behaviors for PicoController."""
+    """Mixin providing shared behaviors for all PicoController profiles."""
 
     def __init__(self, hass: HomeAssistant, conf: PicoConfig) -> None:
         self.hass = hass
@@ -38,48 +38,99 @@ class SharedBehaviors:
         self._step_time = conf.step_time_ms / 1000.0
 
     # ---------------------------------------------------------------------
-    # Shared ON/OFF behaviors (domain-aware)
+    # ON / OFF BEHAVIORS (DOMAIN-AWARE)
     # ---------------------------------------------------------------------
 
     async def _short_press_on(self) -> None:
         domain = self.conf.domain
 
+        #
+        # LIGHT
+        #
         if domain == "light":
             await self._call_entity_service(
                 "turn_on",
                 {"brightness_pct": self.conf.on_pct},
             )
+            return
 
-        elif domain == "fan":
+        #
+        # FAN
+        #
+        if domain == "fan":
             await self._call_entity_service(
                 "set_percentage",
                 {"percentage": self.conf.on_pct},
             )
+            return
 
-        elif domain == "cover":
-            await self._call_entity_service("open_cover", {})
+        #
+        # COVER
+        #
+        if domain == "cover":
+            entity_id = (
+                self.conf.entities[0] if self.conf.entities else None
+            )
+
+            # Default: fallback to simple open_cover
+            fallback = False
+
+            if entity_id:
+                state = self.hass.states.get(entity_id)
+                if state:
+                    # Covers that support position expose current_position
+                    supports_position = "current_position" in state.attributes
+                else:
+                    supports_position = False
+            else:
+                supports_position = False
+
+            # Try position-based control if supported
+            if supports_position:
+                try:
+                    await self._call_entity_service(
+                        "set_cover_position",
+                        {"position": self.conf.on_pct},
+                    )
+                    return
+                except Exception as err:
+                    _LOGGER.debug(
+                        "Device %s (cover): set_cover_position failed (%s), "
+                        "falling back to open_cover",
+                        self.conf.device_id,
+                        err,
+                    )
+                    fallback = True
+            else:
+                fallback = True
+
+            if fallback:
+                await self._call_entity_service("open_cover", {})
 
     async def _short_press_off(self) -> None:
         domain = self.conf.domain
 
         if domain == "light":
             await self._call_entity_service("turn_off", {})
+            return
 
-        elif domain == "fan":
+        if domain == "fan":
             await self._call_entity_service("turn_off", {})
+            return
 
-        elif domain == "cover":
+        if domain == "cover":
             await self._call_entity_service("close_cover", {})
+            return
 
     # ---------------------------------------------------------------------
-    # Ramping (LIGHT domain only)
+    # LIGHT BRIGHTNESS RAMPING (HOLD BEHAVIOR)
     # ---------------------------------------------------------------------
 
     async def _ramp_loop(self, direction: int, active_button: str) -> None:
         """Repeatedly brightness_step_pct while held (LIGHT ONLY)."""
 
         if self.conf.domain != "light":
-            return  # non-light domains do not support ramping
+            return  # only lights support ramping
 
         step = self.conf.step_pct * direction
 
@@ -100,7 +151,7 @@ class SharedBehaviors:
             pass
 
     async def _brightness_in_range(self, direction: int) -> bool:
-        """Check if brightness is still within limits."""
+        """Check if brightness is still within valid bounds."""
 
         if not self.conf.entities:
             return False
@@ -121,26 +172,22 @@ class SharedBehaviors:
         return True
 
     # ---------------------------------------------------------------------
-    # FAN discrete speed helpers (domain = fan)
+    # FAN SPEED LADDER (DISCRETE SPEED CONTROL)
     # ---------------------------------------------------------------------
 
     def _get_fan_speed_ladder(self) -> list[int]:
         """
-        Build the discrete fan speed ladder based on config.speeds.
-
-        speeds = 4 -> ~[0, 33, 67, 100]
-        speeds = 6 -> [0, 20, 40, 60, 80, 100] (default)
+        speeds = 4  -> ~[0, 33, 67, 100]
+        speeds = 6  -> [0, 20, 40, 60, 80, 100] (default)
         """
         speeds = getattr(self.conf, "speeds", 6) or 6
         if speeds not in (4, 6):
             speeds = 6
 
         steps = speeds - 1
-        ladder = [round(i * 100 / steps) for i in range(speeds)]
-        return ladder
+        return [round(i * 100 / steps) for i in range(speeds)]
 
     def _get_current_fan_percentage(self) -> Optional[float]:
-        """Return current fan percentage (0–100), or None if unavailable."""
         if not self.conf.entities:
             return None
 
@@ -150,10 +197,12 @@ class SharedBehaviors:
             return None
 
         pct = state.attributes.get("percentage")
+
         if pct is None:
-            # Fallback: if fan is off, treat as 0; if on, treat as on_pct
+            # If off → treat as 0%
             if state.state == "off":
                 return 0.0
+            # Otherwise fall back to on_pct
             return float(self.conf.on_pct)
 
         try:
@@ -162,13 +211,9 @@ class SharedBehaviors:
             return None
 
     async def _fan_step_discrete(self, direction: int) -> None:
-        """
-        Step fan speed up or down one discrete level based on the configured
-        number of speeds. Does NOT wrap around; clamps at min/max.
-        """
         if not self.conf.entities:
             _LOGGER.debug(
-                "Device %s (fan): no entities configured for fan control",
+                "Device %s (fan): no entities configured",
                 self.conf.device_id,
             )
             return
@@ -178,33 +223,24 @@ class SharedBehaviors:
 
         if current_pct is None:
             _LOGGER.debug(
-                "Device %s (fan): unable to determine current percentage; "
-                "no step performed",
+                "Device %s (fan): cannot determine percentage",
                 self.conf.device_id,
             )
             return
 
-        # Find nearest speed index
+        # Pick nearest speed index
         current_index = min(
             range(len(ladder)),
             key=lambda i: abs(ladder[i] - current_pct),
         )
 
-        target_index = current_index + direction
-        if target_index < 0:
-            target_index = 0
-        elif target_index >= len(ladder):
-            target_index = len(ladder) - 1
+        target_index = max(
+            0, min(len(ladder) - 1, current_index + direction)
+        )
 
         target_pct = ladder[target_index]
 
-        # If no change, nothing to do
         if target_pct == current_pct:
-            _LOGGER.debug(
-                "Device %s (fan): percentage already at boundary (%s%%)",
-                self.conf.device_id,
-                target_pct,
-            )
             return
 
         await self._call_entity_service(
@@ -213,7 +249,7 @@ class SharedBehaviors:
         )
 
     # ---------------------------------------------------------------------
-    # Generic domain-based service caller
+    # SHARED SERVICE CALLER
     # ---------------------------------------------------------------------
 
     async def _call_entity_service(
@@ -230,7 +266,10 @@ class SharedBehaviors:
 
         try:
             await self.hass.services.async_call(
-                domain, service, service_data, blocking=False
+                domain,
+                service,
+                service_data,
+                blocking=False,
             )
         except Exception as err:  # noqa: BLE001
             msg = (
@@ -243,12 +282,12 @@ class SharedBehaviors:
                 _LOGGER.error(msg)
 
     # ---------------------------------------------------------------------
-    # Four-button action executor
+    # FOUR-BUTTON ACTION EXECUTOR
     # ---------------------------------------------------------------------
 
     async def _execute_button_action(self, action: Dict[str, Any]) -> None:
         """
-        Executes a mapping such as:
+        Executes:
         {
             "action": "light.turn_on",
             "target": {"entity_id": "..."},
@@ -277,7 +316,10 @@ class SharedBehaviors:
 
         try:
             await self.hass.services.async_call(
-                domain, service, service_data, blocking=False
+                domain,
+                service,
+                service_data,
+                blocking=False,
             )
         except Exception as err:
             _LOGGER.error(
