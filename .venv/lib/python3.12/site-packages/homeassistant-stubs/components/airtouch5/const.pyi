@@ -1,3 +1,0 @@
-DOMAIN: str
-FAN_TURBO: str
-FAN_INTELLIGENT_AUTO: str

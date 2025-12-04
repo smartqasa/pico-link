@@ -1,3 +1,0 @@
-DOMAIN: str
-DEFAULT_NAME: str
-DEFAULT_ACCESS: str

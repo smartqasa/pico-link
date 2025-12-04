@@ -1,7 +1,0 @@
-DOMAIN: str
-MANUFACTURER: str
-MODEL: str
-OHM: str
-DISCOVERY_SVC_UUID: str
-MAX_TEMP: int
-MIN_TEMP: int

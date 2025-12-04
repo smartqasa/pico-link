@@ -1,4 +1,0 @@
-from .coordinator import GooglePhotosUpdateCoordinator as GooglePhotosUpdateCoordinator
-from homeassistant.config_entries import ConfigEntry as ConfigEntry
-
-type GooglePhotosConfigEntry = ConfigEntry[GooglePhotosUpdateCoordinator]

@@ -1,3 +1,0 @@
-from homeassistant.exceptions import HomeAssistantError as HomeAssistantError
-
-class Disconnect(HomeAssistantError): ...

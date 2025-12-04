@@ -1,2 +1,0 @@
-DOMAIN: str
-CONF_EXPIRATION: str

@@ -1,3 +1,0 @@
-HUE_SERIAL_NUMBER: str
-HUE_UUID: str
-DOMAIN: str
