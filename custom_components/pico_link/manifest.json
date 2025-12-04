@@ -1,9 +1,9 @@
 {
-  "name": "Pico Connector",
+  "name": "Pico Link",
   "version": "1.1.0",
   "domain": "pico_link",
-  "documentation": "https://github.com/smartqasa/pico-connector",
-  "issue_tracker": "https://github.com/smartqasa/pico-connector/issues",
+  "documentation": "https://github.com/smartqasa/pico-link",
+  "issue_tracker": "https://github.com/smartqasa/pico-link/issues",
   "codeowners": ["@smartqasa"],
   "iot_class": "local_push",
   "quality_scale": "internal",
