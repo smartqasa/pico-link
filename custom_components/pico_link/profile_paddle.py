@@ -20,55 +20,56 @@ class PaddleProfile:
     # ENTRY POINTS CALLED BY PicoController
     # ------------------------------------------------------------------
     def handle_press(self, button: str, token: int) -> None:
-        """
-        Called by PicoController for every button press.
-        `token` uniquely identifies THIS press and rejects stale tasks.
-        """
+        """Called for every press. Token ensures lifecycle validity."""
         if button not in ("on", "off"):
             return
 
-        # Cancel any previous task for this button
+        # Cancel any previous lifecycle on this button
         existing = self._ctrl._tasks.get(button)
         if existing and not existing.done():
             existing.cancel()
 
-        # Mark pressed
+        # Mark this button as pressed
         self._ctrl._pressed[button] = True
 
-        # Launch the tap/hold lifecycle
+        # Start tap/hold lifecycle
         self._ctrl._tasks[button] = asyncio.create_task(
             self._press_lifecycle(button, token)
         )
 
     def handle_release(self, button: str) -> None:
-        """Called by PicoController on release."""
+        """
+        DO NOT cancel lifecycle task here.
+        That task needs to run so it can detect TAP vs HOLD.
+        """
         if button not in ("on", "off"):
             return
 
+        # Mark released
         self._ctrl._pressed[button] = False
-        task = self._ctrl._tasks.get(button)
-        if task and not task.done():
-            task.cancel()
-
-        self._ctrl._tasks[button] = None
+        # Do NOT cancel the task!
+        # A TAP occurs only when the lifecycle wakes up after hold_time
+        # and sees "_pressed == False".
 
     # ------------------------------------------------------------------
     # TAP / HOLD LIFECYCLE (TOKEN-SAFE)
     # ------------------------------------------------------------------
     async def _press_lifecycle(self, button: str, my_token: int) -> None:
         """
-        - A quick release → TAP
-        - A continued hold → HOLD and ramp
+        After hold_time:
+        - If released → TAP
+        - If still pressed → HOLD (ramp)
+        Token ensures stale tasks never fire.
         """
         try:
             # Wait for hold timeout
             await asyncio.sleep(self._ctrl._hold_time)
 
-            # If a newer press has occurred → this is stale, exit
+            # If a newer press occurred → exit silently
             if my_token != self._ctrl._press_tokens[button]:
                 return
 
-            # If button was released → TAP
+            # TAP: button was released before hold_time
             if not self._ctrl._pressed.get(button, False):
                 if button == "on":
                     await self._ctrl._short_press_on()
@@ -76,12 +77,12 @@ class PaddleProfile:
                     await self._ctrl._short_press_off()
                 return
 
-            # HOLD → ramp (lights only)
+            # HOLD behavior (light domain only)
             if self._ctrl.conf.domain == "light":
                 direction = 1 if button == "on" else -1
                 await self._ramp_paddle(direction, button)
             else:
-                # Non-light devices: treat hold as tap
+                # Non-light devices → treat hold like tap
                 if button == "on":
                     await self._ctrl._short_press_on()
                 else:
@@ -91,7 +92,7 @@ class PaddleProfile:
             pass
 
         finally:
-            # Cleanup
+            # Cleanup lifecycle
             self._ctrl._pressed[button] = False
             self._ctrl._tasks[button] = None
 
