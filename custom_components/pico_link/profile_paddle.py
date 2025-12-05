@@ -16,56 +16,59 @@ class PaddleProfile:
     def __init__(self, controller: "PicoController") -> None:
         self._ctrl = controller
 
-    # -------------------------------------------------------------
-    # Entry point called by the PicoController
-    # -------------------------------------------------------------
-    def handle(self, button: str, action: str) -> None:
+    # ------------------------------------------------------------------
+    # ENTRY POINTS CALLED BY PicoController
+    # ------------------------------------------------------------------
+    def handle_press(self, button: str, token: int) -> None:
+        """
+        Called by PicoController for every button press.
+        `token` uniquely identifies THIS press and rejects stale tasks.
+        """
         if button not in ("on", "off"):
             return
 
-        if action == "press":
-            self._handle_press(button)
-        elif action == "release":
-            self._handle_release(button)
+        # Cancel any previous task for this button
+        existing = self._ctrl._tasks.get(button)
+        if existing and not existing.done():
+            existing.cancel()
 
-    # -------------------------------------------------------------
-    # PRESS
-    # -------------------------------------------------------------
-    def _handle_press(self, button: str) -> None:
-        # Cancel any prior lifecycle task
-        old = self._ctrl._tasks.get(button)
-        if old and not old.done():
-            old.cancel()
-
+        # Mark pressed
         self._ctrl._pressed[button] = True
 
-        # Start lifecycle handler (tap vs hold)
+        # Launch the tap/hold lifecycle
         self._ctrl._tasks[button] = asyncio.create_task(
-            self._hold_lifecycle(button)
+            self._press_lifecycle(button, token)
         )
 
-    # -------------------------------------------------------------
-    # RELEASE
-    # -------------------------------------------------------------
-    def _handle_release(self, button: str) -> None:
+    def handle_release(self, button: str) -> None:
+        """Called by PicoController on release."""
+        if button not in ("on", "off"):
+            return
+
         self._ctrl._pressed[button] = False
         task = self._ctrl._tasks.get(button)
         if task and not task.done():
             task.cancel()
+
         self._ctrl._tasks[button] = None
 
-    # -------------------------------------------------------------
-    # TAP vs HOLD logic
-    # -------------------------------------------------------------
-    async def _hold_lifecycle(self, button: str) -> None:
+    # ------------------------------------------------------------------
+    # TAP / HOLD LIFECYCLE (TOKEN-SAFE)
+    # ------------------------------------------------------------------
+    async def _press_lifecycle(self, button: str, my_token: int) -> None:
         """
-        - Short tap → on/off
-        - Hold → ramp (lights only)
+        - A quick release → TAP
+        - A continued hold → HOLD and ramp
         """
         try:
+            # Wait for hold timeout
             await asyncio.sleep(self._ctrl._hold_time)
 
-            # Released → short press
+            # If a newer press has occurred → this is stale, exit
+            if my_token != self._ctrl._press_tokens[button]:
+                return
+
+            # If button was released → TAP
             if not self._ctrl._pressed.get(button, False):
                 if button == "on":
                     await self._ctrl._short_press_on()
@@ -73,12 +76,12 @@ class PaddleProfile:
                     await self._ctrl._short_press_off()
                 return
 
-            # Still pressed → hold behavior
+            # HOLD → ramp (lights only)
             if self._ctrl.conf.domain == "light":
                 direction = 1 if button == "on" else -1
                 await self._ramp_paddle(direction, button)
             else:
-                # Non-light → act like tap
+                # Non-light devices: treat hold as tap
                 if button == "on":
                     await self._ctrl._short_press_on()
                 else:
@@ -86,15 +89,16 @@ class PaddleProfile:
 
         except asyncio.CancelledError:
             pass
+
         finally:
+            # Cleanup
             self._ctrl._pressed[button] = False
             self._ctrl._tasks[button] = None
 
-    # -------------------------------------------------------------
-    # LOCAL ramp implementation (unique to paddle)
-    # -------------------------------------------------------------
+    # ------------------------------------------------------------------
+    # LOCAL RAMP IMPLEMENTATION (PADDLE-ONLY)
+    # ------------------------------------------------------------------
     async def _ramp_paddle(self, direction: int, button: str) -> None:
-        """Simple brightness ramp for paddle-only hold."""
         step_pct = self._ctrl.conf.step_pct
         step = step_pct * direction
 

@@ -1,5 +1,4 @@
 from __future__ import annotations
-
 import asyncio
 import logging
 from typing import TYPE_CHECKING
@@ -11,17 +10,17 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class TwoButtonProfile:
-    """Two-button profile: simple ON/OFF on press."""
+    """Two-button Pico: simple ON/OFF on tap."""
 
     def __init__(self, controller: "PicoController") -> None:
         self._ctrl = controller
 
-    # Public entrypoint used by PicoController
-    def handle(self, button: str, action: str) -> None:
-        if action != "press":
-            return
-
+    def handle_press(self, button: str, token: int) -> None:
         if button == "on":
             asyncio.create_task(self._ctrl._short_press_on())
         elif button == "off":
             asyncio.create_task(self._ctrl._short_press_off())
+
+    def handle_release(self, button: str) -> None:
+        # no hold logic → nothing to cancel
+        pass

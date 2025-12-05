@@ -15,6 +15,7 @@ from .const import (
     PICO_EVENT_TYPE,
 )
 from .behaviors import SharedBehaviors
+from .profile_base import PicoProfile     # <<< NEW
 from .profile_paddle import PaddleProfile
 from .profile_five import FiveButtonProfile
 from .profile_two import TwoButtonProfile
@@ -29,14 +30,30 @@ class PicoController(SharedBehaviors):
     def __init__(self, hass: HomeAssistant, conf: PicoConfig) -> None:
         super().__init__(hass, conf)
 
-        # Instantiate profile handlers
-        self._profiles: Dict[str, object] = {
+        # ---------------------------------------------------------
+        # Profiles MUST implement PicoProfile (handle_press/release)
+        # ---------------------------------------------------------
+        self._profiles: Dict[str, PicoProfile] = {
             PROFILE_PADDLE: PaddleProfile(self),
             PROFILE_FIVE_BUTTON: FiveButtonProfile(self),
             PROFILE_TWO_BUTTON: TwoButtonProfile(self),
             PROFILE_FOUR_BUTTON: FourButtonProfile(self),
         }
 
+        # Central press tokens for debouncing stale tasks
+        self._press_tokens = {btn: 0 for btn in SUPPORTED_BUTTONS}
+
+    # ---------------------------------------------------------
+    # TOKEN GENERATION
+    # ---------------------------------------------------------
+    def new_press_token(self, button: str) -> int:
+        """Increment and return a unique token for this button press."""
+        self._press_tokens[button] += 1
+        return self._press_tokens[button]
+
+    # ---------------------------------------------------------
+    # START LISTENING
+    # ---------------------------------------------------------
     async def async_start(self) -> None:
         """Start listening for Pico button events."""
 
@@ -53,7 +70,6 @@ class PicoController(SharedBehaviors):
             if button is None or action is None:
                 return
 
-            # Ignore unsupported buttons
             if button not in SUPPORTED_BUTTONS:
                 _LOGGER.debug(
                     "Device %s: ignoring unsupported button '%s'",
@@ -62,7 +78,6 @@ class PicoController(SharedBehaviors):
                 )
                 return
 
-            # Lookup profile handler
             profile_obj = self._profiles.get(self.conf.profile)
             if not profile_obj:
                 _LOGGER.warning(
@@ -72,9 +87,19 @@ class PicoController(SharedBehaviors):
                 )
                 return
 
-            # Every profile now exposes: handle(button, action)
             try:
-                profile_obj.handle(button, action)  # type: ignore[call-arg]
+                # ------------------------------
+                # Standardized dispatch model:
+                # ------------------------------
+                # Press   → handle_press(button, token)
+                # Release → handle_release(button)
+                # ------------------------------
+                if action == "press":
+                    token = self.new_press_token(button)
+                    profile_obj.handle_press(button, token)
+                else:
+                    profile_obj.handle_release(button)
+
             except Exception as err:
                 _LOGGER.error(
                     "Device %s: profile '%s' failed handling %s/%s: %s",
@@ -85,16 +110,19 @@ class PicoController(SharedBehaviors):
                     err,
                 )
 
-        # Subscribe to bus events
+        # Subscribe to HA event bus
         self._unsub_event = self.hass.bus.async_listen(PICO_EVENT_TYPE, _handle_event)
 
+    # ---------------------------------------------------------
+    # STOP / CLEANUP
+    # ---------------------------------------------------------
     def async_stop(self) -> None:
         """Stop listening and cancel tasks."""
         if self._unsub_event:
             self._unsub_event()
             self._unsub_event = None
 
-        # Cancel any running ramp/hold tasks
+        # Cancel all running tasks
         for button in SUPPORTED_BUTTONS:
             task = self._tasks.get(button)
             if task and not task.done():
@@ -105,16 +133,14 @@ class PicoController(SharedBehaviors):
         self._pressed = {btn: False for btn in SUPPORTED_BUTTONS}
 
     def unregister_listeners(self):
-        """Remove HA event listeners when unloading or reloading."""
+        """Used when reloading the integration."""
         if self._unsub_event:
             self._unsub_event()
             self._unsub_event = None
 
-
-    # ---------------------------------------------------------------------
-    # Event payload mapping
-    # ---------------------------------------------------------------------
-
+    # ---------------------------------------------------------
+    # EVENT PAYLOAD → (button, action)
+    # ---------------------------------------------------------
     def _map_event_payload(
         self,
         data: Mapping[str, Any],

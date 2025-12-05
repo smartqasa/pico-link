@@ -11,56 +11,23 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class FiveButtonProfile:
-    """Five-button profile:
-    - ON/OFF
-    - STOP (optional user-programmable)
-    - RAISE/LOWER tap = step, hold = ramp
+    """5-button Pico:
+    - on/off
+    - stop (optional custom action)
+    - raise/lower → tap = step, hold = ramp
     """
 
     def __init__(self, controller: "PicoController") -> None:
         self._ctrl = controller
 
-    # ------------------------------------------------------------------
-    # Public handler
-    # ------------------------------------------------------------------
-    def handle(self, button: str, action: str) -> None:
-        if action == "press":
-            self._handle_press(button)
-        elif action == "release":
-            self._handle_release(button)
-
-    # ------------------------------------------------------------------
-    # PRESS
-    # ------------------------------------------------------------------
-    def _handle_press(self, button: str) -> None:
-
-        # -----------------------------------------------------------
-        # STOP → user-defined OR cover stop
-        # -----------------------------------------------------------
+    # -------------------------------------------------------------
+    # ENTRY POINTS
+    # -------------------------------------------------------------
+    def handle_press(self, button: str, token: int) -> None:
         if button == "stop":
-            middle_action = getattr(self._ctrl.conf, "middle_button", None)
-
-            if middle_action:
-                asyncio.create_task(self._ctrl._execute_button_action(middle_action))
-                return
-
-            if self._ctrl.conf.domain == "cover":
-                asyncio.create_task(
-                    self._ctrl._call_entity_service("stop_cover", {})
-                )
-
-            # Cancel raise/lower
-            for b in ("raise", "lower"):
-                self._ctrl._pressed[b] = False
-                task = self._ctrl._tasks.get(b)
-                if task and not task.done():
-                    task.cancel()
-                    self._ctrl._tasks[b] = None
+            self._handle_stop()
             return
 
-        # -----------------------------------------------------------
-        # ON / OFF
-        # -----------------------------------------------------------
         if button == "on":
             asyncio.create_task(self._ctrl._short_press_on())
             return
@@ -69,108 +36,128 @@ class FiveButtonProfile:
             asyncio.create_task(self._ctrl._short_press_off())
             return
 
-        # -----------------------------------------------------------
-        # RAISE / LOWER
-        # -----------------------------------------------------------
         if button in ("raise", "lower"):
+            self._handle_raise_lower(button, token)
 
-            # LIGHT DOMAIN
-            if self._ctrl.conf.domain == "light":
-                direction = 1 if button == "raise" else -1
+    def handle_release(self, button: str) -> None:
+        if button in ("raise", "lower"):
+            self._ctrl._pressed[button] = False
+            task = self._ctrl._tasks.get(button)
+            if task and not task.done():
+                task.cancel()
+            self._ctrl._tasks[button] = None
 
-                # Mark pressed
-                self._ctrl._pressed[button] = True
+    # -------------------------------------------------------------
+    # STOP BUTTON
+    # -------------------------------------------------------------
+    def _handle_stop(self):
+        middle_action = getattr(self._ctrl.conf, "middle_button", None)
 
-                # IMMEDIATE brightness step (Lutron behavior)
-                asyncio.create_task(
-                    self._ctrl._call_entity_service(
-                        "turn_on",
-                        {"brightness_step_pct": self._ctrl.conf.step_pct * direction},
-                    )
+        if middle_action:
+            asyncio.create_task(self._ctrl._execute_button_action(middle_action))
+            return
+
+        if self._ctrl.conf.domain == "cover":
+            asyncio.create_task(
+                self._ctrl._call_entity_service("stop_cover", {})
+            )
+
+        # cancel raise/lower
+        for b in ("raise", "lower"):
+            self._ctrl._pressed[b] = False
+            task = self._ctrl._tasks.get(b)
+            if task and not task.done():
+                task.cancel()
+            self._ctrl._tasks[b] = None
+
+    # -------------------------------------------------------------
+    # RAISE / LOWER PRESS
+    # -------------------------------------------------------------
+    def _handle_raise_lower(self, button: str, token: int) -> None:
+        direction = 1 if button == "raise" else -1
+        domain = self._ctrl.conf.domain
+
+        # LIGHT domain
+        if domain == "light":
+            self._ctrl._pressed[button] = True
+
+            # immediate step
+            asyncio.create_task(
+                self._ctrl._call_entity_service(
+                    "turn_on",
+                    {"brightness_step_pct": self._ctrl.conf.step_pct * direction},
                 )
+            )
 
-                # Start hold-check
-                self._ctrl._tasks[button] = asyncio.create_task(
-                    self._hold_lifecycle(button, direction)
-                )
-                return
+            # start lifecycle
+            self._ctrl._tasks[button] = asyncio.create_task(
+                self._light_lifecycle(button, direction, token)
+            )
+            return
 
-            # COVER domain
-            if self._ctrl.conf.domain == "cover":
-                svc = "open_cover" if button == "raise" else "close_cover"
-                asyncio.create_task(self._ctrl._call_entity_service(svc, {}))
-                return
+        # COVER
+        if domain == "cover":
+            svc = "open_cover" if button == "raise" else "close_cover"
+            asyncio.create_task(self._ctrl._call_entity_service(svc, {}))
+            return
 
-            # FAN domain
-            if self._ctrl.conf.domain == "fan":
-                direction = 1 if button == "raise" else -1
-                asyncio.create_task(self._ctrl._fan_step_discrete(direction))
-                return
+        # FAN
+        if domain == "fan":
+            asyncio.create_task(self._ctrl._fan_step_discrete(direction))
 
-    # ------------------------------------------------------------------
-    # HOLD lifecycle (tap already performed on press)
-    # ------------------------------------------------------------------
-    async def _hold_lifecycle(self, button: str, direction: int):
+    # -------------------------------------------------------------
+    # TAP/HOLD lifecycle (raise/lower)
+    # -------------------------------------------------------------
+    async def _light_lifecycle(self, button: str, direction: int, token: int):
         try:
-            # WAIT for hold threshold
             await asyncio.sleep(self._ctrl._hold_time)
 
-            # Released before threshold → tap complete
+            # stale press?
+            if token != self._ctrl._press_tokens[button]:
+                return
+
+            # released before hold → tap already done
             if not self._ctrl._pressed.get(button, False):
                 return
 
-            # Begin ramping
-            await self._ramp_with_min_limit(button, direction)
+            # HOLD → ramp
+            await self._ramp(button, direction)
 
         except asyncio.CancelledError:
             pass
+
         finally:
             self._ctrl._pressed[button] = False
             self._ctrl._tasks[button] = None
 
-    # ------------------------------------------------------------------
-    # RAMP WITH MIN-BRIGHTNESS LIMIT (5-button-specific)
-    # ------------------------------------------------------------------
-    async def _ramp_with_min_limit(self, button: str, direction: int):
-        """
-        Ramping logic that stops dimming at low_pct.
-        Only used for 5-button Pico.
-        """
+    # -------------------------------------------------------------
+    # Ramp with low_pct stop
+    # -------------------------------------------------------------
+    async def _ramp(self, button: str, direction: int):
         step_pct = self._ctrl.conf.step_pct
         low_pct = self._ctrl.conf.low_pct
 
-        # Convert percentages → brightness scale (0–254)
         step_value = round(254 * (step_pct / 100))
-        min_brightness = round(254 * (low_pct / 100))
-        if min_brightness < 1:
-            min_brightness = 1
+        min_brightness = max(1, round(254 * (low_pct / 100)))
 
         try:
             while self._ctrl._pressed.get(button, False):
-
-                # Get current brightness
                 entity_id = self._ctrl.conf.entities[0]
                 state = self._ctrl.hass.states.get(entity_id)
-
-                if state is None:
+                if not state:
                     break
 
-                brightness = state.attributes.get("brightness")
-                if brightness is None:
+                b = state.attributes.get("brightness")
+                if b is None:
                     break
 
-                # Predict next brightness BEFORE applying the step
-                if direction < 0:  # Dimming
-                    next_brightness = brightness - step_value
-                    if next_brightness < min_brightness:
-                        break
+                # pre-check
+                if direction < 0 and b - step_value < min_brightness:
+                    break
+                if direction > 0 and b + step_value > 254:
+                    break
 
-                if direction > 0:  # Brightening
-                    next_brightness = brightness + step_value
-                    if next_brightness > 254:
-                        break
-
-                # Apply one brightness step
+                # apply step
                 await self._ctrl._call_entity_service(
                     "turn_on",
                     {"brightness_step_pct": step_pct * direction},
@@ -181,15 +168,3 @@ class FiveButtonProfile:
 
         except asyncio.CancelledError:
             pass
-
-
-    # ------------------------------------------------------------------
-    # RELEASE
-    # ------------------------------------------------------------------
-    def _handle_release(self, button: str) -> None:
-        if button in ("raise", "lower"):
-            self._ctrl._pressed[button] = False
-            task = self._ctrl._tasks.get(button)
-            if task and not task.done():
-                task.cancel()
-            self._ctrl._tasks[button] = None

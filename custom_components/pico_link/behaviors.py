@@ -40,14 +40,7 @@ class SharedBehaviors:
 
     async def _short_press_on(self) -> None:
         domain = self.conf.domain
-
-        #
-        # MEDIA PLAYER
-        #
-        if domain == "media_player":
-            await self._media_play_pause()
-            return
-
+        
         #
         # LIGHT
         #
@@ -56,6 +49,13 @@ class SharedBehaviors:
                 "turn_on",
                 {"brightness_pct": self.conf.on_pct},
             )
+            return
+
+        #
+        # MEDIA PLAYER
+        #
+        if domain == "media_player":
+            await self._media_play_pause()
             return
 
         #
