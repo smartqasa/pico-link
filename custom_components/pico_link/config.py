@@ -24,9 +24,9 @@ class PicoConfig:
     # Only applies to paddle, five_button, two_button
     domain: str = "light"
 
-    hold_time_ms: int = 300
+    hold_time_ms: int = 250
     step_time_ms: int = 200
-    step_pct: int = 5
+    step_pct: int = 10
     low_pct: int = 1
     on_pct: int = 100
     middle_button: Any = None  # User-defined action for five-button middle button
@@ -111,9 +111,9 @@ def parse_pico_config(raw: Dict[str, Any]) -> PicoConfig:
 
     domain = str(raw.get("domain", "light")).lower()
 
-    hold_time_ms = int(raw.get("hold_time_ms", 300))
+    hold_time_ms = int(raw.get("hold_time_ms", 250))
     step_time_ms = int(raw.get("step_time_ms", 200))
-    step_pct = int(raw.get("step_pct", 5))
+    step_pct = int(raw.get("step_pct", 10))
     low_pct = int(raw.get("low_pct", 1))
     on_pct = int(raw.get("on_pct", 100))
     fan_speeds = int(raw.get("fan_speeds", 6))
