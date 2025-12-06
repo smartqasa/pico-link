@@ -172,10 +172,13 @@ class SharedBehaviors:
             return
 
         brightness = state.attributes.get("brightness")
-        if brightness is None:
-            return
 
-        current_brightness = int(brightness)
+        # Light OFF → brightness=None → treat as 0
+        if brightness is None:
+            current_brightness = 0
+        else:
+            current_brightness = int(brightness)
+
 
         try:
             while self._pressed.get(button, False):
