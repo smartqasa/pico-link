@@ -1,3 +1,6 @@
+# ================================================================
+# CONFIG MODULE — Handles PicoLink configuration and validation
+# ================================================================
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -11,35 +14,52 @@ from .const import (
 )
 
 import logging
-
 _LOGGER = logging.getLogger(__name__)
 
 
+# ================================================================
+# DEVICE CONFIGURATION MODEL (DATACLASS)
+# ================================================================
 @dataclass
 class PicoConfig:
+    """
+    A normalized configuration object for a single Pico device.
+
+    NOTE:
+    - Defaults are applied from THREE layers:
+        1. Hardcoded dataclass defaults (lowest priority)
+        2. Global defaults block from configuration.yaml
+        3. Per-device overrides in configuration.yaml (highest priority)
+    """
+
     device_id: str
     profile: str
     entities: List[str]
 
-    # Only applies to paddle, five_button, two_button
+    # Behavior domain: determines ON/OFF actions, ramping, etc.
     domain: str = "light"
 
+    # Hold/tap timing
     hold_time_ms: int = 250
-    step_time_ms: int = 200
+    step_time_ms: int = 250
     step_pct: int = 10
-    low_pct: int = 1
-    on_pct: int = 100
-    fan_speeds: int = 6  # Allowed: 4 or 6
+    low_pct: int = 1        # minimum % permitted when dimming
+    on_pct: int = 100       # "turn on" default brightness %
+
+    # Optional fan behavior
+    fan_speeds: int = 6     # valid: 4 or 6
+
+    # Five-button middle-button action list
     middle_button: List[Dict[str, Any]] = field(default_factory=list)
-    # Four-button action map
+
+    # Four-button "buttons:" action maps
     buttons: Dict[str, List[Dict]] = field(default_factory=dict)
 
-    # ------------------------------------------------------------------
-    # VALIDATION
-    # ------------------------------------------------------------------
-
+    # ------------------------------------------------------------
+    # VALIDATION — Ensures a proper Pico configuration
+    # ------------------------------------------------------------
     def validate(self) -> None:
-        """Validate configuration rules based on the Pico profile."""
+        """Validate the config according to Pico profile rules."""
 
         allowed_profiles = {
             PROFILE_PADDLE,
@@ -50,22 +70,21 @@ class PicoConfig:
 
         if self.profile not in allowed_profiles:
             raise ValueError(
-                f"Invalid profile '{self.profile}'. Must be one of: {allowed_profiles}"
+                f"Invalid profile '{self.profile}'. Must be one of {allowed_profiles}"
             )
 
-        # ----------------------------------------------------------
-        # FOUR BUTTON PROFILE: does not use domain or entities
-        # ----------------------------------------------------------
+        # --------------------------------------------------------
+        # FOUR-BUTTON PROFILE — special case
+        # --------------------------------------------------------
         if self.profile == PROFILE_FOUR_BUTTON:
+            # Four-button mode does NOT require domain or entities
             if not isinstance(self.buttons, dict):
                 raise ValueError("'buttons' must be a dict for four_button profile")
-
-            # No further validation needed
             return
 
-        # ----------------------------------------------------------
-        # ALL OTHER PROFILES REQUIRE DOMAIN + ENTITIES
-        # ----------------------------------------------------------
+        # --------------------------------------------------------
+        # ALL OTHER PROFILES REQUIRE ENTITIES
+        # --------------------------------------------------------
         if not self.entities:
             raise ValueError(
                 "entities must be provided for paddle, five_button, and two_button profiles"
@@ -74,12 +93,12 @@ class PicoConfig:
         allowed_domains = {"light", "fan", "cover", "media_player"}
         if self.domain not in allowed_domains:
             raise ValueError(
-                f"Invalid domain '{self.domain}'. Must be one of: {allowed_domains}"
+                f"Invalid domain '{self.domain}'. Must be one of {allowed_domains}"
             )
 
-        # ----------------------------------------------------------
-        # TWO BUTTON PROFILE IGNORES RAMPING + HOLD
-        # ----------------------------------------------------------
+        # --------------------------------------------------------
+        # TWO-BUTTON PROFILE — no ramping, no hold
+        # --------------------------------------------------------
         if self.profile == PROFILE_TWO_BUTTON:
             if self.hold_time_ms != 0:
                 _LOGGER.debug(
@@ -92,47 +111,48 @@ class PicoConfig:
                     self.device_id,
                 )
 
-# ----------------------------------------------------------------------
-# CONFIG PARSER
-# ----------------------------------------------------------------------
 
+# ================================================================
+# CONFIG PARSER — MERGES DEFAULTS + DEVICE OVERRIDES
+# ================================================================
 def parse_pico_config(raw: Dict[str, Any]) -> PicoConfig:
-    """Normalize and validate a single YAML config entry."""
+    """
+    Convert a merged config dictionary into a PicoConfig object.
+
+    IMPORTANT:
+    - raw must ALREADY be merged: {**defaults, **device_override}
+    - This function performs:
+        → normalization
+        → type conversion
+        → validation (via PicoConfig.validate)
+    """
 
     if "device_id" not in raw:
         raise ValueError("Missing required key 'device_id'")
-    device_id = raw["device_id"]
 
+    device_id = raw["device_id"]
     profile = str(raw.get("profile", PROFILE_PADDLE)).lower()
 
-    # Entities not required for four_button
+    # Accept "entities:" or legacy "entity_id:"
     entities = raw.get("entities") or raw.get("entity_id") or []
-
-    domain = str(raw.get("domain", "light")).lower()
-
-    hold_time_ms = int(raw.get("hold_time_ms", 250))
-    step_time_ms = int(raw.get("step_time_ms", 200))
-    step_pct = int(raw.get("step_pct", 10))
-    low_pct = int(raw.get("low_pct", 1))
-    on_pct = int(raw.get("on_pct", 100))
-    fan_speeds = int(raw.get("fan_speeds", 6))
-    middle_button = raw.get("middle_button") or []
-    buttons = raw.get("buttons", {})
+    if isinstance(entities, str):
+        entities = [entities]
 
     conf = PicoConfig(
         device_id=device_id,
         profile=profile,
         entities=entities,
-        domain=domain,
-        hold_time_ms=hold_time_ms,
-        step_time_ms=step_time_ms,
-        step_pct=step_pct,
-        low_pct=low_pct,
-        on_pct=on_pct,
-        fan_speeds=fan_speeds,
-        middle_button=middle_button,
-        buttons=buttons,
+        domain=str(raw.get("domain", "light")).lower(),
+        hold_time_ms=int(raw.get("hold_time_ms", 250)),
+        step_time_ms=int(raw.get("step_time_ms", 250)),
+        step_pct=int(raw.get("step_pct", 10)),
+        low_pct=int(raw.get("low_pct", 1)),
+        on_pct=int(raw.get("on_pct", 100)),
+        fan_speeds=int(raw.get("fan_speeds", 6)),
+        middle_button=raw.get("middle_button") or [],
+        buttons=raw.get("buttons", {}),
     )
 
+    # Final correctness check
     conf.validate()
     return conf
