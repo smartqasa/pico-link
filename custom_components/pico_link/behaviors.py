@@ -145,67 +145,82 @@ class SharedBehaviors:
     # =====================================================================
     async def _ramp(self, button: str, direction: int):
         """
-        Unified ramp behavior for all profiles.
-        direction: +1 brighten, -1 dim
+        Optimized ramp:
+        - Read brightness ONCE
+        - Predict brightness locally
+        - Stop at min/max
+        - No state queries inside loop
         """
 
         step_pct = self.conf.step_pct
         low_pct = self.conf.low_pct
 
-        # Convert to brightness scale
+        # Convert pct → brightness (0-255)
         step_value = round(255 * (step_pct / 100))
         min_brightness = max(1, round(255 * (low_pct / 100)))
         max_brightness = 255
 
+        # ---------------------------------------------------------
+        # INITIAL brightness read (only one query!)
+        # ---------------------------------------------------------
+        if not self.conf.entities:
+            return
+
+        entity_id = self.conf.entities[0]
+        state = self.hass.states.get(entity_id)
+        if not state:
+            return
+
+        brightness = state.attributes.get("brightness")
+        if brightness is None:
+            return
+
+        current_brightness = int(brightness)
+
         try:
             while self._pressed.get(button, False):
-                # Read brightness
-                if not self.conf.entities:
+
+                # -------------------------------------------------
+                # Predict next brightness BEFORE sending command
+                # -------------------------------------------------
+                next_b = current_brightness + (step_value * direction)
+
+                # Dimming → clamp to minimum
+                if direction < 0 and next_b <= min_brightness:
+                    await self._call_entity_service(
+                        "turn_on",
+                        {"brightness": min_brightness},
+                        continue_on_error=True,
+                    )
                     return
 
-                entity_id = self.conf.entities[0]
-                state = self.hass.states.get(entity_id)
-                if not state:
+                # Brightening → clamp to maximum
+                if direction > 0 and next_b >= max_brightness:
+                    await self._call_entity_service(
+                        "turn_on",
+                        {"brightness": max_brightness},
+                        continue_on_error=True,
+                    )
                     return
 
-                brightness = state.attributes.get("brightness")
-                if brightness is None:
-                    return
-
-                # Predict next brightness BEFORE applying step
-                if direction < 0:  # Dimming
-                    next_b = brightness - step_value
-
-                    if next_b <= min_brightness:
-                        await self._call_entity_service(
-                            "turn_on",
-                            {"brightness": min_brightness},
-                            continue_on_error=True,
-                        )
-                        return
-
-                else:  # Brightening
-                    next_b = brightness + step_value
-
-                    if next_b >= max_brightness:
-                        await self._call_entity_service(
-                            "turn_on",
-                            {"brightness": max_brightness},
-                            continue_on_error=True,
-                        )
-                        return
-
-                # Apply incremental change
+                # -------------------------------------------------
+                # Apply step
+                # -------------------------------------------------
                 await self._call_entity_service(
                     "turn_on",
                     {"brightness_step_pct": step_pct * direction},
                     continue_on_error=True,
                 )
 
+                # Update local cached brightness
+                current_brightness = next_b
+
+                # Next step delay
                 await asyncio.sleep(self._step_time)
 
         except asyncio.CancelledError:
             return
+
 
     # ---------------------------------------------------------------------
     # MEDIA PLAYER BEHAVIORS

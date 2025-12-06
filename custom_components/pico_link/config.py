@@ -178,8 +178,6 @@ def parse_pico_config(raw: Dict[str, Any]) -> PicoConfig:
                             replaced.append(x)
                     new_action["target"] = {"entity_id": replaced}
 
-
-
             fixed_actions.append(new_action)
 
         conf.middle_button = fixed_actions
