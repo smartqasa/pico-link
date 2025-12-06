@@ -10,16 +10,29 @@
 
 ## 🌟 Overview
 
-**Pico Link** is a lightweight, reliable Home Assistant integration that turns
-**Lutron Caseta Pico remotes** into powerful and responsive device controllers.
+**Pico Link** is a lightweight, ultra-responsive Home Assistant integration that
+turns  
+**Lutron Caseta Pico remotes**—including the **new paddle Pico**—into fully
+featured and reliable device controllers.
 
-Support Picos include: classic 5, 4, and 2 button models and the newer paddle
-pico.
+Pico Link listens directly to:
 
-This integration uses async tasks, requires no polling, and is extremely fast.
+```
+lutron_caseta_button_event
+```
 
-It listens directly to `lutron_caseta_button_event` and applies intuitive
-dimming logic tailored to the three main Pico families.
+and produces **fast, predictable, zero-lag button behavior** using async
+lifecycles with hold detection, ramping, and tap logic.
+
+Supported Pico types:
+
+- Paddle Pico
+- 5-Button Pico
+- 4-Button “Scene” Pico
+- 2-Button Pico
+
+All behavior is profile-specific and tuned to perform like native Lutron dimmers
+whenever possible.
 
 ---
 
@@ -27,13 +40,15 @@ dimming logic tailored to the three main Pico families.
 
 ### 📦 HACS (Recommended)
 
-1. Open **HACS → Integrations**
+1. Go to **HACS → Integrations**
 2. Click **⋮ → Custom Repositories**
 3. Add:
 
+   ```
    https://github.com/smartqasa/pico-link
+   ```
 
-4. Choose **Integration**
+4. Select **Integration**
 5. Search for **Pico Link** and install it
 6. Restart Home Assistant
 
@@ -41,150 +56,233 @@ dimming logic tailored to the three main Pico families.
 
 ## 📁 Manual Installation
 
-Copy the folder into:
+Copy the `pico_link/` folder into:
 
+```
 config/custom_components/pico_link/
+```
 
 Restart Home Assistant.
 
 ---
 
-## ✔ Five Button Pico Behavior
+## ⚙️ Configuration Structure
 
-- **ON** → immediate ON at configured brightness
-- **OFF** → immediate OFF
-- **STOP** → halts any active ramp
-- **RAISE / LOWER** → ramps brightness while held (no hold timer)
+Pico Link now supports **global defaults** plus a device list:
+
+```yaml
+pico_link:
+  defaults:
+    hold_time_ms: 300
+    step_pct: 5
+    step_time_ms: 200
+    on_pct: 100
+    low_pct: 1
+    middle_button:
+      - action: light.turn_on
+        data:
+          brightness_pct: 40
+
+  devices:
+    - device_id: 111aaa...
+      profile: paddle
+      domain: light
+      entities:
+        - light.kitchen
+
+    - device_id: 222bbb...
+      profile: five_button
+      domain: light
+      entities:
+        - light.table_lamp
+```
+
+### ✔ How Defaults Work
+
+1. **Hardcoded class defaults**
+2. **Global defaults**
+3. **Per-device overrides** win
+
+### ✔ Middle Button Default Target Injection
+
+If a 5-button Pico inherits a `middle_button:` action from defaults  
+and the action does **not** specify `target:`, Pico Link automatically injects:
+
+```yaml
+target:
+  entity_id: <device entities>
+```
+
+Device-level definitions always override defaults.
 
 ---
 
-## ✔ Four Button Pico Behavior
+## 🧩 Pico Profiles & Behavior
 
-Some Pico models provide **four independent buttons**, reporting the following  
-`button_type` values:
-
-| Physical Button | `button_type` |
-| --------------- | ------------- |
-| Top button      | `button_1`    |
-| Upper-middle    | `button_2`    |
-| Lower-middle    | `button_3`    |
-| Bottom button   | `off`         |
-
-The 4-button Pico does **not** support dimming, holding, or ramping.  
-Instead, **each button can trigger one or more Home Assistant actions**.
-
-### Behavior
-
-- No long-press
-- No ramping
-- No brightness stepping
-- Each button executes its own action list on **press**
-
-## ✔ Two Button Pico Behavior
-
-- **ON** → immediate ON at configured brightness
-- **OFF** → immediate OFF
+Each Pico model uses a dedicated behavior profile.
 
 ---
 
 ## ✔ Paddle Pico Behavior
 
-- **Tap ON** → sets a configurable brightness (default: 100%)
-- **Tap OFF** → turns the lights off
-- **Hold ON** → ramps brightness up continuously
-- **Hold OFF** → ramps brightness down continuously
-- Ramping automatically halts at min/max levels (typically: 0%/100%)
+- **Tap ON** → turn on to `on_pct` brightness
+- **Tap OFF** → turn off
+- **Hold ON** → smoothly ramp brightness up
+- **Hold OFF** → smoothly ramp brightness down
+- Ramping stops:
+  - at brightness limits (0 / 255)
+  - at configured `low_pct` minimum
+  - when the button is released
+  - when a new press occurs (token safety)
 
 ---
 
-## 🛠 Configuration (YAML)
+## ✔ Five Button Pico Behavior
 
-Add one or more Pico mappings in your `configuration.yaml`:
+Buttons:
 
-## ⚙️ Options
+- **ON** → immediate on (`on_pct`)
+- **OFF** → immediate off
+- **STOP (middle)**
+  - Executes configured `middle_button:` actions
+  - If none given and `domain == cover` → stop_cover
+- **RAISE / LOWER**
+  - One immediate brightness step
+  - Hold detection after `hold_time_ms`
+  - Continuous ramp until:
+    - release
+    - min/max brightness reached
+    - low-pct boundary reached
+    - stale token detected
 
-| Key          | Required | Default | Description                         |
-| ------------ | -------- | ------- | ----------------------------------- |
-| device_id    | Yes      | —       | Device ID of the Pico (from event). |
-| domain       | Yes      | light   | Class of the entities controlled.   |
-| entities     | Yes      | —       | List of light entities controlled.  |
-| profile      | No       | paddle  | "paddle" or "five_button"           |
-| hold_time_ms | No       | 250     | Hold threshold (paddle only).       |
-| step_pct     | No       | 5       | Brightness step size for ramping.   |
-| step_time_ms | No       | 200     | Delay between ramp steps.           |
-| on_pct       | No       | 100     | Percent for short-press ON.         |
-| fan_speeds   | No       | 6       | Number of speeds support by fan.    |
+---
+
+## ✔ Four Button Pico Behavior
+
+4-button Picos generate:
+
+| Button       | `button_type` |
+| ------------ | ------------- |
+| Top          | `button_1`    |
+| Upper-Middle | `button_2`    |
+| Lower-Middle | `button_3`    |
+| Bottom       | `off`         |
+
+Behavior:
+
+- No hold detection
+- No ramping
+- No brightness stepping
+- Every press triggers its configured **list of actions**
+
+```yaml
+buttons:
+  button_1:
+    - action: scene.turn_on
+      target:
+        entity_id: scene.movie
+```
+
+---
+
+## ✔ Two Button Pico Behavior
+
+Simple, reliable:
+
+- ON → turn on (`on_pct`)
+- OFF → turn off
+
+No ramping, no holds.
+
+---
+
+## 🔍 Finding Your `device_id`
+
+1. Go to **Developer Tools → Events**
+2. Under _Listen to events_, enter:
+
+```
+lutron_caseta_button_event
+```
+
+3. Click **Start Listening**
+4. Press buttons on the Pico
+5. Look for:
+
+```
+device_id: 1234567890abcdef...
+```
+
+Use this in your config.
+
+---
+
+## 🛠 Full Configuration Example
 
 ```yaml
 pico_link:
-  - device_id: abc123... (see below for how to locate)
-    profile: five_button # "five_button", "four_button" or "two_button", or "paddle"
+  defaults:
+    hold_time_ms: 300
+    step_pct: 5
+    step_time_ms: 200
+    on_pct: 100
+    low_pct: 1
+    middle_button:
+      - action: light.turn_on
+        data:
+          brightness_pct: 40
 
-    domain: light # "light", "fan", "cover", or "media_player"
-    entities:
-      - light.bedroom_color_lights
+  devices:
+    - device_id: abc111...
+      profile: paddle
+      domain: light
+      entities:
+        - light.kitchen_main
 
-    hold_time_ms: 250 # paddle only
-    step_pct: 5 # paddle and 5 button only - brightness step amount
-    step_time_ms: 200 # paddle and 5 button only - time between ramp steps
-    on_pct: 100 # initial percentage for on button tap
-    fan_speeds: 6 # 4 or 6
+    - device_id: def222...
+      profile: five_button
+      domain: light
+      entities:
+        - light.living_room
 
-  - device_id: abc123...
-    profile: four_button
-    buttons:
-      button_1:
-        - action: scene.turn_on
-          target:
-            entity_id: scene.chill_out
-
-      button_2:
-        - action: light.turn_on
-          target:
-            entity_id: light.kitchen
-          data:
-            brightness_pct: 25
-
-      button_3:
-        - action: script.evening_mode
-
-      off:
-        - action: homeassistant.turn_off
-          target:
-            area_id: living_room
+    - device_id: ghi333...
+      profile: four_button
+      buttons:
+        button_1:
+          - action: scene.turn_on
+            target:
+              entity_id: scene.chill_out
+        button_2:
+          - action: light.turn_on
+            target:
+              entity_id: light.kitchen
+            data:
+              brightness_pct: 25
+        button_3:
+          - action: script.evening_mode
+        off:
+          - action: homeassistant.turn_off
+            target:
+              area_id: living_room
 ```
-
-## 🔍 Finding Your device_id
-
-1. Go to **Developer Tools → Events**
-2. Under **Listen to events**, enter:
-
-   lutron_caseta_button_event
-
-3. Click **Start Listening**
-4. Press any button on your Pico
-5. Look for:
-
-   device_id: abc1234567890... (32 characters)
-
-Use that value in your YAML config.
 
 ---
 
-## 🧠 Why Use Pico Link Instead of Automations?
+## 🧠 Why Pico Link?
 
-- More reliable long-press & ramp detection
-- Perfectly consistent behavior across all Picos
-- No duplicated automations or YAML complexity
-- Avoids timing issues in busy HA systems
-- Pure async → extremely responsive
-- Logic similar to native Lutron dimmers
+- Ultra-fast async handling
+- Reliable long-press detection
+- Token-based prevention of stale ramp tasks
+- Behavior matches real Lutron dimmers
+- No automations to maintain
+- Centralized configuration
+- Works with any number of lights, fans, media players, covers
 
 ---
 
 ## 🤝 Contributing
 
-Issues and PRs are welcome:
+PRs and issues welcome:
 
 https://github.com/smartqasa/pico-link/issues
 
@@ -192,10 +290,10 @@ https://github.com/smartqasa/pico-link/issues
 
 ## 📜 License
 
-Licensed under the MIT License. See LICENSE for details.
+MIT License — see LICENSE for details.
 
 ---
 
 ## 🧑‍💻 Maintained By
 
-SmartQasa – Smart Home Solutions © 2025
+**SmartQasa – Smart Home Solutions © 2025**
