@@ -7,15 +7,13 @@ from homeassistant.core import Event, HomeAssistant, callback
 
 from .config import PicoConfig
 from .const import (
-    PROFILE_FIVE_BUTTON,
-    PROFILE_FOUR_BUTTON,
-    PROFILE_PADDLE,
-    PROFILE_TWO_BUTTON,
     SUPPORTED_BUTTONS,
     PICO_EVENT_TYPE,
+    LUTRON_TYPE_MAP,
 )
 from .behaviors import SharedBehaviors
-from .profile_base import PicoProfile     # <<< NEW
+
+from .profile_base import PicoProfile
 from .profile_paddle import PaddleProfile
 from .profile_five import FiveButtonProfile
 from .profile_two import TwoButtonProfile
@@ -24,37 +22,38 @@ from .profile_four import FourButtonProfile
 _LOGGER = logging.getLogger(__name__)
 
 
+# Map our normalized device types → behavior classes
+BEHAVIOR_CLASSES: Dict[str, type[PicoProfile]] = {
+    "five_button": FiveButtonProfile,
+    "four_button": FourButtonProfile,
+    "paddle": PaddleProfile,
+    "two_button": TwoButtonProfile,
+}
+
+
 class PicoController(SharedBehaviors):
-    """Main controller: routes events to the appropriate profile object."""
+    """Main controller for a single Lutron Pico device."""
 
     def __init__(self, hass: HomeAssistant, conf: PicoConfig) -> None:
         super().__init__(hass, conf)
 
-        # ---------------------------------------------------------
-        # Profiles MUST implement PicoProfile (handle_press/release)
-        # ---------------------------------------------------------
-        self._profiles: Dict[str, PicoProfile] = {
-            PROFILE_PADDLE: PaddleProfile(self),
-            PROFILE_FIVE_BUTTON: FiveButtonProfile(self),
-            PROFILE_TWO_BUTTON: TwoButtonProfile(self),
-            PROFILE_FOUR_BUTTON: FourButtonProfile(self),
-        }
+        # Behavior instance gets set after the first event
+        self._behavior: Optional[PicoProfile] = None
+        self._behavior_name: Optional[str] = None
 
     # ---------------------------------------------------------
     # START LISTENING
     # ---------------------------------------------------------
     async def async_start(self) -> None:
-        """Start listening for Pico button events."""
 
         @callback
         def _handle_event(event: Event) -> None:
             data = event.data
 
-            # Device filter
+            # Must match this Pico device
             if data.get("device_id") != self.conf.device_id:
                 return
 
-            # Map into (button, action)
             button, action = self._map_event_payload(data)
             if button is None or action is None:
                 return
@@ -67,74 +66,88 @@ class PicoController(SharedBehaviors):
                 )
                 return
 
-            profile_obj = self._profiles.get(self.conf.profile)
-            if not profile_obj:
-                _LOGGER.warning(
-                    "Device %s: unknown profile '%s'",
-                    self.conf.device_id,
-                    self.conf.profile,
-                )
-                return
+            # -----------------------------------------------------
+            # AUTO-DETECT DEVICE TYPE ONE TIME
+            # -----------------------------------------------------
+            if self._behavior is None:
+                device_type_raw = data.get("type")
 
+                if not device_type_raw:
+                    _LOGGER.error(
+                        "Device %s: event missing 'type' field; cannot determine behavior.",
+                        self.conf.device_id,
+                    )
+                    return
+
+                normalized = LUTRON_TYPE_MAP.get(device_type_raw)
+                if not normalized:
+                    _LOGGER.error(
+                        "Device %s: unknown Pico type '%s'",
+                        self.conf.device_id,
+                        device_type_raw,
+                    )
+                    return
+
+                behavior_cls = BEHAVIOR_CLASSES.get(normalized)
+                if not behavior_cls:
+                    _LOGGER.error(
+                        "Device %s: no behavior implemented for type '%s'",
+                        self.conf.device_id, normalized
+                    )
+                    return
+
+                self._behavior = behavior_cls(self)
+                self._behavior_name = normalized
+
+                _LOGGER.warning(
+                    "Device %s behavior set to '%s' (from type '%s')",
+                    self.conf.device_id, normalized, device_type_raw
+                )
+
+            # -----------------------------------------------------
+            # DISPATCH EVENT TO THE DEVICE'S BEHAVIOR
+            # -----------------------------------------------------
             try:
-                # ------------------------------
-                # Standardized dispatch model:
-                # ------------------------------
-                # Press   → handle_press(button)
-                # Release → handle_release(button)
-                # ------------------------------
                 if action == "press":
-                    profile_obj.handle_press(button)
+                    self._behavior.handle_press(button)
                 else:
-                    profile_obj.handle_release(button)
+                    self._behavior.handle_release(button)
 
             except Exception as err:
                 _LOGGER.error(
-                    "Device %s: profile '%s' failed handling %s/%s: %s",
+                    "Device %s: behavior '%s' error handling %s/%s: %s",
                     self.conf.device_id,
-                    self.conf.profile,
+                    self._behavior_name,
                     button,
                     action,
                     err,
                 )
 
-        # Subscribe to HA event bus
         self._unsub_event = self.hass.bus.async_listen(PICO_EVENT_TYPE, _handle_event)
 
     # ---------------------------------------------------------
     # STOP / CLEANUP
     # ---------------------------------------------------------
     def async_stop(self) -> None:
-        """Stop listening and cancel tasks."""
         if self._unsub_event:
             self._unsub_event()
             self._unsub_event = None
 
-        # Cancel all running tasks
+        # Cancel long-running tasks (e.g., ramping)
         for button in SUPPORTED_BUTTONS:
             task = self._tasks.get(button)
             if task and not task.done():
                 task.cancel()
             self._tasks[button] = None
 
-        # Reset pressed state
         self._pressed = {btn: False for btn in SUPPORTED_BUTTONS}
-
-    def unregister_listeners(self):
-        """Used when reloading the integration."""
-        if self._unsub_event:
-            self._unsub_event()
-            self._unsub_event = None
 
     # ---------------------------------------------------------
     # EVENT PAYLOAD → (button, action)
     # ---------------------------------------------------------
     def _map_event_payload(
-        self,
-        data: Mapping[str, Any],
+        self, data: Mapping[str, Any]
     ) -> Tuple[Optional[str], Optional[str]]:
-        """Translate lutron_caseta event payload into (button, action)."""
-
         button = data.get("button_type")
         action = data.get("action")
 

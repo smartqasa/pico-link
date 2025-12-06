@@ -5,13 +5,15 @@ DOMAIN = "pico_link"
 # Lutron Caseta event type we listen to
 PICO_EVENT_TYPE = "lutron_caseta_button_event"
 
-# Profiles
-PROFILE_FIVE_BUTTON = "five_button"
-PROFILE_FOUR_BUTTON = "four_button"
-PROFILE_PADDLE = "paddle"
-PROFILE_TWO_BUTTON = "two_button"
+# Map Lutron's event "type" → internal logical category
+LUTRON_TYPE_MAP = {
+    "Pico3ButtonRaiseLower": "five_button",
+    "Pico4ButtonScene":      "four_button",
+    "PaddleSwitchPico":      "paddle",
+    "Pico2Button":           "two_button",
+}
 
-# Logical button names we care about
+# Buttons emitted in Lutron events
 SUPPORTED_BUTTONS = [
     "button_1",
     "button_2",
@@ -22,5 +24,3 @@ SUPPORTED_BUTTONS = [
     "raise",
     "stop",
 ]
-
-
