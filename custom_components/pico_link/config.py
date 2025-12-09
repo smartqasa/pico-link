@@ -181,8 +181,8 @@ def parse_pico_config(
         "lights": conf.lights,
         "fans": conf.fans,
         "covers": conf.covers,
-        "switches": conf.switches,
         "media_players": conf.media_players,
+        "switches": conf.switches,
     }
 
     rewritten = []
