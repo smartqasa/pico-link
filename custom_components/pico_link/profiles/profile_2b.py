@@ -4,7 +4,7 @@ import logging
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from .controller import PicoController
+    from ..controller import PicoController
 
 _LOGGER = logging.getLogger(__name__)
 

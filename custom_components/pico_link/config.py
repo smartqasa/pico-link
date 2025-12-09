@@ -30,18 +30,19 @@ class PicoConfig:
     media_players: List[str] = field(default_factory=list)
     switches: List[str] = field(default_factory=list)
 
-    # Default action parameters
+    # Action parameters (all normalized in parser)
     hold_time_ms: int = 0
     step_time_ms: int = 0
     step_pct: int = 0
     low_pct: int = 0
     on_pct: int = 0
+    open_pos: int = 0
     fan_speeds: int = 0
 
-    # 3BRL only — middle button actions
+    # 3BRL only
     middle_button: List[Dict[str, Any]] = field(default_factory=list)
 
-    # 4B only — scene buttons
+    # 4B only
     buttons: Dict[str, List[Dict]] = field(default_factory=dict)
 
     # ------------------------------------------------------------
@@ -54,7 +55,7 @@ class PicoConfig:
 
 
 # ================================================================
-# LOOK UP device_id FROM name_by_user FIRST, THEN name
+# DEVICE LOOKUP
 # ================================================================
 def lookup_device_id(hass, name: str) -> str | None:
     dev_reg = dr.async_get(hass)
@@ -68,6 +69,30 @@ def lookup_device_id(hass, name: str) -> str | None:
             return dev.id
 
     return None
+
+
+# ================================================================
+# NORMALIZATION UTILITIES (DRY)
+# ================================================================
+def _normalize_int(raw_val, default: int, min_val: int, max_val: int) -> int:
+    """Convert to int, apply default, and clamp into [min_val, max_val]."""
+    try:
+        value = int(raw_val)
+    except Exception:
+        value = default
+
+    if value == 0:
+        value = default  # 0 means “not specified”
+
+    return max(min_val, min(max_val, value))
+
+
+def _normalize_list(value):
+    if isinstance(value, list):
+        return value
+    if isinstance(value, str):
+        return [value]
+    return []
 
 
 # ================================================================
@@ -88,7 +113,7 @@ def parse_pico_config(
     device_type = str(device_type)
 
     # ------------------------------------------------------------
-    # Merge defaults → raw (except middle_button)
+    # Merge defaults → device_raw (except middle_button)
     # ------------------------------------------------------------
     raw: Dict[str, Any] = {}
     for key, value in defaults.items():
@@ -116,29 +141,29 @@ def parse_pico_config(
         _LOGGER.debug("Resolved '%s' → device_id %s", name, device_id)
 
     # ------------------------------------------------------------
-    # Safe normalization helper
+    # Normalize domain entity lists
     # ------------------------------------------------------------
-    def normalize(v):
-        if isinstance(v, list):
-            return v
-        if isinstance(v, str):
-            return [v]
-        return []
+    covers = _normalize_list(raw.get("covers"))
+    fans = _normalize_list(raw.get("fans"))
+    lights = _normalize_list(raw.get("lights"))
+    media_players = _normalize_list(raw.get("media_players"))
+    switches = _normalize_list(raw.get("switches"))
 
     # ------------------------------------------------------------
-    # Per-domain entity lists
+    # Normalize parameters (DRY)
     # ------------------------------------------------------------
-    covers = normalize(raw.get("covers"))
-    fans = normalize(raw.get("fans"))
-    lights = normalize(raw.get("lights"))
-    media_players = normalize(raw.get("media_players"))
-    switches = normalize(raw.get("switches"))
+    hold_time_ms = _normalize_int(raw.get("hold_time_ms", 250), default=250, min_val=100, max_val=2000)
+    step_time_ms = _normalize_int(raw.get("step_time_ms", 750), default=750, min_val=100, max_val=2000)
+    step_pct     = _normalize_int(raw.get("step_pct", 10),      default=10,  min_val=1,   max_val=25)
+    low_pct      = _normalize_int(raw.get("low_pct", 1),        default=1,   min_val=1,   max_val=100)
+    on_pct       = _normalize_int(raw.get("on_pct", 100),       default=100, min_val=1,   max_val=100)
+    open_pos     = _normalize_int(raw.get("open_pos", 100),     default=100, min_val=1,   max_val=100)
+    fan_speeds   = _normalize_int(raw.get("fan_speeds", 6),     default=6,   min_val=1,   max_val=10)
 
     # ------------------------------------------------------------
     # Middle button (3BRL only)
     # ------------------------------------------------------------
     raw_mb = device_raw.get("middle_button")
-
     if device_type == "3BRL":
         if raw_mb == "default":
             middle_button = defaults.get("middle_button", [])
@@ -163,19 +188,20 @@ def parse_pico_config(
         media_players=media_players,
         switches=switches,
 
-        hold_time_ms=int(raw.get("hold_time_ms", 250)),
-        step_time_ms=int(raw.get("step_time_ms", 750)),
-        step_pct=int(raw.get("step_pct", 10)),
-        low_pct=int(raw.get("low_pct", 1)),
-        on_pct=int(raw.get("on_pct", 100)),
-        fan_speeds=int(raw.get("fan_speeds", 6)),
+        hold_time_ms=hold_time_ms,
+        step_time_ms=step_time_ms,
+        step_pct=step_pct,
+        low_pct=low_pct,
+        on_pct=on_pct,
+        open_pos=open_pos,
+        fan_speeds=fan_speeds,
 
         middle_button=middle_button,
         buttons=raw.get("buttons", {}),
     )
 
     # ------------------------------------------------------------
-    # Expand placeholders in middle_button
+    # Placeholder expansion for middle_button
     # ------------------------------------------------------------
     PLACEHOLDERS = {
         "covers": conf.covers,
@@ -198,21 +224,16 @@ def parse_pico_config(
         if isinstance(target, dict):
             eid = target.get("entity_id")
 
-            # Single placeholder
             if isinstance(eid, str) and eid in PLACEHOLDERS:
-                new_action["target"] = {
-                    "entity_id": PLACEHOLDERS[eid]
-                }
+                new_action["target"] = {"entity_id": PLACEHOLDERS[eid]}
 
-            # Mixed list of placeholders + literals
             elif isinstance(eid, list):
-                expanded: List[str] = []
+                expanded = []
                 for x in eid:
                     if x in PLACEHOLDERS:
                         expanded.extend(PLACEHOLDERS[x])
                     else:
                         expanded.append(x)
-
                 new_action["target"] = {"entity_id": expanded}
 
         rewritten.append(new_action)

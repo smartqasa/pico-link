@@ -108,7 +108,7 @@ lights: fans: covers: switches: media_players:
 | **middle_button** | list or `default` | Only for `3BRL`             | `[]`    | If `default`, inherits global defaults. |
 | **buttons**       | mapping           | Required only for type `4B` | `{}`    | Maps button names → action lists.       |
 | **hold_time_ms**  | integer           | Optional                    | `250`   | Hold detection delay.                   |
-| **step_time_ms**  | integer           | Optional                    | `1000`  | Ramp update interval.                   |
+| **step_time_ms**  | integer           | Optional                    | `750`   | Ramp update interval.                   |
 | **step_pct**      | integer           | Optional                    | `10`    | Ramp step size.                         |
 | **low_pct**       | integer           | Optional                    | `1`     | Minimum brightness during ramp-down.    |
 | **on_pct**        | integer           | Optional                    | `100`   | Brightness used for ON.                 |
@@ -118,12 +118,12 @@ lights: fans: covers: switches: media_players:
 
 # 🔝 Required Parameters By Pico Type
 
-| Pico Type | Requires domain lists? | Requires `buttons`? | Allows `middle_button`? | Hold/Ramp? |
-| --------- | ---------------------- | ------------------- | ----------------------- | ---------- |
-| **P2B**   | ✔ Yes                 | ✘ No                | ✘ No                    | ✔ Yes     |
-| **2B**    | ✔ Yes                 | ✘ No                | ✘ No                    | ✘ No       |
-| **3BRL**  | ✔ Yes                 | ✘ No                | ✔ Yes                  | ✔ Yes     |
-| **4B**    | ✘ No                   | ✔ Yes              | ✘ No                    | ✘ No       |
+| Pico Type | Requires `entities`? | Requires `buttons`? | Allows `middle_button`? | Hold/Ramp? |
+| --------- | -------------------- | ------------------- | ----------------------- | ---------- |
+| **P2B**   | ✔ Yes               | ✘ No                | ✘ No                    | ✔ Yes     |
+| **2B**    | ✔ Yes               | ✘ No                | ✘ No                    | ✘ No       |
+| **3BRL**  | ✔ Yes               | ✘ No                | ✔ Yes                  | ✔ Yes     |
+| **4B**    | ✘ No                 | ✔ Yes              | ✘ No                    | ✘ No       |
 
 A **non-4B** device must include **at least one** of:
 

@@ -13,11 +13,11 @@ from .const import (
 )
 from .behaviors import SharedBehaviors
 
-from .profile_base import PicoProfile
-from .profile_p2b import PaddleSwitchPico
-from .profile_3brl import Pico3ButtonRaiseLower
-from .profile_2b import Pico2Button
-from .profile_4b import Pico4ButtonScene
+from .profiles.profile_base import PicoProfile
+from .profiles.profile_p2b import PaddleSwitchPico
+from .profiles.profile_3brl import Pico3ButtonRaiseLower
+from .profiles.profile_2b import Pico2Button
+from .profiles.profile_4b import Pico4ButtonScene
 
 _LOGGER = logging.getLogger(__name__)
 

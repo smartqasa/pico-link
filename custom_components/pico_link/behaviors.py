@@ -250,6 +250,28 @@ class SharedBehaviors:
             return
 
     # ---------------------------------------------------------------------
+    # COVER HELPERS
+    # ---------------------------------------------------------------------
+    def cover_get_position(self) -> Optional[int]:
+        """Return current_position for the primary cover entity."""
+        state = self.get_entity_state()
+        if not state:
+            return None
+        return state.attributes.get("current_position")
+
+    async def cover_set_position(self, pos: int):
+        """Calls set_cover_position for the primary cover."""
+        await self._call_entity_service("set_cover_position", {"position": pos})
+
+    async def cover_start_motion(self, direction: str):
+        """direction = 'raise' or 'lower'"""
+        svc = "open_cover" if direction == "raise" else "close_cover"
+        await self._call_entity_service(svc, {})
+
+    async def cover_stop(self):
+        await self._call_entity_service("stop_cover", {})
+
+    # ---------------------------------------------------------------------
     # MEDIA PLAYER BEHAVIORS
     # ---------------------------------------------------------------------
     async def _media_play_pause(self) -> None:
