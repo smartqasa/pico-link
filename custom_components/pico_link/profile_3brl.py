@@ -68,10 +68,15 @@ class Pico3ButtonRaiseLower:
         # Default STOP behavior based on entity domain
         domain = self._ctrl._entity_domain()
         match domain:
-
-            # -----------------------------------------------------
+            
+            # COVER — normal STOP behavior
+            case "cover":
+                asyncio.create_task(
+                    self._ctrl._call_entity_service("stop_cover", {})
+                )
+                return
+            
             # FAN — reverse direction on STOP
-            # -----------------------------------------------------
             case "fan":
                 state = self._ctrl.get_entity_state()
                 if not state:
@@ -92,18 +97,7 @@ class Pico3ButtonRaiseLower:
                     )
                 return
 
-            # -----------------------------------------------------
-            # COVER — normal STOP behavior
-            # -----------------------------------------------------
-            case "cover":
-                asyncio.create_task(
-                    self._ctrl._call_entity_service("stop_cover", {})
-                )
-                return
-
-            # -----------------------------------------------------
             # ALL OTHER DOMAINS — do nothing
-            # -----------------------------------------------------
             case _:
                 return
 
