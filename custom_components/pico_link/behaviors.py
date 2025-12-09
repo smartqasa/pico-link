@@ -65,6 +65,16 @@ class SharedBehaviors:
             return self.conf.switches[0]
         return None
 
+    # ---------------------------------------------------------
+    # CENTRALIZED ENTITY STATE ACCESSOR
+    # ---------------------------------------------------------
+    def get_entity_state(self):
+        """Return HA state for the primary entity (or None if unavailable)."""
+        entity_id = self._primary_entity()
+        if not entity_id:
+            return None
+        return self.hass.states.get(entity_id)
+
     # ---------------------------------------------------------------------
     # ON BEHAVIOR (alphabetized case order)
     # ---------------------------------------------------------------------

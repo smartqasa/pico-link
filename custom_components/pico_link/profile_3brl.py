@@ -65,12 +65,45 @@ class Pico3ButtonRaiseLower:
             asyncio.create_task(self._ctrl._execute_button_action(middle_action))
             return
 
-        # Default STOP only applies to covers
         domain = self._ctrl._entity_domain()
+
+        # ---------------------------------------------------------
+        # FAN SPECIAL BEHAVIOR — REVERSE DIRECTION ON STOP
+        # ---------------------------------------------------------
+        if domain == "fan":
+            state = self._ctrl.get_entity_state()
+            if not state:
+                return
+
+            # Check if "direction" attribute exists (HA standard)
+            current_dir = state.attributes.get("direction")
+
+            # HA only recognizes: "forward" and "reverse"
+            if current_dir in ("forward", "reverse"):
+                new_dir = "reverse" if current_dir == "forward" else "forward"
+
+                asyncio.create_task(
+                    self._ctrl._call_entity_service(
+                        "set_direction",
+                        {"direction": new_dir}
+                    )
+                )
+                return
+
+            # If fan does NOT support direction at all → just turn off
+            asyncio.create_task(
+                self._ctrl._call_entity_service("turn_off", {})
+            )
+            return
+
+        # ---------------------------------------------------------
+        # DEFAULT STOP FOR COVERS
+        # ---------------------------------------------------------
         if domain == "cover":
             asyncio.create_task(
                 self._ctrl._call_entity_service("stop_cover", {})
             )
+
 
     # -------------------------------------------------------------
     # RAISE / LOWER PRESS
