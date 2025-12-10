@@ -26,23 +26,27 @@ class PaddleSwitchPico:
     def handle_press(self, button: str) -> None:
         domain = self._ctrl.utils.entity_domain()
         if domain is None:
-            _LOGGER.debug("P2B: no domain configured for this Pico")
             return
 
         actions = self._ctrl.actions.get(domain)
         if not actions:
-            _LOGGER.error("P2B: no actions module for domain '%s'", domain)
             return
 
         match button:
             case "on":
+                # TAP logic → turn on
                 actions.press_on()
+                # HOLD logic → ramp up
+                actions.press_raise()
 
             case "off":
+                # TAP logic → turn off
                 actions.press_off()
+                # HOLD logic → ramp down
+                actions.press_lower()
 
             case _:
-                _LOGGER.debug("P2B: unknown button '%s'", button)
+                pass
 
     # -------------------------------------------------------------
     # RELEASE
@@ -58,10 +62,10 @@ class PaddleSwitchPico:
 
         match button:
             case "on":
-                actions.release_on()
+                actions.release_raise()
 
             case "off":
-                actions.release_off()
+                actions.release_lower()
 
             case _:
                 pass
