@@ -30,17 +30,6 @@ class CoverActions:
         self._press_ts: dict[str, float] = {}
 
     # -------------------------------------------------------------
-    # REQUIRED BY PROFILES: press_on / press_off
-    # -------------------------------------------------------------
-    async def press_on(self):
-        """Generic ON → open."""
-        await self._open()
-
-    async def press_off(self):
-        """Generic OFF → close."""
-        await self._close()
-
-    # -------------------------------------------------------------
     # PUBLIC ENTRY POINTS
     # -------------------------------------------------------------
     def handle_press(self, button: str) -> None:
@@ -88,7 +77,7 @@ class CoverActions:
         await self._start_motion(direction)
 
     async def _release_lifecycle(self, button: str):
-        """Release event: TAP = step, then stop always."""
+        """Release event: TAP = step, then always STOP."""
 
         self.ctrl.utils._pressed[button] = False
 
@@ -121,9 +110,9 @@ class CoverActions:
         svc = "open_cover" if direction == "raise" else "close_cover"
 
         await self.ctrl.utils.call_service(
-          svc,
-          {},
-          domain="cover",
+            svc,
+            {},
+            domain="cover",
         )
 
     async def _open(self):
@@ -138,7 +127,7 @@ class CoverActions:
             )
             return
 
-        # Otherwise go to configured open_pos
+        # Otherwise go to the configured open_pos
         await self.ctrl.utils.call_service(
             "set_cover_position",
             {"position": pos},

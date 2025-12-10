@@ -16,76 +16,47 @@ class LightActions:
     Unified light action module implementing the full action API.
 
     Profiles:
-      - only route press/release events
-      - do NOT contain light logic
+        - only route press/release events
+        - do NOT contain light logic
 
     LightActions:
-      - tap vs hold (profile-aware)
-      - stepping
-      - ramping
-      - on/off/low_pct behavior
-      - HA service calls
-
-    Behavior summary (lights):
-
-      3BRL:
-        - ON    → tap only (turn_on)
-        - OFF   → tap only (turn_off)
-        - RAISE → tap step up, hold = ramp up
-        - LOWER → tap step down, hold = ramp down
-        - STOP  → middle_button actions (if configured)
-
-      P2B:
-        - ON    → tap turn_on, hold = ramp up
-        - OFF   → tap turn_off, hold = ramp down
-        - (no dedicated raise/lower physically, but supported if present)
-
-      2B:
-        - ON/OFF tap only
-
-      4B:
-        - does not use LightActions (scenes only)
+        - tap vs hold
+        - stepping
+        - ramping
+        - on/off/low_pct behavior
+        - HA service calls
+        - profile-aware semantics (P2B vs 3BRL, etc.)
     """
 
     def __init__(self, ctrl: "PicoController") -> None:
         self.ctrl = ctrl
 
-        # ---------------------------
-        # RAISE/LOWER state
-        # ---------------------------
-        self._pressed_rl: dict[str, bool] = {
+        # Track which logical buttons are currently pressed.
+        # We now also track ON / OFF to support tap-vs-hold
+        # behavior for certain profiles (e.g. P2B).
+        self._pressed: dict[str, bool] = {
             "raise": False,
             "lower": False,
-        }
-        self._press_ts_rl: dict[str, float] = {
-            "raise": 0.0,
-            "lower": 0.0,
-        }
-        self._tasks_rl: dict[str, Optional[asyncio.Task]] = {
-            "raise": None,
-            "lower": None,
-        }
-        self._is_holding_rl: dict[str, bool] = {
-            "raise": False,
-            "lower": False,
-        }
-
-        # ---------------------------
-        # ON/OFF state (for P2B hold)
-        # ---------------------------
-        self._pressed_onoff: dict[str, bool] = {
             "on": False,
             "off": False,
         }
-        self._press_ts_onoff: dict[str, float] = {
-            "on": 0.0,
-            "off": 0.0,
-        }
-        self._tasks_onoff: dict[str, Optional[asyncio.Task]] = {
+
+        # Track when each button was pressed (mainly for debugging / future use)
+        self._press_ts: dict[str, float] = {}
+
+        # Async tasks per button (hold lifecycle / ramp, etc.)
+        self._tasks: dict[str, Optional[asyncio.Task]] = {
+            "raise": None,
+            "lower": None,
             "on": None,
             "off": None,
         }
-        self._is_holding_onoff: dict[str, bool] = {
+
+        # Whether a button has transitioned to a "hold" state
+        # (used primarily for ON/OFF tap-vs-hold).
+        self._is_holding: dict[str, bool] = {
+            "raise": False,
+            "lower": False,
             "on": False,
             "off": False,
         }
@@ -96,11 +67,13 @@ class LightActions:
 
     def _supports_onoff_hold(self) -> bool:
         """
-        Only the P2B paddle uses tap-vs-hold ON/OFF for lights.
+        Return True if ON/OFF should have tap-vs-hold behavior for lights.
 
-        All other profiles (3BRL, 2B, etc.) treat ON/OFF as tap-only.
+        For now, this is enabled for the P2B paddle profile only.
+        Other profiles (e.g. 3BRL) treat ON/OFF as tap-only.
         """
-        return self.ctrl.behavior_name == "P2B"
+        profile = self.ctrl.behavior_name
+        return profile == "P2B"
 
     # ==============================================================
     # API METHODS (called by profiles)
@@ -111,12 +84,11 @@ class LightActions:
         """
         ON behavior:
 
-          - P2B:
-              * Tap  → turn_on(light_on_pct)
-              * Hold → ramp brightness up until release
-
-          - Other profiles:
-              * ON is simple turn_on (tap-only)
+        - P2B:
+            * Tap  -> turn_on(light_on_pct)
+            * Hold -> ramp brightness up until release
+        - Other profiles (3BRL, 2B, 4B, etc.):
+            * ON is simple turn_on (tap-only)
         """
         if self._supports_onoff_hold():
             self._start_onoff_hold(button="on", direction=1)
@@ -125,20 +97,19 @@ class LightActions:
 
     def release_on(self):
         if self._supports_onoff_hold():
-            self._finalize_onoff_hold(button="on", tap_coro=self._turn_on)
-        # Tap-only profiles do nothing on release.
+            self._finalize_onoff_hold(button="on", tap_action=self._turn_on)
+        # For tap-only profiles, ON release is a no-op.
 
     # --- OFF -------------------------------------------------------
     def press_off(self):
         """
         OFF behavior:
 
-          - P2B:
-              * Tap  → turn_off
-              * Hold → ramp brightness down until release
-
-          - Other profiles:
-              * OFF is simple turn_off (tap-only)
+        - P2B:
+            * Tap  -> turn_off
+            * Hold -> ramp brightness down until release
+        - Other profiles:
+            * OFF is simple turn_off (tap-only)
         """
         if self._supports_onoff_hold():
             self._start_onoff_hold(button="off", direction=-1)
@@ -147,13 +118,14 @@ class LightActions:
 
     def release_off(self):
         if self._supports_onoff_hold():
-            self._finalize_onoff_hold(button="off", tap_coro=self._turn_off)
-        # Tap-only profiles do nothing on release.
+            self._finalize_onoff_hold(button="off", tap_action=self._turn_off)
+        # For tap-only profiles, OFF release is a no-op.
 
     # --- STOP ------------------------------------------------------
     def press_stop(self):
         """
-        STOP = execute middle_button actions (3BRL-style) or no-op.
+        STOP = execute middle_button actions (Lutron-like)
+        or no-op if none defined.
         """
         actions = self.ctrl.conf.middle_button
 
@@ -165,7 +137,6 @@ class LightActions:
             asyncio.create_task(self.ctrl.utils.execute_button_action(action))
 
     def release_stop(self):
-        # No-op for now
         pass
 
     # --- RAISE -----------------------------------------------------
@@ -174,8 +145,8 @@ class LightActions:
         Used by profiles with dedicated raise/lower buttons (e.g. 3BRL).
 
         Behavior:
-          - Tap  → single brightness step up
-          - Hold → continuous ramp up after hold_time
+        - Press → single brightness step up
+        - Hold  → continuous ramp up after hold_time
         """
         self._start_raise_lower("raise", direction=1)
 
@@ -188,8 +159,8 @@ class LightActions:
         Used by profiles with dedicated raise/lower buttons (e.g. 3BRL).
 
         Behavior:
-          - Tap  → single brightness step down
-          - Hold → continuous ramp down after hold_time
+        - Press → single brightness step down
+        - Hold  → continuous ramp down after hold_time
         """
         self._start_raise_lower("lower", direction=-1)
 
@@ -197,120 +168,106 @@ class LightActions:
         self._stop_raise_lower("lower")
 
     # ==============================================================
-    # INTERNAL STATEFUL BEHAVIOR — RAISE / LOWER
+    # INTERNAL STATEFUL BEHAVIOR (RAISE/LOWER)
     # ==============================================================
 
     def _start_raise_lower(self, button: str, direction: int):
-        if button not in ("raise", "lower"):
-            return
+        self._pressed[button] = True
+        self._is_holding[button] = False
+        self._press_ts[button] = time.time()
 
-        self._pressed_rl[button] = True
-        self._is_holding_rl[button] = False
-        self._press_ts_rl[button] = time.time()
-
-        # TAP: perform one step immediately
+        # TAP step immediately
         asyncio.create_task(self._step_brightness(direction))
 
-        # HOLD: schedule lifecycle that may transition into ramping
-        task = asyncio.create_task(self._hold_lifecycle_rl(button, direction))
-        self._tasks_rl[button] = task
+        # HOLD → ramp
+        task = asyncio.create_task(self._hold_lifecycle(button, direction))
+        self._tasks[button] = task
 
     def _stop_raise_lower(self, button: str):
-        if button not in ("raise", "lower"):
-            return
+        self._pressed[button] = False
 
-        self._pressed_rl[button] = False
-
-        task = self._tasks_rl.get(button)
+        task = self._tasks.get(button)
         if task and not task.done():
             task.cancel()
 
-        self._tasks_rl[button] = None
-        self._is_holding_rl[button] = False
-
-    async def _hold_lifecycle_rl(self, button: str, direction: int):
-        """
-        Tap vs hold for RAISE/LOWER:
-
-          - Wait hold_time
-          - If button was released → TAP only (we already stepped once)
-          - If still pressed      → enter continuous ramp
-        """
-        try:
-            await asyncio.sleep(self.ctrl.utils._hold_time)
-
-            if not self._pressed_rl.get(button, False):
-                # Released before hold_time → no ramp
-                return
-
-            # HOLD → continuous ramp
-            self._is_holding_rl[button] = True
-            await self._ramp_rl(button, direction)
-
-        except asyncio.CancelledError:
-            # Normal when released before hold_time
-            pass
+        self._tasks[button] = None
+        self._is_holding[button] = False
 
     # ==============================================================
-    # INTERNAL STATEFUL BEHAVIOR — ON/OFF TAP vs HOLD (P2B)
+    # INTERNAL STATEFUL BEHAVIOR (ON/OFF TAP vs HOLD for P2B)
     # ==============================================================
 
     def _start_onoff_hold(self, button: str, direction: int):
         """
-        Used only for P2B:
+        Common press handler for ON/OFF when tap-vs-hold is enabled (P2B).
 
-          - If released before hold_time → TAP (turn_on / turn_off)
-          - If still pressed after       → HOLD (continuous ramp up/down)
+        - If released before hold_time → TAP (simple on/off)
+        - If still pressed after hold_time → HOLD (continuous ramp)
         """
-        if button not in ("on", "off"):
-            return
-
-        self._pressed_onoff[button] = True
-        self._is_holding_onoff[button] = False
-        self._press_ts_onoff[button] = time.time()
+        self._pressed[button] = True
+        self._is_holding[button] = False
+        self._press_ts[button] = time.time()
 
         task = asyncio.create_task(self._onoff_hold_lifecycle(button, direction))
-        self._tasks_onoff[button] = task
+        self._tasks[button] = task
 
     async def _onoff_hold_lifecycle(self, button: str, direction: int):
         try:
             await asyncio.sleep(self.ctrl.utils._hold_time)
 
-            if not self._pressed_onoff.get(button, False):
-                # Released before hold_time → TAP handled in release method
+            if not self._pressed.get(button):
+                # Released before hold_time → treat as TAP in release_*.
                 return
 
             # HOLD → continuous ramp
-            self._is_holding_onoff[button] = True
-            await self._ramp_onoff(button, direction)
+            self._is_holding[button] = True
+            await self._ramp(button, direction)
 
         except asyncio.CancelledError:
-            # Released before hold_time, or explicitly cancelled
+            # Normal path when released before hold_time
             pass
 
-    def _finalize_onoff_hold(self, button: str, tap_coro):
+    def _finalize_onoff_hold(self, button: str, tap_action):
         """
-        Common release handler for P2B ON/OFF:
+        Common release handler for ON/OFF when tap-vs-hold is enabled.
 
-          - If we never started HOLD → TAP → run tap_coro (turn_on/off)
-          - If HOLD started          → just stop ramp (no extra toggle)
+        - If no ramp ever started (_is_holding[button] is False):
+            → this was a TAP → call tap_action (turn_on/turn_off)
+        - If ramp started:
+            → stop ramp, do NOT toggle again
         """
-        if button not in ("on", "off"):
-            return
+        self._pressed[button] = False
 
-        self._pressed_onoff[button] = False
-
-        task = self._tasks_onoff.get(button)
+        task = self._tasks.get(button)
         if task and not task.done():
             task.cancel()
 
-        if not self._is_holding_onoff.get(button, False):
-            # TAP → run the corresponding coroutine
-            asyncio.create_task(tap_coro())
+        if not self._is_holding.get(button, False):
+            # TAP: we never entered holding state
+            asyncio.create_task(tap_action())
 
-        # Reset
-        self._tasks_onoff[button] = None
-        self._is_holding_onoff[button] = False
+        # Reset state
+        self._tasks[button] = None
+        self._is_holding[button] = False
+
+    # ==============================================================
+    # TAP / HOLD LIFECYCLE (RAISE/LOWER)
+    # ==============================================================
+
+    async def _hold_lifecycle(self, button: str, direction: int):
+        try:
+            await asyncio.sleep(self.ctrl.utils._hold_time)
+
+            if not self._pressed.get(button):
+                return  # TAP only
+
+            # HOLD → continuous ramp
+            self._is_holding[button] = True
+            await self._ramp(button, direction)
+
+        except asyncio.CancelledError:
+            # Released before hold_time → no ramp
+            pass
 
     # ==============================================================
     # DOMAIN LOGIC
@@ -350,7 +307,7 @@ class LightActions:
         else:
             try:
                 current_pct = round((int(raw_brightness) / 255) * 100)
-            except Exception:
+            except Exception:  # defensive
                 current_pct = 0
 
         new_pct = current_pct + (step_pct * direction)
@@ -370,26 +327,15 @@ class LightActions:
     # RAMP LOGIC (continuous)
     # ==============================================================
 
-    async def _ramp_rl(self, button: str, direction: int):
+    async def _ramp(self, button: str, direction: int):
         """
-        Continuous ramp for RAISE/LOWER:
-          step by light_step_pct every step_time,
-          while the given button remains pressed.
+        Continuous ramp:
+        step by light_step_pct every step_time, while the given
+        button remains pressed.
         """
+
         step_time = self.ctrl.utils._step_time
 
-        while self._pressed_rl.get(button, False):
-            await self._step_brightness(direction)
-            await asyncio.sleep(step_time)
-
-    async def _ramp_onoff(self, button: str, direction: int):
-        """
-        Continuous ramp for ON/OFF on P2B:
-          step by light_step_pct every step_time,
-          while ON or OFF is held.
-        """
-        step_time = self.ctrl.utils._step_time
-
-        while self._pressed_onoff.get(button, False):
+        while self._pressed.get(button, False):
             await self._step_brightness(direction)
             await asyncio.sleep(step_time)

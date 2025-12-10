@@ -57,16 +57,9 @@ class Pico3ButtonRaiseLower:
             return
 
         match button:
-            case "on":
-                actions.release_on()
-            case "off":
-                actions.release_off()
-            case "stop":
-                actions.release_stop()
             case "raise":
                 actions.release_raise()
             case "lower":
                 actions.release_lower()
             case _:
-                # IGNORE
                 pass
