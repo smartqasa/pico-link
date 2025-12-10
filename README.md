@@ -107,7 +107,7 @@ lights: fans: covers: switches: media_players:
 | **media_players** | list              | Optional                    | `[]`    | Media player entities.                  |
 | **middle_button** | list or `default` | Only for `3BRL`             | `[]`    | If `default`, inherits global defaults. |
 | **buttons**       | mapping           | Required only for type `4B` | `{}`    | Maps button names → action lists.       |
-| **hold_time_ms**  | integer           | Optional                    | `250`   | Hold detection delay.                   |
+| **hold_time_ms**  | integer           | Optional                    | `400`   | Hold detection delay.                   |
 | **step_time_ms**  | integer           | Optional                    | `1000`  | Ramp update interval.                   |
 | **step_pct**      | integer           | Optional                    | `10`    | Ramp step size.                         |
 | **low_pct**       | integer           | Optional                    | `1`     | Minimum brightness during ramp-down.    |
@@ -169,7 +169,7 @@ pico_link:
 ```yaml
 pico_link:
   defaults:
-    hold_time_ms: 250
+    hold_time_ms: 400
     step_pct: 10
     step_time_ms: 1000
     on_pct: 100

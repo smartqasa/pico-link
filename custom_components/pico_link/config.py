@@ -163,7 +163,7 @@ def parse_pico_config(
         media_players=media_players,
         switches=switches,
 
-        hold_time_ms=int(raw.get("hold_time_ms", 250)),
+        hold_time_ms=int(raw.get("hold_time_ms", 400)),
         step_time_ms=int(raw.get("step_time_ms", 750)),
         step_pct=int(raw.get("step_pct", 10)),
         low_pct=int(raw.get("low_pct", 1)),
