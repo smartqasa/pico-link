@@ -62,11 +62,11 @@ class PicoController:
 
         # Domain-specific actions
         self.actions = {
-            "light": LightActions(self),
             "cover": CoverActions(self),
             "fan": FanActions(self),
-            "switch": SwitchActions(self),
+            "light": LightActions(self),
             "media_player": MediaPlayerActions(self),
+            "switch": SwitchActions(self),
         }
 
     # ---------------------------------------------------------

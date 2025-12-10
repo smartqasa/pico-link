@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, List, Dict
+from typing import Any, List
 
 from homeassistant.const import EVENT_HOMEASSISTANT_STOP
 from homeassistant.core import HomeAssistant
@@ -40,7 +40,6 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
             "Example:\n"
             "pico_link:\n"
             "  defaults:\n"
-            "    step_pct: 5\n"
             "    hold_time_ms: 300",
             type(defaults).__name__,
         )
@@ -65,7 +64,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
             pico_conf: PicoConfig = parse_pico_config(hass, defaults, device_raw)
         except ValueError as err:
             _LOGGER.error(
-                "Invalid pico_link config at entry %s (device_id=%s, type=%s): %s",  # <<< NEW
+                "Invalid pico_link config at entry %s (device_id=%s, type=%s): %s",
                 idx,
                 device_raw.get("device_id") or device_raw.get("name"),
                 device_raw.get("type"),
