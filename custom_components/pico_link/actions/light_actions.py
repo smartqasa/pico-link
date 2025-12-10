@@ -355,3 +355,25 @@ class LightActions:
             await self._step_brightness(direction)
             iterations += 1
             await asyncio.sleep(step_time)
+
+    # ==============================================================
+    # RESET STATE (required by controller to avoid runaway loops)
+    # ==============================================================
+
+    def reset_state(self):
+        """Stop all tasks and clear pressed/hold/ramp state."""
+
+        # Cancel running tasks
+        for t in self._tasks.values():
+            if t and not t.done():
+                t.cancel()
+
+        # Reset tracking
+        for key in self._pressed:
+            self._pressed[key] = False
+            self._is_holding[key] = False
+            self._tasks[key] = None
+
+        # Clear press timestamps
+        self._press_ts.clear()
+
