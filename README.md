@@ -120,7 +120,6 @@ switches:
 | `cover_open_pos`        | optional     | 100     | ON → open to this position |
 | `cover_step_pct`        | optional     | 10      | Raise/lower step           |
 | `fan_on_pct`            | optional     | 100     | ON fan speed               |
-| `fan_speeds`            | optional     | 6       | Allowed: 4 or 6            |
 | `light_on_pct`          | optional     | 100     | Brightness for ON          |
 | `light_low_pct`         | optional     | 5       | Min dim level              |
 | `light_step_pct`        | optional     | 10      | Step size                  |
