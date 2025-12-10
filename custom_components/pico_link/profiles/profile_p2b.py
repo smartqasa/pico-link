@@ -10,6 +10,8 @@ if TYPE_CHECKING:
 _LOGGER = logging.getLogger(__name__)
 
 
+# profiles/profile_p2b.py
+
 class PaddleSwitchPico:
     """
     Paddle P2B:
@@ -34,17 +36,9 @@ class PaddleSwitchPico:
 
         match button:
             case "on":
-                # TAP logic → turn on
                 actions.press_on()
-                # HOLD logic → ramp up
-                actions.press_raise()
-
             case "off":
-                # TAP logic → turn off
                 actions.press_off()
-                # HOLD logic → ramp down
-                actions.press_lower()
-
             case _:
                 pass
 
@@ -62,10 +56,8 @@ class PaddleSwitchPico:
 
         match button:
             case "on":
-                actions.release_raise()
-
+                actions.release_on()
             case "off":
-                actions.release_lower()
-
+                actions.release_off()
             case _:
                 pass

@@ -1,4 +1,3 @@
-# controller.py
 from __future__ import annotations
 
 import logging
@@ -55,12 +54,14 @@ class PicoController:
         # Shared non-domain utilities
         self.utils = SharedUtils(self)
 
-        # Determined once at runtime on first event
+        # Behavior/profile selection
         self._behavior = None
-        self._behavior_name = None
+        self._behavior_name: Optional[str] = None
         self._unsub_event = None
 
         # Domain-specific actions
+        # NOTE: actions can inspect self.behavior_name at runtime
+        # to adjust behavior based on the selected Pico profile.
         self.actions = {
             "cover": CoverActions(self),
             "fan": FanActions(self),
@@ -68,6 +69,16 @@ class PicoController:
             "media_player": MediaPlayerActions(self),
             "switch": SwitchActions(self),
         }
+
+    @property
+    def behavior_name(self) -> Optional[str]:
+        """
+        The normalized Pico profile name (e.g. 'P2B', '3BRL', '4B'),
+        set once when the first event is received and a behavior is selected.
+
+        Action modules can use this to implement profile-specific logic.
+        """
+        return self._behavior_name
 
     # ---------------------------------------------------------
     # Subscribe to Pico events
@@ -130,7 +141,6 @@ class PicoController:
             PICO_EVENT_TYPE,
         )
 
-
     # ---------------------------------------------------------
     # Determine which behavior to use (3BRL, 4B, etc.)
     # ---------------------------------------------------------
@@ -148,7 +158,8 @@ class PicoController:
         if not normalized:
             _LOGGER.error(
                 "Device %s: unknown Pico hardware type '%s'",
-                self.conf.device_id, raw_type,
+                self.conf.device_id,
+                raw_type,
             )
             return False
 
@@ -156,7 +167,8 @@ class PicoController:
         if not behavior_cls:
             _LOGGER.error(
                 "Device %s: no profile implemented for type '%s'",
-                self.conf.device_id, normalized,
+                self.conf.device_id,
+                normalized,
             )
             return False
 
@@ -166,7 +178,9 @@ class PicoController:
 
         _LOGGER.debug(
             "Device %s: using profile '%s' (from hardware type '%s')",
-            self.conf.device_id, normalized, raw_type
+            self.conf.device_id,
+            normalized,
+            raw_type,
         )
         return True
 
