@@ -203,7 +203,7 @@ def parse_pico_config(
     # ------------------------------------------------------------
     # Normalize timing and behavior parameters
     # ------------------------------------------------------------
-    hold_time_ms  = _normalize_int(merged.get("hold_time_ms", 250), 250, 100, 2000)
+    hold_time_ms  = _normalize_int(merged.get("hold_time_ms", 400), 400, 100, 2000)
     step_time_ms  = _normalize_int(merged.get("step_time_ms", 750), 750, 100, 2000)
 
     cover_open_pos = _normalize_int(merged.get("cover_open_pos", 100), 100, 1, 100)
@@ -220,8 +220,8 @@ def parse_pico_config(
 
     light_on_pct   = _normalize_int(merged.get("light_on_pct",  merged.get("on_pct", 100)),
                                     100, 1, 100)
-    light_low_pct  = _normalize_int(merged.get("light_low_pct", merged.get("low_pct", 1)),
-                                    1,   1, 99)
+    light_low_pct  = _normalize_int(merged.get("light_low_pct", merged.get("low_pct", 5)),
+                                    5,   1, 99)
     light_step_pct = _normalize_int(merged.get("light_step_pct", merged.get("step_pct", 10)),
                                     10, 1, 25)
 

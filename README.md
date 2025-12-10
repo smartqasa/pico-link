@@ -115,14 +115,14 @@ switches:
 | Domain (`lights` etc.)  | ✔ except 4B | —       | Target domain              |
 | `buttons`               | 4B only      | `{}`    | Scene/action mappings      |
 | `middle_button`         | 3BRL only    | `[]`    | STOP overrides             |
-| `hold_time_ms`          | optional     | 250     | Hold threshold             |
+| `hold_time_ms`          | optional     | 400     | Hold threshold             |
 | `step_time_ms`          | optional     | 750     | Ramp interval              |
 | `cover_open_pos`        | optional     | 100     | ON → open to this position |
 | `cover_step_pct`        | optional     | 10      | Raise/lower step           |
 | `fan_on_pct`            | optional     | 100     | ON fan speed               |
 | `fan_speeds`            | optional     | 6       | Allowed: 4 or 6            |
 | `light_on_pct`          | optional     | 100     | Brightness for ON          |
-| `light_low_pct`         | optional     | 1       | Min dim level              |
+| `light_low_pct`         | optional     | 5       | Min dim level              |
 | `light_step_pct`        | optional     | 10      | Step size                  |
 | `media_player_vol_step` | optional     | 10      | Volume step size           |
 
