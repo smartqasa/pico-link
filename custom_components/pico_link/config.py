@@ -63,16 +63,39 @@ class PicoConfig:
                 f"Invalid Pico type '{self.type}'. Must be one of: {VALID_PICO_TYPES}"
             )
 
-        # Validate exactly ONE domain
-        domains = [
-            self.covers,
-            self.fans,
-            self.lights,
-            self.media_players,
-            self.switches,
-        ]
-        active_domains = sum(bool(d) for d in domains)
+        is_4b = self.type == "4B"
 
+        # Determine domain assignments
+        domains = [
+            bool(self.covers),
+            bool(self.fans),
+            bool(self.lights),
+            bool(self.media_players),
+            bool(self.switches),
+        ]
+        active_domains = sum(domains)
+
+        # -------------------------
+        # 4B — Scene Controller
+        # -------------------------
+        if is_4b:
+            if active_domains != 0:
+                raise ValueError(
+                    f"Pico {self.device_id} (4B): cannot define domains "
+                    f"(covers/fans/lights/media_players/switches). Use `buttons:` only."
+                )
+
+            if not isinstance(self.buttons, dict) or not self.buttons:
+                raise ValueError(
+                    f"Pico {self.device_id} (4B): must define a non-empty `buttons:` block."
+                )
+
+            # No other validation applies to 4B
+            return
+
+        # -------------------------
+        # Non-4B — must define EXACTLY ONE domain
+        # -------------------------
         if active_domains == 0:
             raise ValueError(
                 f"Pico {self.device_id}: No target domain configured. "
@@ -82,27 +105,17 @@ class PicoConfig:
         if active_domains > 1:
             raise ValueError(
                 f"Pico {self.device_id}: Multiple domains configured. "
-                "Only ONE domain may be assigned to each Pico."
+                "Only ONE domain may be assigned."
             )
 
-        # Fan validation
+        # -------------------------
+        # Fan-specific validation
+        # -------------------------
         if self.fans:
             if self.fan_speeds not in (4, 6):
                 raise ValueError(
                     f"Pico {self.device_id}: fan_speeds must be 4 or 6, got {self.fan_speeds}"
                 )
-
-        # 4B validation
-        if self.type == "4B":
-            if not isinstance(self.buttons, dict):
-                raise ValueError(
-                    f"Pico {self.device_id} (4B): 'buttons' must be a dict."
-                )
-            for key, vals in self.buttons.items():
-                if not isinstance(vals, list):
-                    raise ValueError(
-                        f"Pico {self.device_id} (4B): '{key}' must be a list of actions."
-                    )
 
 
 # ================================================================
