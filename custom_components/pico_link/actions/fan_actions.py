@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, List
 
 if TYPE_CHECKING:
     from ..controller import PicoController
@@ -13,32 +13,31 @@ _LOGGER = logging.getLogger(__name__)
 
 class FanActions:
     """
-    Fan behavior:
+    Tap-only fan controller.
 
-    TAP:
-        on      → set percentage to fan_on_pct
-        off     → turn_off
-        raise   → increase to next discrete speed
-        lower   → decrease to previous discrete speed
-        stop    → middle_button actions OR reverse direction
+    Behaviors:
+      ON tap     → turn on to fan_on_pct (default 100)
+      OFF tap    → turn off
+      RAISE tap  → next higher speed
+      LOWER tap  → next lower speed
+      STOP tap   → reverse direction (or middle_button override)
 
-    Special rule:
-        If fan is OFF and raise is tapped → turn on to first step speed.
-
-    NO HOLD LOGIC.
+    Additional behavior:
+      - If fan is OFF and RAISE is tapped → go to the first speed step
     """
 
     def __init__(self, ctrl: "PicoController") -> None:
         self.ctrl = ctrl
 
-    # -------------------------------------------------------------
-    # PUBLIC API (called by profiles)
-    # -------------------------------------------------------------
+    # ==============================================================
+    # PUBLIC ENTRY POINTS (called by profiles)
+    # ==============================================================
+
     def press_on(self):
         asyncio.create_task(self._turn_on())
 
     def release_on(self):
-        pass  # tap-only
+        pass
 
     def press_off(self):
         asyncio.create_task(self._turn_off())
@@ -47,6 +46,11 @@ class FanActions:
         pass
 
     def press_stop(self):
+        """
+        STOP behavior:
+        - If user provided middle_button actions → run them.
+        - Otherwise → reverse direction.
+        """
         actions = self.ctrl.conf.middle_button
 
         if actions:
@@ -60,22 +64,24 @@ class FanActions:
         pass
 
     def press_raise(self):
-        asyncio.create_task(self._step_up())
+        asyncio.create_task(self._step(1))
 
     def release_raise(self):
         pass
 
     def press_lower(self):
-        asyncio.create_task(self._step_down())
+        asyncio.create_task(self._step(-1))
 
     def release_lower(self):
         pass
 
-    # -------------------------------------------------------------
+    # ==============================================================
     # FAN OPERATIONS
-    # -------------------------------------------------------------
+    # ==============================================================
+
     async def _turn_on(self):
         pct = self.ctrl.conf.fan_on_pct
+
         await self.ctrl.utils.call_service(
             "set_percentage",
             {"percentage": pct},
@@ -106,73 +112,89 @@ class FanActions:
             domain="fan",
         )
 
-    # -------------------------------------------------------------
-    # DISCRETE STEPPING
-    # -------------------------------------------------------------
-    def _build_speed_ladder(self, speeds: int) -> list[int]:
-        """Return a list like [0, 25, 50, 75, 100] for speeds=5."""
-        steps = speeds - 1
-        return [round(i * 100 / steps) for i in range(speeds)]
+    # ==============================================================
+    # DISCRETE SPEED STEPPING
+    # ==============================================================
 
-    def _get_current_pct(self) -> Optional[float]:
+    async def _step(self, direction: int):
+        """
+        Step fan speed up/down based on discrete ladder.
+        If fan is OFF and stepping upward → go to first step.
+        """
+
+        ladder = self._get_speed_ladder()
+        if not ladder:
+            return
+
+        current = self._get_current_pct()
+        if current is None:
+            return
+
+        # If fan is off → treat as step from 0 → first step
+        if current == 0 and direction > 0:
+            new_pct = ladder[1]  # ladder[0] == 0, so first real step is index 1
+        else:
+            # Find closest index in ladder
+            idx = min(range(len(ladder)), key=lambda i: abs(ladder[i] - current))
+            new_idx = max(0, min(len(ladder) - 1, idx + direction))
+            new_pct = ladder[new_idx]
+
+        await self.ctrl.utils.call_service(
+            "set_percentage",
+            {"percentage": new_pct},
+            domain="fan",
+        )
+
+    # ==============================================================
+    # HELPERS
+    # ==============================================================
+
+    def _get_speed_ladder(self) -> List[int]:
+        """
+        Builds the ladder using HA's internal percentage_step.
+
+        Example:
+            percentage_step=25 → [0,25,50,75,100]
+            percentage_step=33 → [0,33,66,99]
+        """
+        state = self.ctrl.utils.get_entity_state()
+        if not state:
+            return []
+
+        step = state.attributes.get("percentage_step")
+        if not isinstance(step, (int, float)) or step <= 0:
+            # Fallback → assume 100%
+            return [0, 100]
+
+        ladder = [0]
+        pct = step
+
+        # Build until >= 100
+        while pct < 100:
+            ladder.append(int(pct))
+            pct += step
+
+        ladder.append(100)
+
+        return ladder
+
+    def _get_current_pct(self) -> Optional[int]:
+        """
+        Returns current fan percentage as an integer.
+        If OFF → returns 0.
+        """
         state = self.ctrl.utils.get_entity_state()
         if not state:
             return None
 
-        pct = state.attributes.get("percentage")
+        if state.state == "off":
+            return 0
 
+        pct = state.attributes.get("percentage")
         if pct is None:
-            # off → treat as 0%
-            return 0.0 if state.state == "off" else float(self.ctrl.conf.fan_on_pct)
+            return 0
 
         try:
-            return float(pct)
+            return int(pct)
         except Exception:
-            return None
-
-    async def _step_up(self):
-        speeds = self.ctrl.conf.fan_speeds
-        ladder = self._build_speed_ladder(speeds)
-
-        current = self._get_current_pct()
-        if current is None:
-            return
-
-        # If off → go to first step
-        if current == 0:
-            first_step = ladder[1] if len(ladder) > 1 else self.ctrl.conf.fan_on_pct
-            await self.ctrl.utils.call_service(
-                "set_percentage",
-                {"percentage": first_step},
-                domain="fan",
-            )
-            return
-
-        idx = min(range(len(ladder)), key=lambda i: abs(ladder[i] - current))
-        new_idx = min(len(ladder) - 1, idx + 1)
-
-        if new_idx == idx:
-            return  # already at max
-
-        await self.ctrl.utils.call_service(
-            "set_percentage",
-            {"percentage": ladder[new_idx]},
-            domain="fan",
-        )
-
-    async def _step_down(self):
-        speeds = self.ctrl.conf.fan_speeds
-        ladder = self._build_speed_ladder(speeds)
-
-        current = self._get_current_pct()
-        if current is None:
-            return
-
-        idx = min(range(len(ladder)), key=lambda i: abs(ladder[i] - current))
-        new_idx = max(0, idx - 1)
-
-        await self.ctrl.utils.call_service(
-            "set_percentage",
-            {"percentage": ladder[new_idx]},
-            domain="fan",
-        )
+            return 0

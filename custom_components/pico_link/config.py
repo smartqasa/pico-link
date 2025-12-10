@@ -39,7 +39,6 @@ class PicoConfig:
 
     # Fan configuration
     fan_on_pct: int = 100          # 1–100
-    fan_speeds: int = 6            # ONLY 4 or 6
 
     # Light configuration
     light_on_pct: int = 100        # 1–100
@@ -107,15 +106,6 @@ class PicoConfig:
                 f"Pico {self.device_id}: Multiple domains configured. "
                 "Only ONE domain may be assigned."
             )
-
-        # -------------------------
-        # Fan-specific validation
-        # -------------------------
-        if self.fans:
-            if self.fan_speeds not in (4, 6):
-                raise ValueError(
-                    f"Pico {self.device_id}: fan_speeds must be 4 or 6, got {self.fan_speeds}"
-                )
 
 
 # ================================================================
@@ -280,7 +270,6 @@ def parse_pico_config(
         cover_step_pct=cover_step_pct,
 
         fan_on_pct=fan_on_pct,
-        fan_speeds=fan_speeds,
 
         light_on_pct=light_on_pct,
         light_low_pct=light_low_pct,
