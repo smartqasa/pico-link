@@ -271,23 +271,9 @@ overrides, placeholder expansion, and typical use cases.
 ```yaml
 pico_link:
   # ------------------------------------------------------------
-  # GLOBAL DEFAULTS
+  # GLOBAL DEFAULTS (SEE CONFIG PARAMETERS TABLE ABOVE)
   # ------------------------------------------------------------
   defaults:
-    hold_time_ms: 250
-    step_time_ms: 600
-
-    light_on_pct: 85
-    light_step_pct: 12
-    light_low_pct: 1
-
-    fan_on_pct: 60
-
-    cover_open_pos: 100
-    cover_step_pct: 10
-
-    media_player_vol_step: 8
-
     middle_button:
       - action: light.turn_on
         target:
