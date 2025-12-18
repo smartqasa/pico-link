@@ -6,10 +6,6 @@
 ![GitHub release (latest by date)](https://img.shields.io/github/v/release/smartqasa/pico-link)
 ![GitHub License](https://img.shields.io/github/license/smartqasa/pico-link)
 
-<p align="center">
-  <img src="logo.png" width="180" alt="Pico Link Logo">
-</p>
-
 ---
 
 ## 🧠 Overview
