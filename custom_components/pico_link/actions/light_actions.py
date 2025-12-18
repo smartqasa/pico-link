@@ -317,6 +317,13 @@ class LightActions:
             new_pct = max(low_pct, new_pct)
         new_pct = min(100, max(1, new_pct))
 
+        _LOGGER.debug(
+            "LightActions: step_brightness direction=%s current=%s new=%s",
+            direction,
+            current_pct,
+            new_pct,
+        )
+
         await self.ctrl.utils.call_service(
             "turn_on",
             {"brightness_pct": new_pct},
