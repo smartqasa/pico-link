@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
 from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
@@ -12,68 +13,102 @@ _LOGGER = logging.getLogger(__name__)
 
 class MediaPlayerActions:
     """
-    Media player behaviors:
+    Unified media_player action module implementing the full action API.
 
-    - on    → unmute OR turn_on
-    - off   → mute OR turn_off
-    - raise → volume up (tap = step, hold = ramp)
-    - lower → volume down (tap = step, hold = ramp)
-    - stop  → custom middle_button actions, else mute/unmute toggle
+    Semantics:
+        - on    (tap) → play / pause
+        - off   (tap) → next track
+        - raise (tap) → volume step up
+        - raise (hold) → volume ramp up
+        - lower (tap) → volume step down
+        - lower (hold) → volume ramp down
+        - stop  (tap) → middle_button actions OR mute/unmute
     """
 
     def __init__(self, ctrl: "PicoController") -> None:
         self.ctrl = ctrl
-        self._pressed: dict[str, bool] = {}
-        self._tasks: dict[str, Optional[asyncio.Task]] = {}
 
-    # -------------------------------------------------------------
-    # PRESS
-    # -------------------------------------------------------------
-    def handle_press(self, button: str) -> None:
-        match button:
+        # Track pressed state (raise/lower only)
+        self._pressed: dict[str, bool] = {
+            "raise": False,
+            "lower": False,
+        }
 
-            # POWER-LIKE BEHAVIOR
-            case "on":
-                asyncio.create_task(self._turn_on())
+        # Track press timestamps (debug / future use)
+        self._press_ts: dict[str, float] = {}
 
-            case "off":
-                asyncio.create_task(self._turn_off())
+        # Async tasks per button
+        self._tasks: dict[str, Optional[asyncio.Task]] = {
+            "raise": None,
+            "lower": None,
+        }
 
-            # STOP BEHAVIOR
-            case "stop":
-                actions = self.ctrl.conf.middle_button
+    # ==============================================================
+    # API METHODS (called by profiles)
+    # ==============================================================
 
-                if actions:
-                    # Run user-defined STOP actions
-                    for action in actions:
-                        asyncio.create_task(self.ctrl.utils.execute_button_action(action))
-                else:
-                    # Default STOP behavior → mute/unmute toggle
-                    asyncio.create_task(self._toggle_mute())
+    # --- ON --------------------------------------------------------
+    def press_on(self):
+        asyncio.create_task(self._play_pause())
 
-                return
+    def release_on(self):
+        pass  # tap-only
 
-            # VOLUME CONTROL
-            case "raise" | "lower":
-                self._pressed[button] = True
+    # --- OFF -------------------------------------------------------
+    def press_off(self):
+        asyncio.create_task(self._next_track())
 
-                # TAP = step once immediately
-                asyncio.create_task(self._step_volume(button))
+    def release_off(self):
+        pass  # tap-only
 
-                # HOLD = continuous stepping
-                task = asyncio.create_task(self._hold_lifecycle(button))
-                self._tasks[button] = task
+    # --- STOP ------------------------------------------------------
+    def press_stop(self):
+        """
+        STOP:
+        - execute middle_button actions if defined
+        - else mute/unmute toggle
+        """
+        actions = self.ctrl.conf.middle_button
 
-            case _:
-                _LOGGER.debug("MediaPlayerActions: unknown button '%s'", button)
+        if actions:
+            for action in actions:
+                asyncio.create_task(self.ctrl.utils.execute_button_action(action))
+        else:
+            asyncio.create_task(self._toggle_mute())
 
-    # -------------------------------------------------------------
-    # RELEASE
-    # -------------------------------------------------------------
-    def handle_release(self, button: str) -> None:
-        if button not in ("raise", "lower"):
-            return
+    def release_stop(self):
+        pass
 
+    # --- RAISE -----------------------------------------------------
+    def press_raise(self):
+        self._start_raise_lower("raise", direction=1)
+
+    def release_raise(self):
+        self._stop_raise_lower("raise")
+
+    # --- LOWER -----------------------------------------------------
+    def press_lower(self):
+        self._start_raise_lower("lower", direction=-1)
+
+    def release_lower(self):
+        self._stop_raise_lower("lower")
+
+    # ==============================================================
+    # INTERNAL STATEFUL BEHAVIOR (RAISE / LOWER)
+    # ==============================================================
+
+    def _start_raise_lower(self, button: str, direction: int):
+        self._pressed[button] = True
+        self._press_ts[button] = time.time()
+
+        # TAP → immediate step
+        asyncio.create_task(self._step_volume(direction))
+
+        # HOLD → ramp
+        task = asyncio.create_task(self._hold_lifecycle(button, direction))
+        self._tasks[button] = task
+
+    def _stop_raise_lower(self, button: str):
         self._pressed[button] = False
 
         task = self._tasks.get(button)
@@ -82,91 +117,44 @@ class MediaPlayerActions:
 
         self._tasks[button] = None
 
-    # -------------------------------------------------------------
-    # POWER / MUTE
-    # -------------------------------------------------------------
-    async def _turn_on(self):
-        """ turn_on + unmute """
-        await self.ctrl.utils.call_service(
-            "turn_on",
-            {},
-            domain="media_player",
-        )
-
-        await self.ctrl.utils.call_service(
-            "volume_mute",
-            {"is_volume_muted": False},
-            domain="media_player",
-            continue_on_error=True,
-        )
-
-    async def _turn_off(self):
-        """ turn_off + mute """
-        await self.ctrl.utils.call_service(
-            "turn_off",
-            {},
-            domain="media_player",
-        )
-
-        await self.ctrl.utils.call_service(
-            "volume_mute",
-            {"is_volume_muted": True},
-            domain="media_player",
-            continue_on_error=True,
-        )
-
-    # -------------------------------------------------------------
-    # TAP STEP
-    # -------------------------------------------------------------
-    async def _step_volume(self, button: str):
-        """Tap volume step."""
-        step_pct = self.ctrl.conf.media_player_vol_step  # 1–10%
-
-        current = self._get_current_volume()
-        if current is None:
-            return
-
-        current_pct = current * 100.0
-        mult = 1 if button == "raise" else -1
-
-        new_pct = max(0.0, min(100.0, current_pct + (step_pct * mult)))
-
-        await self.ctrl.utils.call_service(
-            "volume_set",
-            {"volume_level": new_pct / 100.0},
-            domain="media_player",
-        )
-
-    # -------------------------------------------------------------
-    # HOLD = continuous ramp
-    # -------------------------------------------------------------
-    async def _hold_lifecycle(self, button: str):
+    async def _hold_lifecycle(self, button: str, direction: int):
         try:
             await asyncio.sleep(self.ctrl.utils._hold_time)
 
             if not self._pressed.get(button):
-                return  # tap only
+                return  # TAP only
 
-            # HOLD → continuous ramp
             while self._pressed.get(button):
-                await self._step_volume(button)
+                await self._step_volume(direction)
                 await asyncio.sleep(self.ctrl.utils._step_time)
 
         except asyncio.CancelledError:
             pass
 
-    # -------------------------------------------------------------
-    # STOP DEFAULT = MUTE/UNMUTE
-    # -------------------------------------------------------------
-    async def _toggle_mute(self):
-        """Default STOP = mute/unmute toggle."""
+    # ==============================================================
+    # DOMAIN LOGIC
+    # ==============================================================
 
+    async def _play_pause(self):
+        await self.ctrl.utils.call_service(
+            "media_play_pause",
+            {},
+            domain="media_player",
+        )
+
+    async def _next_track(self):
+        await self.ctrl.utils.call_service(
+            "media_next_track",
+            {},
+            domain="media_player",
+        )
+
+    async def _toggle_mute(self):
         state = self.ctrl.utils.get_entity_state()
         if not state:
             return
 
         is_muted = state.attributes.get("is_volume_muted")
-
         new_val = not bool(is_muted)
 
         await self.ctrl.utils.call_service(
@@ -175,9 +163,37 @@ class MediaPlayerActions:
             domain="media_player",
         )
 
-    # -------------------------------------------------------------
+    async def _step_volume(self, direction: int):
+        """
+        Single volume step (tap or ramp tick).
+        """
+
+        step_pct = self.ctrl.conf.media_player_vol_step
+
+        current = self._get_current_volume()
+        if current is None:
+            return
+
+        current_pct = current * 100.0
+        new_pct = max(0.0, min(100.0, current_pct + (step_pct * direction)))
+
+        _LOGGER.debug(
+            "MediaPlayerActions: step_volume direction=%s current=%s new=%s",
+            direction,
+            current_pct,
+            new_pct,
+        )
+
+        await self.ctrl.utils.call_service(
+            "volume_set",
+            {"volume_level": new_pct / 100.0},
+            domain="media_player",
+        )
+
+    # ==============================================================
     # HELPERS
-    # -------------------------------------------------------------
+    # ==============================================================
+
     def _get_current_volume(self) -> Optional[float]:
         """Return current volume_level (0.0–1.0)."""
         state = self.ctrl.utils.get_entity_state()
@@ -190,3 +206,20 @@ class MediaPlayerActions:
             vol = 0.0
 
         return max(0.0, min(1.0, vol))
+
+    # ==============================================================
+    # RESET STATE
+    # ==============================================================
+
+    def reset_state(self):
+        """Stop all tasks and clear pressed state."""
+
+        for t in self._tasks.values():
+            if t and not t.done():
+                t.cancel()
+
+        for key in self._pressed:
+            self._pressed[key] = False
+            self._tasks[key] = None
+
+        self._press_ts.clear()
