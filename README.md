@@ -7,7 +7,7 @@
 ![GitHub License](https://img.shields.io/github/license/smartqasa/pico-link)
 
 <p align="center">
-  <img src="pico.png" alt="Pico Link Logo">
+  <img src="pico.png" width="180" alt="Pico Link Logo">
 </p>
 
 ---
