@@ -131,22 +131,34 @@ Values outside these ranges are discouraged.
 
 ## 📊 Configuration Parameters
 
-| Field                   | Required       | Default        | Description           |
-| ----------------------- | -------------- | -------------- | --------------------- |
-| `type`                  | ✔             | —              | Pico hardware type    |
-| `name` / `device_id`    | ✔             | —              | Pico identity         |
-| Domain (`lights`, etc.) | ✔ (except 4B) | —              | Controlled entities   |
-| `buttons`               | 4B only        | `{}`           | Scene/action mappings |
-| `middle_button`         | 3BRL only      | domain default | STOP behavior         |
-| `hold_time_ms`          | optional       | `400`          | Hold threshold        |
-| `step_time_ms`          | optional       | `750`          | Ramp interval         |
-| `light_on_pct`          | optional       | `100`          | ON brightness         |
-| `light_low_pct`         | optional       | `5`            | Minimum dim           |
-| `light_step_pct`        | optional       | `10`           | Step size             |
-| `fan_on_pct`            | optional       | `100`          | ON speed              |
-| `cover_open_pos`        | optional       | `100`          | ON open position      |
-| `cover_step_pct`        | optional       | `10`           | Cover step            |
-| `media_player_vol_step` | optional       | `10`           | Volume step           |
+| Field                   | Required       | Default        | Description             |
+| ----------------------- | -------------- | -------------- | ----------------------- |
+| `type`                  | ✔             | —              | Pico hardware type      |
+| `name` / `device_id`    | ✔             | —              | Pico identity           |
+| Domain (`lights`, etc.) | ✔ (except 4B) | —              | Controlled entities     |
+| `buttons`               | 4B only        | `{}`           | Scene/action mappings   |
+| `middle_button`         | 3BRL only      | domain default | STOP behavior           |
+| `hold_time_ms`          | optional       | `400`          | Hold threshold (millis) |
+| `step_time_ms`          | optional       | `750`          | Ramp interval (millis)  |
+| `light_on_pct`          | optional       | `100`          | ON brightness (pct)     |
+| `light_low_pct`         | optional       | `5`            | Minimum dim (pct)       |
+| `light_step_pct`        | optional       | `10`           | Step size (pct)         |
+| `light_transition_on`   | optional       | `0`            | Fade-in time (seconds)  |
+| `light_transition_off`  | optional       | `0`            | Fade-out time (seconds) |
+| `fan_on_pct`            | optional       | `100`          | ON speed (pct)          |
+| `cover_open_pos`        | optional       | `100`          | ON open position (pct)  |
+| `cover_step_pct`        | optional       | `10`           | Cover step (pct)        |
+| `media_player_vol_step` | optional       | `10`           | Volume step (pct)       |
+
+### Light Transitions
+
+`light_transition_on` and `light_transition_off` control **smooth fades** when
+lights are turned ON or OFF via tap actions.
+
+- Value is in **seconds**
+- When set to `0`, the transition parameter is **not sent** to Home Assistant
+- Transitions apply to **tap ON / OFF only**
+- Step and ramp actions are always instant for responsiveness
 
 ---
 
@@ -268,6 +280,8 @@ pico_link:
           entity_id: lights
         data:
           brightness_pct: 80
+          light_transition_on: 1
+          light_transition_off: 3
 
   devices:
     # P2B Paddle — lights

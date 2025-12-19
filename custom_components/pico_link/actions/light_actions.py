@@ -74,6 +74,27 @@ class LightActions:
         """
         profile = self.ctrl.behavior_name
         return profile == "P2B"
+    
+    # ==============================================================
+    # Transition parameter helper
+    # ==============================================================
+
+    def _light_transition_param(self, *, turning_on: bool) -> dict:
+        """
+        Return a transition parameter dict for light service calls.
+
+        If transition is 0, return {} so it is NOT passed to HA.
+        """
+        if turning_on:
+            transition = self.ctrl.conf.light_transition_on
+        else:
+            transition = self.ctrl.conf.light_transition_off
+
+        if transition > 0:
+            return {"transition": transition}
+
+        return {}
+
 
     # ==============================================================
     # API METHODS (called by profiles)
@@ -276,16 +297,25 @@ class LightActions:
     async def _turn_on(self):
         pct = self.ctrl.conf.light_on_pct
 
+        params = {
+            "brightness_pct": pct,
+            **self._light_transition_param(turning_on=True),
+        }
+
         await self.ctrl.utils.call_service(
             "turn_on",
-            {"brightness_pct": pct},
+            params,
             domain="light",
         )
 
     async def _turn_off(self):
+        params = {
+            **self._light_transition_param(turning_on=False),
+        }
+
         await self.ctrl.utils.call_service(
             "turn_off",
-            {},
+            params,
             domain="light",
         )
 

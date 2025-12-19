@@ -44,6 +44,8 @@ class PicoConfig:
     light_on_pct: int = 100        # 1–100
     light_low_pct: int = 1         # 1–99
     light_step_pct: int = 10       # 1–25
+    light_transition_on: int = 0   # 0-300
+    light_transition_off: int = 0  # 0-300
 
     # Media player config
     media_player_vol_step: int = 10  # 1–20 recommended
@@ -206,27 +208,81 @@ def parse_pico_config(
     # ------------------------------------------------------------
     # Normalize timing and behavior parameters
     # ------------------------------------------------------------
-    hold_time_ms  = _normalize_int(merged.get("hold_time_ms", 400), 400, 100, 2000)
-    step_time_ms  = _normalize_int(merged.get("step_time_ms", 750), 750, 100, 2000)
+    hold_time_ms = _normalize_int(
+        raw_val=merged.get("hold_time_ms", 400),
+        default=400,
+        min_val=100,
+        max_val=2000,
+    )
 
-    cover_open_pos = _normalize_int(merged.get("cover_open_pos", 100), 100, 1, 100)
-    cover_step_pct = _normalize_int(merged.get("cover_step_pct", 10), 10, 1, 25)
+    step_time_ms = _normalize_int(
+        raw_val=merged.get("step_time_ms", 750),
+        default=750,
+        min_val=100,
+        max_val=2000,
+    )
 
-    fan_on_pct = _normalize_int(merged.get("fan_on_pct", merged.get("on_pct", 100)),
-                                100, 1, 100)
+    cover_open_pos = _normalize_int(
+        raw_val=merged.get("cover_open_pos", 100),
+        default=100,
+        min_val=1,
+        max_val=100,
+    )
 
-    light_on_pct   = _normalize_int(merged.get("light_on_pct",  merged.get("on_pct", 100)),
-                                    100, 1, 100)
-    light_low_pct  = _normalize_int(merged.get("light_low_pct", merged.get("low_pct", 5)),
-                                    5,   1, 99)
-    light_step_pct = _normalize_int(merged.get("light_step_pct", merged.get("step_pct", 10)),
-                                    10, 1, 25)
-
-    media_player_vol_step = _normalize_int(
-        merged.get("media_player_vol_step", 10),
+    cover_step_pct = _normalize_int(
+        raw_val=merged.get("cover_step_pct", 10),
         default=10,
         min_val=1,
-        max_val=20,  # corrected: 100 was too large
+        max_val=25,
+    )
+
+    fan_on_pct = _normalize_int(
+        raw_val=merged.get("fan_on_pct", merged.get("on_pct", 100)),
+        default=100,
+        min_val=1,
+        max_val=100,
+    )
+
+    light_on_pct = _normalize_int(
+        raw_val=merged.get("light_on_pct", merged.get("on_pct", 100)),
+        default=100,
+        min_val=1,
+        max_val=100,
+    )
+
+    light_low_pct = _normalize_int(
+        raw_val=merged.get("light_low_pct", merged.get("low_pct", 5)),
+        default=5,
+        min_val=1,
+        max_val=99,
+    )
+
+    light_step_pct = _normalize_int(
+        raw_val=merged.get("light_step_pct", merged.get("step_pct", 10)),
+        default=10,
+        min_val=1,
+        max_val=25,
+    )
+
+    light_transition_on = _normalize_int(
+        raw_val=merged.get("light_transition_on", 0),
+        default=0,
+        min_val=0,
+        max_val=300,
+    )
+
+    light_transition_off = _normalize_int(
+        raw_val=merged.get("light_transition_off", 0),
+        default=0,
+        min_val=0,
+        max_val=300,
+    )
+
+    media_player_vol_step = _normalize_int(
+        raw_val=merged.get("media_player_vol_step", 10),
+        default=10,
+        min_val=1,
+        max_val=20,
     )
 
     # ------------------------------------------------------------
@@ -268,6 +324,8 @@ def parse_pico_config(
         light_on_pct=light_on_pct,
         light_low_pct=light_low_pct,
         light_step_pct=light_step_pct,
+        light_transition_on=light_transition_on,
+        light_transition_off=light_transition_off,
 
         media_player_vol_step=media_player_vol_step,
 
