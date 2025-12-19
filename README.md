@@ -289,6 +289,8 @@ pico_link:
       type: P2B
       lights:
         - light.kitchen_main
+      light_transition_on: 2
+      light_transition_off: 4
 
     # 2B — switch
     - name: Closet Pico
