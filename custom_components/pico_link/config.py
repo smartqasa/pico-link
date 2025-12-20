@@ -42,7 +42,7 @@ class PicoConfig:
 
     # Light configuration
     light_on_pct: int = 100        # 1–100
-    light_low_pct: int = 1         # 1–99
+    light_low_pct: int = 5         # 1–99
     light_step_pct: int = 10       # 1–25
     light_transition_on: int = 0   # 0-300
     light_transition_off: int = 0  # 0-300
@@ -237,28 +237,28 @@ def parse_pico_config(
     )
 
     fan_on_pct = _normalize_int(
-        raw_val=merged.get("fan_on_pct", merged.get("on_pct", 100)),
+        raw_val=merged.get("fan_on_pct", 100),
         default=100,
         min_val=1,
         max_val=100,
     )
 
     light_on_pct = _normalize_int(
-        raw_val=merged.get("light_on_pct", merged.get("on_pct", 100)),
+        raw_val=merged.get("light_on_pct", 100),
         default=100,
         min_val=1,
         max_val=100,
     )
 
     light_low_pct = _normalize_int(
-        raw_val=merged.get("light_low_pct", merged.get("low_pct", 5)),
+        raw_val=merged.get("light_low_pct", 5),
         default=5,
         min_val=1,
         max_val=99,
     )
 
     light_step_pct = _normalize_int(
-        raw_val=merged.get("light_step_pct", merged.get("step_pct", 10)),
+        raw_val=merged.get("light_step_pct", 10),
         default=10,
         min_val=1,
         max_val=25,

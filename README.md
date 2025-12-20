@@ -272,7 +272,7 @@ target:
 
 ---
 
-## 📘 FULL, SAFE, COPY-PASTE EXAMPLE
+## 📘 SAMPLE CONFIGURATION
 
 ```yaml
 pico_link:
@@ -284,8 +284,7 @@ pico_link:
           entity_id: lights
         data:
           brightness_pct: 80
-          light_transition_on: 1
-          light_transition_off: 3
+          transition: 1
 
   devices:
     # P2B Paddle — lights
@@ -293,8 +292,8 @@ pico_link:
       type: P2B
       lights:
         - light.kitchen_main
-      light_transition_on: 2
-      light_transition_off: 4
+      light_transition_on: 1
+      light_transition_off: 3
 
     # 2B — switch
     - name: Closet Pico
