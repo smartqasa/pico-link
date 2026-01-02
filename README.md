@@ -144,14 +144,14 @@ Values outside these ranges are discouraged.
 | `middle_button`         | 3BRL only      | domain default | STOP behavior           |
 | `hold_time_ms`          | optional       | `400`          | Hold threshold (millis) |
 | `step_time_ms`          | optional       | `750`          | Ramp interval (millis)  |
+| `cover_open_pos`        | optional       | `100`          | ON open position (pct)  |
+| `cover_step_pct`        | optional       | `10`           | Cover step (pct)        |
+| `fan_on_pct`            | optional       | `100`          | ON speed (pct)          |
 | `light_on_pct`          | optional       | `100`          | ON brightness (pct)     |
 | `light_low_pct`         | optional       | `5`            | Minimum dim (pct)       |
 | `light_step_pct`        | optional       | `10`           | Step size (pct)         |
 | `light_transition_on`   | optional       | `0`            | Fade-in time (seconds)  |
 | `light_transition_off`  | optional       | `0`            | Fade-out time (seconds) |
-| `fan_on_pct`            | optional       | `100`          | ON speed (pct)          |
-| `cover_open_pos`        | optional       | `100`          | ON open position (pct)  |
-| `cover_step_pct`        | optional       | `10`           | Cover step (pct)        |
 | `media_player_vol_step` | optional       | `10`           | Volume step (pct)       |
 
 ### Light Transitions
@@ -189,9 +189,9 @@ middle_button:           # explicit custom actions
 
 | Domain        | STOP Behavior     |
 | ------------- | ----------------- |
-| Lights        | No-op             |
-| Fans          | Reverse direction |
 | Covers        | Stop Cover        |
+| Fans          | Reverse direction |
+| Lights        | No-op             |
 | Media Players | Toggle mute       |
 | Switches      | No-op             |
 
@@ -203,9 +203,9 @@ Within `middle_button:` actions, these placeholders expand automatically:
 
 | Placeholder     | Expands To             |
 | --------------- | ---------------------- |
-| `lights`        | Assigned lights        |
-| `fans`          | Assigned fans          |
 | `covers`        | Assigned covers        |
+| `fans`          | Assigned fans          |
+| `lights`        | Assigned lights        |
 | `media_players` | Assigned media players |
 | `switches`      | Assigned switches      |
 
