@@ -363,9 +363,6 @@ Pico Link enforces:
 - Valid numeric ranges
 - Clear, actionable config errors
 
-If something is wrong, **Home Assistant will refuse to start with a clear
-message**.
-
 ---
 
 ## ☕ Support Development
