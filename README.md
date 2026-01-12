@@ -85,14 +85,14 @@ Each **device entry** must define:
 
 - `type`
 - `name` **or** `device_id`
-- **Exactly one domain** (except 4B)
+- **One domain** (except 4B)
 
 Valid domains:
 
 ```text
-lights:
-fans:
 covers:
+fans:
+lights:
 media_players:
 switches:
 ```
@@ -135,24 +135,24 @@ Values outside these ranges are discouraged.
 
 ## 📊 Configuration Parameters
 
-| Field                   | Required       | Default        | Description             |
+| Key                     | Default        | Description    |
 | ----------------------- | -------------- | -------------- | ----------------------- |
 | `type`                  | ✔             | —              | Pico hardware type      |
 | `name` / `device_id`    | ✔             | —              | Pico identity           |
 | Domain (`lights`, etc.) | ✔ (except 4B) | —              | Controlled entities     |
 | `buttons`               | 4B only        | `{}`           | Scene/action mappings   |
 | `middle_button`         | 3BRL only      | domain default | STOP behavior           |
-| `hold_time_ms`          | optional       | `400`          | Hold threshold (millis) |
-| `step_time_ms`          | optional       | `750`          | Ramp interval (millis)  |
-| `cover_open_pos`        | optional       | `100`          | ON open position (pct)  |
-| `cover_step_pct`        | optional       | `10`           | Cover step (pct)        |
-| `fan_on_pct`            | optional       | `100`          | ON speed (pct)          |
-| `light_on_pct`          | optional       | `100`          | ON brightness (pct)     |
-| `light_low_pct`         | optional       | `5`            | Minimum dim (pct)       |
-| `light_step_pct`        | optional       | `10`           | Step size (pct)         |
-| `light_transition_on`   | optional       | `0`            | Fade-in time (seconds)  |
-| `light_transition_off`  | optional       | `0`            | Fade-out time (seconds) |
-| `media_player_vol_step` | optional       | `10`           | Volume step (pct)       |
+| `hold_time_ms`          | ✘              | `400`          | Hold threshold (ms)     |
+| `step_time_ms`          | ✘              | `750`          | Ramp interval (ms)      |
+| `cover_open_pos`        | ✘              | `100`          | ON open position (pct)  |
+| `cover_step_pct`        | ✘              | `10`           | Cover step (pct)        |
+| `fan_on_pct`            | ✘              | `100`          | ON speed (pct)          |
+| `light_on_pct`          | ✘              | `100`          | ON brightness (pct)     |
+| `light_low_pct`         | ✘              | `5`            | Minimum dim (pct)       |
+| `light_step_pct`        | ✘              | `10`           | Step size (pct)         |
+| `light_transition_on`   | ✘              | `0`            | Fade-in time (seconds)  |
+| `light_transition_off`  | ✘              | `0`            | Fade-out time (seconds) |
+| `media_player_vol_step` | ✘              | `10`           | Volume step (pct)       |
 
 ### Light Transitions
 

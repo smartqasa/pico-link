@@ -7,14 +7,14 @@ from homeassistant.core import Event, HomeAssistant, callback
 
 from .config import PicoConfig
 from .const import SUPPORTED_BUTTONS, PICO_EVENT_TYPE, PICO_TYPE_MAP
-from .shared_utils import SharedUtils
+from .utilities import SharedUtils
 
 # Profiles
-from .profiles.profile_base import PicoProfile
-from .profiles.profile_3brl import Pico3ButtonRaiseLower
-from .profiles.profile_p2b import PaddleSwitchPico
-from .profiles.profile_2b import Pico2Button
-from .profiles.profile_4b import Pico4ButtonScene
+from .profiles.base import PicoProfile
+from .profiles.pico_3brl import Pico3ButtonRaiseLower
+from .profiles.pico_p2b import PaddleSwitchPico
+from .profiles.pico_2b import Pico2Button
+from .profiles.pico_4b import Pico4ButtonScene
 
 # Action modules
 from .actions.light_actions import LightActions
