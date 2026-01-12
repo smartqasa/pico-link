@@ -135,24 +135,24 @@ Values outside these ranges are discouraged.
 
 ## 📊 Configuration Parameters
 
-| Key                     | Default        | Description    |
-| ----------------------- | -------------- | -------------- | ----------------------- |
-| `type`                  | ✔             | —              | Pico hardware type      |
-| `name` / `device_id`    | ✔             | —              | Pico identity           |
-| Domain (`lights`, etc.) | ✔ (except 4B) | —              | Controlled entities     |
-| `buttons`               | 4B only        | `{}`           | Scene/action mappings   |
-| `middle_button`         | 3BRL only      | domain default | STOP behavior           |
-| `hold_time_ms`          | ✘              | `400`          | Hold threshold (ms)     |
-| `step_time_ms`          | ✘              | `750`          | Ramp interval (ms)      |
-| `cover_open_pos`        | ✘              | `100`          | ON open position (pct)  |
-| `cover_step_pct`        | ✘              | `10`           | Cover step (pct)        |
-| `fan_on_pct`            | ✘              | `100`          | ON speed (pct)          |
-| `light_on_pct`          | ✘              | `100`          | ON brightness (pct)     |
-| `light_low_pct`         | ✘              | `5`            | Minimum dim (pct)       |
-| `light_step_pct`        | ✘              | `10`           | Step size (pct)         |
-| `light_transition_on`   | ✘              | `0`            | Fade-in time (seconds)  |
-| `light_transition_off`  | ✘              | `0`            | Fade-out time (seconds) |
-| `media_player_vol_step` | ✘              | `10`           | Volume step (pct)       |
+| Key                     | Required  | Default        | Description             |
+| ----------------------- | --------- | -------------- | ----------------------- |
+| `type`                  | ✔        | —              | Pico hardware type      |
+| `name` / `device_id`    | ✔        | —              | Pico identity           |
+| Domain (`lights`, etc.) | ✔ (4B ✘) | —              | Controlled entities     |
+| `buttons`               | 4B only   | `{}`           | Scene/action mappings   |
+| `middle_button`         | 3BRL only | domain default | STOP behavior           |
+| `hold_time_ms`          | ✘         | `400`          | Hold threshold (ms)     |
+| `step_time_ms`          | ✘         | `750`          | Ramp interval (ms)      |
+| `cover_open_pos`        | ✘         | `100`          | ON open position (pct)  |
+| `cover_step_pct`        | ✘         | `10`           | Cover step (pct)        |
+| `fan_on_pct`            | ✘         | `100`          | ON speed (pct)          |
+| `light_on_pct`          | ✘         | `100`          | ON brightness (pct)     |
+| `light_low_pct`         | ✘         | `5`            | Minimum dim (pct)       |
+| `light_step_pct`        | ✘         | `10`           | Step size (pct)         |
+| `light_transition_on`   | ✘         | `0`            | Fade-in time (seconds)  |
+| `light_transition_off`  | ✘         | `0`            | Fade-out time (seconds) |
+| `media_player_vol_step` | ✘         | `10`           | Volume step (pct)       |
 
 ### Light Transitions
 
