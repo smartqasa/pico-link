@@ -33,7 +33,7 @@ class LightActions:
 
         # Track which logical buttons are currently pressed.
         # We now also track ON / OFF to support tap-vs-hold
-        # behavior for certain profiles (e.g. P2B, 2B).
+        # behavior for certain profiles (e.g. P2B).
         self._pressed: dict[str, bool] = {
             "raise": False,
             "lower": False,
@@ -68,30 +68,10 @@ class LightActions:
     def _supports_onoff_hold(self) -> bool:
         """
         Return True if ON/OFF should have tap-vs-hold behavior for lights.
+
         """
         return self.ctrl.conf.type in ("P2B", "2B")
-
-    # ==============================================================
-    # Motion abort helper
-    # ==============================================================
-
-    def _abort_motion(self) -> None:
-        """
-        Immediately stop any hold/ramp lifecycle (ON/OFF/RAISE/LOWER).
-
-        Rule:
-          - Any new press represents new intent and cancels any existing motion.
-          - Any tap (release resulting in tap) also stops any motion before acting.
-        """
-        for btn in ("raise", "lower", "on", "off"):
-            self._pressed[btn] = False
-            self._is_holding[btn] = False
-
-            task = self._tasks.get(btn)
-            if task and not task.done():
-                task.cancel()
-            self._tasks[btn] = None
-
+    
     # ==============================================================
     # Transition parameter helper
     # ==============================================================
@@ -112,6 +92,7 @@ class LightActions:
 
         return {}
 
+
     # ==============================================================
     # API METHODS (called by profiles)
     # ==============================================================
@@ -121,15 +102,12 @@ class LightActions:
         """
         ON behavior:
 
-        - P2B / 2B:
+        - P2B:
             * Tap  -> turn_on(light_on_pct)
             * Hold -> ramp brightness up until release
-        - Other profiles:
+        - Other profiles (3BRL, 2B, 4B, etc.):
             * ON is simple turn_on (tap-only)
         """
-        # Any press = new intent; stop any ongoing motion immediately
-        self._abort_motion()
-
         if self._supports_onoff_hold():
             self._start_onoff_hold(button="on", direction=1)
         else:
@@ -145,15 +123,12 @@ class LightActions:
         """
         OFF behavior:
 
-        - P2B / 2B:
+        - P2B:
             * Tap  -> turn_off
             * Hold -> ramp brightness down until release
         - Other profiles:
             * OFF is simple turn_off (tap-only)
         """
-        # Any press = new intent; stop any ongoing motion immediately
-        self._abort_motion()
-
         if self._supports_onoff_hold():
             self._start_onoff_hold(button="off", direction=-1)
         else:
@@ -191,8 +166,6 @@ class LightActions:
         - Press → single brightness step up
         - Hold  → continuous ramp up after hold_time
         """
-        # Any press = new intent; stop any ongoing motion immediately
-        self._abort_motion()
         self._start_raise_lower("raise", direction=1)
 
     def release_raise(self):
@@ -207,8 +180,6 @@ class LightActions:
         - Press → single brightness step down
         - Hold  → continuous ramp down after hold_time
         """
-        # Any press = new intent; stop any ongoing motion immediately
-        self._abort_motion()
         self._start_raise_lower("lower", direction=-1)
 
     def release_lower(self):
@@ -241,12 +212,12 @@ class LightActions:
         self._is_holding[button] = False
 
     # ==============================================================
-    # INTERNAL STATEFUL BEHAVIOR (ON/OFF TAP vs HOLD for P2B/2B)
+    # INTERNAL STATEFUL BEHAVIOR (ON/OFF TAP vs HOLD for P2B)
     # ==============================================================
 
     def _start_onoff_hold(self, button: str, direction: int):
         """
-        Common press handler for ON/OFF when tap-vs-hold is enabled.
+        Common press handler for ON/OFF when tap-vs-hold is enabled (P2B).
 
         - If released before hold_time → TAP (simple on/off)
         - If still pressed after hold_time → HOLD (continuous ramp)
@@ -279,7 +250,7 @@ class LightActions:
         Common release handler for ON/OFF when tap-vs-hold is enabled.
 
         - If no ramp ever started (_is_holding[button] is False):
-            → this was a TAP → stop any motion then call tap_action
+            → this was a TAP → call tap_action (turn_on/turn_off)
         - If ramp started:
             → stop ramp, do NOT toggle again
         """
@@ -290,11 +261,10 @@ class LightActions:
             task.cancel()
 
         if not self._is_holding.get(button, False):
-            # TAP: authoritative stop gesture
-            self._abort_motion()
+            # TAP: we never entered holding state
             asyncio.create_task(tap_action())
 
-        # Reset state for this button
+        # Reset state
         self._tasks[button] = None
         self._is_holding[button] = False
 
@@ -350,6 +320,7 @@ class LightActions:
         """
         TAP = single step brightness change.
         """
+
         step_pct = self.ctrl.conf.light_step_pct
         low_pct = self.ctrl.conf.light_low_pct
 
@@ -398,8 +369,9 @@ class LightActions:
         - button is released
         - OR max iterations (50) reached
         """
+
         step_time = self.ctrl.utils._step_time
-        MAX_STEPS = 50
+        MAX_STEPS = 50     # Your chosen hard limit
 
         iterations = 0
 
@@ -424,6 +396,7 @@ class LightActions:
 
     def reset_state(self):
         """Stop all tasks and clear pressed/hold/ramp state."""
+
         # Cancel running tasks
         for t in self._tasks.values():
             if t and not t.done():
@@ -437,3 +410,4 @@ class LightActions:
 
         # Clear press timestamps
         self._press_ts.clear()
+
