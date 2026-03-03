@@ -69,11 +69,8 @@ class LightActions:
         """
         Return True if ON/OFF should have tap-vs-hold behavior for lights.
 
-        For now, this is enabled for the P2B paddle profile only.
-        Other profiles (e.g. 3BRL) treat ON/OFF as tap-only.
         """
-        profile = self.ctrl.behavior_name
-        return profile in ("P2B", "2B")
+        return self.ctrl.conf.type in ("P2B", "2B")
     
     # ==============================================================
     # Transition parameter helper
