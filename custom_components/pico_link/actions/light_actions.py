@@ -73,7 +73,7 @@ class LightActions:
         Other profiles (e.g. 3BRL) treat ON/OFF as tap-only.
         """
         profile = self.ctrl.behavior_name
-        return profile == "P2B"
+        return profile in ("P2B", "2B")
     
     # ==============================================================
     # Transition parameter helper
