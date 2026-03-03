@@ -120,7 +120,7 @@ These values are **behavior-critical**, not cosmetic.
 | Parameter      | Default | Purpose              |
 | -------------- | ------- | -------------------- |
 | `hold_time_ms` | `400`   | Tap → Hold threshold |
-| `step_time_ms` | `750`   | Ramp repeat interval |
+| `step_time_ms` | `650`   | Ramp repeat interval |
 
 ### Safe Override Ranges
 
@@ -143,7 +143,7 @@ Values outside these ranges are discouraged.
 | `buttons`               | 4B only   | `{}`           | Scene/action mappings   |
 | `middle_button`         | 3BRL only | domain default | STOP behavior           |
 | `hold_time_ms`          | ✘         | `400`          | Hold threshold (ms)     |
-| `step_time_ms`          | ✘         | `750`          | Ramp interval (ms)      |
+| `step_time_ms`          | ✘         | `650`          | Ramp interval (ms)      |
 | `cover_open_pos`        | ✘         | `100`          | ON open position (pct)  |
 | `cover_step_pct`        | ✘         | `10`           | Cover step (pct)        |
 | `fan_on_pct`            | ✘         | `100`          | ON speed (pct)          |

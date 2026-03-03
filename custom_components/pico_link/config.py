@@ -31,7 +31,7 @@ class PicoConfig:
 
     # Normalized action parameters (ms)
     hold_time_ms: int = 250
-    step_time_ms: int = 750
+    step_time_ms: int = 650
 
     # Cover configuration
     cover_open_pos: int = 100      # 1–100
@@ -216,8 +216,8 @@ def parse_pico_config(
     )
 
     step_time_ms = _normalize_int(
-        raw_val=merged.get("step_time_ms", 750),
-        default=750,
+        raw_val=merged.get("step_time_ms", 650),
+        default=650,
         min_val=100,
         max_val=2000,
     )
