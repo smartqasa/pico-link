@@ -39,7 +39,7 @@ and provides:
 | Pico Type | Layout                         | Buttons                               | Hold Supported | Typical Use                 | Notes                |
 | --------- | ------------------------------ | ------------------------------------- | -------------- | --------------------------- | -------------------- |
 | **P2B**   | Paddle                         | `on`, `off`                           | ✔             | Lights, fans, covers, media | Raise/lower inferred |
-| **2B**    | On/Off                         | `on`, `off`                           | ✔             | Simple switches             | Raise/lower inferred |
+| **2B**    | On/Off                         | `on`, `off`                           | ✔             | Lights, fans, covers, media | Raise/lower inferred |
 | **3BRL**  | On / Raise / Stop /Lower / Off | `on`, `raise`, `stop`, `lower`, `off` | ✔             | Full device control         | STOP is domain-aware |
 | **4B**    | 4 Scenes                       | `button_1…3`, `off`                   | ✘              | Scenes / scripts            | No domain logic      |
 
