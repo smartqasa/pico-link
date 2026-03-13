@@ -21,6 +21,10 @@ class CoverActions:
         OFF tap → close fully
         ON/OFF tap while moving → STOP
 
+        If cover_inverted is true:
+            ON tap  → close fully
+            OFF tap → open to cover_open_pos
+
     3BRL:
         on tap      → open to cover_open_pos
         off tap     → close fully
@@ -74,7 +78,10 @@ class CoverActions:
             asyncio.create_task(self._stop())
             return
 
-        # Otherwise open to open_pos
+        if self.ctrl.conf.cover_inverted:
+            asyncio.create_task(self._close_full())
+            return
+
         asyncio.create_task(self._open_to_position())
 
     def release_on(self):
@@ -85,6 +92,10 @@ class CoverActions:
         # STOP if moving
         if self._is_moving():
             asyncio.create_task(self._stop())
+            return
+
+        if self.ctrl.conf.cover_inverted:
+            asyncio.create_task(self._open_to_position())
             return
 
         asyncio.create_task(self._close_full())

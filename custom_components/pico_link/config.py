@@ -36,6 +36,7 @@ class PicoConfig:
     # Cover configuration
     cover_open_pos: int = 100      # 1–100
     cover_step_pct: int = 10       # 1–25
+    cover_inverted: bool = False
 
     # Fan configuration
     fan_on_pct: int = 100          # 1–100
@@ -143,6 +144,24 @@ def _normalize_int(raw_val, default: int, min_val: int, max_val: int) -> int:
     return max(min_val, min(max_val, val))
 
 
+def _normalize_bool(raw_val, default: bool = False) -> bool:
+    """Normalize common YAML/string bool values."""
+    if raw_val is None:
+        return default
+
+    if isinstance(raw_val, bool):
+        return raw_val
+
+    if isinstance(raw_val, str):
+        value = raw_val.strip().lower()
+        if value in ("true", "yes", "on", "1"):
+            return True
+        if value in ("false", "no", "off", "0"):
+            return False
+
+    return bool(raw_val)
+
+
 def _normalize_list(value):
     if isinstance(value, list):
         return value
@@ -199,11 +218,11 @@ def parse_pico_config(
     # ------------------------------------------------------------
     # Normalize entity lists
     # ------------------------------------------------------------
-    covers         = _normalize_list(merged.get("covers"))
-    fans           = _normalize_list(merged.get("fans"))
-    lights         = _normalize_list(merged.get("lights"))
-    media_players  = _normalize_list(merged.get("media_players"))
-    switches       = _normalize_list(merged.get("switches"))
+    covers = _normalize_list(merged.get("covers"))
+    fans = _normalize_list(merged.get("fans"))
+    lights = _normalize_list(merged.get("lights"))
+    media_players = _normalize_list(merged.get("media_players"))
+    switches = _normalize_list(merged.get("switches"))
 
     # ------------------------------------------------------------
     # Normalize timing and behavior parameters
@@ -234,6 +253,11 @@ def parse_pico_config(
         default=10,
         min_val=1,
         max_val=25,
+    )
+
+    cover_inverted = _normalize_bool(
+        raw_val=merged.get("cover_inverted", False),
+        default=False,
     )
 
     fan_on_pct = _normalize_int(
@@ -318,6 +342,7 @@ def parse_pico_config(
 
         cover_open_pos=cover_open_pos,
         cover_step_pct=cover_step_pct,
+        cover_inverted=cover_inverted,
 
         fan_on_pct=fan_on_pct,
 
