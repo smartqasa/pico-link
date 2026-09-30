@@ -50,19 +50,77 @@ and includes the Lutron library support needed for Paddle Picos.
 Pico Link uses the Lutron Caséta integration's event format. It does not support
 the different event format used by the separate Lutron integration.
 
-### HACS
+### 1. Install the integration files
+
+Choose **HACS** or **manual installation**. Both install the same integration;
+configuring your remotes is a separate step below.
+
+#### HACS (recommended)
 
 1. Open HACS and its **Custom repositories** menu.
 2. Add `https://github.com/smartqasa/pico-link` with the **Integration** type.
-3. Install **Pico Link**.
-4. Restart Home Assistant, then choose a configuration method below.
+3. Open **Pico Link** in HACS and download the version you want to use.
+   The UI described in this README requires a **1.0 beta** release; select a
+   published prerelease in HACS to try it. The stable 0.3 releases use YAML.
 
-### Manual installation
+HACS places the files in the correct configuration directory for you.
 
-Copy the entire `custom_components/pico_link` folder from this repository into
-Home Assistant's `config/custom_components/` directory, then restart Home
-Assistant. The installed folder must contain `manifest.json`, `__init__.py`,
-and the other files and subfolders supplied with the integration.
+#### Manual installation
+
+1. Download and extract the source archive for your chosen
+   [release](https://github.com/smartqasa/pico-link/releases). Choose a **1.0 beta**
+   release for the UI described here.
+2. Locate Home Assistant's **configuration directory**: the folder containing
+   the active `configuration.yaml` file. See Home Assistant's
+   [instructions for finding it](https://www.home-assistant.io/docs/configuration/#to-find-the-configuration-directory).
+3. Create `custom_components` in that directory if it does not already exist.
+4. Copy the archive's entire `custom_components/pico_link` folder into it,
+   including all files and subfolders.
+
+The destination is **`<your configuration directory>/custom_components/pico_link/`**.
+The configuration directory does not have to be named `config`. Its visible
+path depends on your installation and how you access the files:
+
+| Where the active configuration file appears | Where Pico Link belongs |
+| --- | --- |
+| `/config/configuration.yaml` | `/config/custom_components/pico_link/` |
+| `/homeassistant/configuration.yaml` | `/homeassistant/custom_components/pico_link/` |
+| Another folder containing `configuration.yaml` | `custom_components/pico_link/` inside that folder |
+
+Keep this structure, with `manifest.json` and `__init__.py` directly inside
+`pico_link` and the remaining integration files alongside them:
+
+```text
+<your configuration directory>/
+├── configuration.yaml
+└── custom_components/
+    └── pico_link/
+        ├── manifest.json
+        ├── __init__.py
+        └── ... all other supplied files and subfolders
+```
+
+Do not create an extra `config` folder or place the whole downloaded repository
+inside `custom_components`.
+
+### 2. Restart Home Assistant
+
+Restart Home Assistant after installing the files, then refresh your browser.
+Reloading YAML or refreshing the browser alone does not load a newly installed
+custom integration.
+
+### 3. Configure your remotes
+
+Choose your [configuration method](#choose-your-configuration-method):
+
+- **UI:** open **Settings → Devices & services → Add integration → Pico Link**,
+  then follow [UI setup](#ui-setup). Existing YAML settings can be imported after
+  you confirm the import; installing the files alone does not migrate them.
+- **YAML:** follow [YAML setup](#yaml-setup), then restart Home Assistant to load
+  the file changes. You do not need to add Pico Link through the UI.
+
+If you already use Pico Link, follow [Installing an update](#installing-an-update)
+instead of repeating initial setup. Existing YAML configurations remain supported.
 
 ## Choose your configuration method
 
@@ -154,7 +212,7 @@ sample settings; no live home configuration is shown.
 | Tab | What you configure |
 | --- | --- |
 | **Button actions** | Select a button on the remote preview, then choose its **Tap**, **Hold**, or **Double tap** behavior. |
-| **Remote & targets** | Choose the physical Pico and the entities it controls. **Device details** shows its read-only device ID with a **Copy** button. **Advanced** contains the optional manual Pico layout. |
+| **Remote & targets** | Choose the physical Pico and the entities it controls. **Advanced**, directly below **Remote identity**, contains the read-only device ID with a **Copy** button and the optional **Pico layout** selector. |
 | **Timing** | Adjust the hold threshold, double-tap window, and interval between built-in dimming or volume steps. |
 | **Device settings** | Adjust the normal controls for the assigned device type, such as light brightness limits or shade direction. |
 | **Run behavior** | Choose how the Pico handles another custom gesture while a sequence is running, including run limits and logging. |
@@ -1064,6 +1122,14 @@ remotes. `step_time_ms` does not repeat custom actions or control how fast a
 shade motor moves.
 
 ## Troubleshooting and updates
+
+### Pico Link does not appear in Add integration
+
+Confirm you installed a **1.0 beta** or later version with UI support, restarted
+Home Assistant, and refreshed the browser. For a manual installation, check the
+[folder layout](#manual-installation): `manifest.json` must be directly inside
+`custom_components/pico_link` under the active configuration directory. Check
+**Settings → System → Logs** for loading errors if it still does not appear.
 
 ### Buttons do nothing
 

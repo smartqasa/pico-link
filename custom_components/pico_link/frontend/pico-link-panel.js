@@ -506,7 +506,7 @@ class PicoLinkPanel extends HTMLElement {
   _assignment(body) {
     const raw = this.remote;
     const meta = deviceMeta(raw, this._state.catalog);
-    body.innerHTML = `<div class="section"><h3>Remote identity</h3><div id="identity"></div><details class="device-details"><summary>Device details</summary><label class="field" for="device-id">Home Assistant device ID</label><div class="device-id-row"><input id="device-id" type="text" value="${esc(raw.device_id)}" readonly spellcheck="false"><button id="copy-device-id" ${raw.device_id ? "" : "disabled"}>Copy</button></div><small id="copy-status" role="status"></small></details><div id="targets"></div><details class="device-details" id="advanced"><summary>Advanced</summary><p class="hint">Automatic uses the model stored by Lutron. Select a layout only when needed.</p><div id="layout"></div></details></div>`;
+    body.innerHTML = `<div class="section"><h3>Remote identity</h3><div id="identity"></div><details class="device-details" id="advanced"><summary>Advanced</summary><label class="field" for="device-id">Home Assistant device ID</label><div class="device-id-row"><input id="device-id" type="text" value="${esc(raw.device_id)}" readonly spellcheck="false"><button id="copy-device-id" ${raw.device_id ? "" : "disabled"}>Copy</button></div><small id="copy-status" role="status"></small><div id="layout"></div><p class="hint">Automatic uses the model stored by Lutron. Select a layout only when needed.</p></details><div id="targets"></div></div>`;
     this._on(
       "#copy-device-id",
       "click",
