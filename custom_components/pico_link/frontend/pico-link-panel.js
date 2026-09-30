@@ -380,7 +380,9 @@ class PicoLinkPanel extends HTMLElement {
     const dimmer = type === "3BRL" && !this.shared;
     const face = dimmer
       ? `${physicalButton("on")}<div class="dimmer-pad">${["raise", "stop", "lower"].map(physicalButton).join("")}</div>${physicalButton("off")}`
-      : buttons.map(physicalButton).join("");
+      : type === "P2B" && !this.shared
+        ? `<div class="paddle-rocker">${buttons.map(physicalButton).join("")}</div>`
+        : buttons.map(physicalButton).join("");
     body.innerHTML = `<div class="button-workspace"><div class="remote-preview"><div class="pico-body ${type === "P2B" ? "paddle" : dimmer ? "three-brl" : ""}">${face}</div><p>${this.shared ? "Shared Stop / middle actions" : "Select a button to configure"}</p></div><div class="gesture-editor"><div class="section-heading"><h3>${esc(LABELS[this._button])}</h3>${this.shared ? '<span class="subtle">Explicit opt-in per Pico</span>' : ""}</div><div class="gestures" role="tablist" aria-label="Gesture">${["tap", "hold", "double_tap"].map((gesture) => `<button role="tab" aria-selected="${gesture === this._gesture}" data-gesture="${gesture}">${LABELS[gesture]}</button>`).join("")}</div><div id="behavior"></div><div id="actions"></div></div></div>`;
     body.querySelectorAll("[data-button]").forEach((button) =>
       button.addEventListener("click", () => {
