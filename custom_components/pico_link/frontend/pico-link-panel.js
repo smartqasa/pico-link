@@ -41,12 +41,14 @@ const modeLabels = {
   queued: "Queued — run in order",
   parallel: "Parallel — run together",
 };
+const paddlePicoButtons =
+  '<rect x="5" y="5" width="10" height="11" rx="1"/><rect x="5" y="18" width="10" height="11" rx="1"/>';
 const miniPicoButtons = {
-  P2B: '<rect x="5" y="5" width="10" height="11" rx="1"/><rect x="5" y="18" width="10" height="11" rx="1"/>',
-  "2B": '<rect x="5" y="8" width="10" height="4" rx="1"/><rect x="5" y="22" width="10" height="4" rx="1"/>',
+  P2B: paddlePicoButtons,
+  "2B": paddlePicoButtons,
   "3BRL":
-    '<rect x="5" y="5" width="10" height="3" rx="1"/><path d="m8 13 2-3 2 3zm0 8 2 3 2-3z"/><circle cx="10" cy="17" r="1.7"/><rect x="5" y="26" width="10" height="3" rx="1"/>',
-  "4B": '<rect x="5" y="6" width="10" height="3" rx="1"/><rect x="5" y="12" width="10" height="3" rx="1"/><rect x="5" y="19" width="10" height="3" rx="1"/><rect x="5" y="25" width="10" height="3" rx="1"/>',
+    '<rect x="5" y="5" width="10" height="6" rx="1"/><path d="M5 13h9.1l-2.9 2.3a2.1 2.1 0 0 0-3 2.4L5 20.2zm10 .8V21H5.9l2.9-2.3a2.1 2.1 0 0 0 3-2.4z"/><circle cx="10" cy="17" r="1.1"/><rect x="5" y="23" width="10" height="6" rx="1"/>',
+  "4B": '<rect x="5" y="5" width="10" height="4.5" rx="1"/><rect x="5" y="11.5" width="10" height="4.5" rx="1"/><rect x="5" y="18" width="10" height="4.5" rx="1"/><rect x="5" y="24.5" width="10" height="4.5" rx="1"/>',
 };
 function miniPico(type) {
   const buttons =
