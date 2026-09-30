@@ -72,10 +72,24 @@ from two configurations.
 
 | Method | How to select it | Where settings are saved |
 | --- | --- | --- |
-| **UI** (default for new installations) | Add Pico Link under **Settings → Devices & services** and choose **UI** | Home Assistant's managed configuration storage |
+| **UI** (default for new installations) | Add Pico Link under **Settings → Devices & services** and choose **UI**. No YAML entry is needed for a new installation. | Home Assistant's managed configuration storage |
 | **YAML** | Set `config_method: yaml` directly under `pico_link`, alongside `devices` and `defaults` | Your existing YAML file |
 
-For YAML, start with:
+**Which choice takes precedence?** An explicit `config_method` in your YAML
+file is the authority. The choice shown during UI setup does not override it
+or edit your YAML file. Choosing **YAML** in the setup dialog shows instructions
+and exits setup; the file setting is what keeps YAML in control.
+
+| Setting in YAML | Configuration that runs |
+| --- | --- |
+| `config_method: yaml` | YAML, even if UI settings were previously saved. The workspace is read-only. |
+| `config_method: ui` | Saved UI settings. YAML devices and defaults are available for import but do not run. Complete UI setup if nothing has been saved yet. |
+| No `config_method` | Saved UI settings take precedence if present; otherwise existing YAML continues to run. |
+
+Changes to the YAML method setting take effect after restarting Home Assistant.
+Once you use UI configuration, ordinary workspace saves need no restart.
+
+**To keep using YAML**, set the method explicitly in your existing configuration:
 
 ```yaml
 pico_link:
@@ -91,9 +105,9 @@ and `defaults`; do not add another `pico_link:` wrapper.
 
 **Existing configurations:** if `config_method` is omitted, existing Pico Link
 YAML continues to load until you explicitly import and save a UI configuration.
-There is no automatic migration on update. You can add `config_method: yaml`
-to make the choice explicit. An explicit YAML selection takes precedence even
-if an older UI configuration remains saved.
+On first UI setup, Pico Link offers to import those settings so you do not need
+to re-enter your remotes and actions. You confirm the import and complete setup
+before it takes over. Installing the update alone does not migrate anything.
 
 **Explicit UI selection:** you may set `config_method: ui` under `pico_link`.
 This stops loading remote settings from YAML after the next restart. If no UI
@@ -132,6 +146,11 @@ remote has an icon matching its layout. Select a row to edit that Pico, use
 **Add Pico** for another remote, or select **Shared defaults** for settings
 that multiple Picos can use.
 
+The screenshots below show the actual workspace with simulated remotes and
+sample settings; no live home configuration is shown.
+
+![Pico Link workspace with four sample remotes and the visual Kitchen Pico editor](https://raw.githubusercontent.com/smartqasa/pico-link/beta/docs/images/ui-workspace.png)
+
 | Tab | What you configure |
 | --- | --- |
 | **Button actions** | Select a button on the remote preview, then choose its **Tap**, **Hold**, or **Double tap** behavior. |
@@ -157,6 +176,8 @@ Select the button and gesture, then choose a behavior:
 | **Do nothing** | Disables this gesture while leaving the other gestures unchanged. |
 | **Use shared Stop action** | Available for the Stop/middle button; uses the shared sequence for the selected gesture. |
 
+![An On double-tap sequence in Home Assistant's action editor, with Add action and Save changes controls](https://raw.githubusercontent.com/smartqasa/pico-link/beta/docs/images/ui-button-actions.png)
+
 For example, select **Raise → Tap → Custom actions** to change a light's color
 temperature with a tap, while leaving **Raise → Hold** on normal behavior to
 keep dimming. Each gesture has its own setting.
@@ -180,6 +201,8 @@ Open **Shared defaults** to set common timing, device-control settings, and run
 behavior. On an individual Pico, an empty field or **Use default** inherits the
 shared value, or the built-in value when no shared value is set. The inherited
 values appear beside the controls. Clear a local value to return to the default.
+
+![Shared timing defaults with a sample hold threshold, double-tap window, and inherited dimming interval](https://raw.githubusercontent.com/smartqasa/pico-link/beta/docs/images/ui-shared-defaults.png)
 
 Shared Stop actions work differently: each Pico must explicitly opt in for
 each gesture. For example, create a sequence under
