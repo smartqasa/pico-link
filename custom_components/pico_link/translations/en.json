@@ -20,7 +20,7 @@
       },
       "add": {
         "title": "Add Pico",
-        "description": "Choose a remote already registered by Lutron Caséta. Automatic reads its stored model. Choose a layout explicitly only when necessary.",
+        "description": "Choose a remote already registered by Lutron Cas\u00e9ta. Automatic reads its stored model. Choose a layout explicitly only when necessary.",
         "data": {
           "device_id": "Pico remote",
           "type": "Button layout"
@@ -40,7 +40,7 @@
       },
       "remote": {
         "title": "Configure Pico",
-        "description": "**{remote}** — layout: {model}. Select **Keep Pico changes** when finished, then **Save changes** to apply them.",
+        "description": "**{remote}** \u2014 layout: {model}. Select **Keep Pico changes** when finished, then **Save changes** to apply them.",
         "menu_options": {
           "add": "Add Pico",
           "confirm_remove": "Remove this Pico",
@@ -90,7 +90,7 @@
       },
       "actions": {
         "title": "{gesture}",
-        "description": "Build the sequence with Home Assistant’s action editor. Conditions, delays, loops and script calls are supported. Continue on error belongs to each action. For shortcuts such as lights, use the editor’s YAML view. Shared Stop sequences are used only by Picos that select them.",
+        "description": "Build the sequence with Home Assistant\u2019s action editor. Conditions, delays, loops and script calls are supported. Continue on error belongs to each action. For shortcuts such as lights, use the editor\u2019s YAML view. Shared Stop sequences are used only by Picos that select them.",
         "data": {
           "actions": "Actions"
         }
@@ -184,6 +184,10 @@
       "import_yaml": {
         "title": "Import existing YAML?",
         "description": "Your current YAML keeps working until you save. Continue to copy its shared defaults, remotes and actions into this editor. After saving, Pico Link uses these UI settings, stored by Home Assistant; the YAML file is not edited. Cancel to keep using YAML. {detail}"
+      },
+      "workspace": {
+        "title": "Open your Pico Link workspace",
+        "description": "Ready to save {count} remotes. Submit to finish setup, then open **Pico Link** in the sidebar or select **Configure** on this integration. The workspace has a searchable list, a visual button editor, and shared defaults. Imported YAML remains in its file; UI settings become active after this step."
       }
     },
     "error": {
@@ -216,7 +220,7 @@
       },
       "add": {
         "title": "Add Pico",
-        "description": "Choose a remote already registered by Lutron Caséta. Automatic reads its stored model. Choose a layout explicitly only when necessary.",
+        "description": "Choose a remote already registered by Lutron Cas\u00e9ta. Automatic reads its stored model. Choose a layout explicitly only when necessary.",
         "data": {
           "device_id": "Pico remote",
           "type": "Button layout"
@@ -236,7 +240,7 @@
       },
       "remote": {
         "title": "Configure Pico",
-        "description": "**{remote}** — layout: {model}. Select **Keep Pico changes** when finished, then **Save changes** to apply them.",
+        "description": "**{remote}** \u2014 layout: {model}. Select **Keep Pico changes** when finished, then **Save changes** to apply them.",
         "menu_options": {
           "add": "Add Pico",
           "confirm_remove": "Remove this Pico",
@@ -286,7 +290,7 @@
       },
       "actions": {
         "title": "{gesture}",
-        "description": "Build the sequence with Home Assistant’s action editor. Conditions, delays, loops and script calls are supported. Continue on error belongs to each action. For shortcuts such as lights, use the editor’s YAML view. Shared Stop sequences are used only by Picos that select them.",
+        "description": "Build the sequence with Home Assistant\u2019s action editor. Conditions, delays, loops and script calls are supported. Continue on error belongs to each action. For shortcuts such as lights, use the editor\u2019s YAML view. Shared Stop sequences are used only by Picos that select them.",
         "data": {
           "actions": "Actions"
         }

@@ -34,6 +34,9 @@ async def async_setup(
         _LOGGER.error("pico_link.config_method must be yaml or ui")
         return False
     runtime["config_method"] = method
+    from .panel import async_setup_panel
+
+    await async_setup_panel(hass)
     # A saved UI entry owns the installation, including when disabled. Never
     # silently activate a second set of controllers from leftover YAML.
     if method == "ui" or (method != "yaml" and hass.config_entries.async_entries(DOMAIN)):
@@ -233,6 +236,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     runtime["source"] = "ui"
 
     async def stop(_event):
+        # The one-shot listener has already removed itself at this point.
+        runtime.pop("unsub_stop", None)
         await _async_stop_controllers(hass)
 
     runtime["unsub_stop"] = hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, stop)

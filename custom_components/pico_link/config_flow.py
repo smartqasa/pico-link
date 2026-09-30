@@ -114,6 +114,8 @@ class Editor:
         )
 
     async def async_step_editor(self, user_input=None):
+        if getattr(self, "_workspace_setup", False):
+            return await self.async_step_workspace(user_input)
         # A labelled HA menu gives every remote its own clickable row. Register
         # handlers only for the current draft; the flow's schema validates the
         # selected row before dispatch. No configuration migration is needed.
@@ -580,6 +582,13 @@ class Editor:
         errors = {}
         self._error = ""
         try:
+            if hasattr(self, "_revision"):
+                from .panel import revision
+
+                if self._revision != revision(self.hass):
+                    raise ValueError(
+                        "Settings changed in another editor. Close and reopen this editor before saving."
+                    )
             await validate_document(self.hass, self._draft)
         except ERRORS as err:
             self._error = str(err)
@@ -599,6 +608,15 @@ class PicoLinkConfigFlow(Editor, config_entries.ConfigFlow, domain=DOMAIN):
 
     VERSION = 1
 
+    async def async_step_panel(self, user_input=None):
+        """Create the first entry from an explicitly saved custom-panel draft."""
+        await self.async_set_unique_id(DOMAIN)
+        self._abort_if_unique_id_configured()
+        if self.hass.data.get(DOMAIN, {}).get("config_method") == "yaml":
+            return self.async_abort(reason="yaml_selected")
+        await validate_document(self.hass, user_input)
+        return self.async_create_entry(title="Pico Link", data=deepcopy(user_input))
+
     @staticmethod
     @callback
     def async_get_options_flow(config_entry):
@@ -608,9 +626,16 @@ class PicoLinkConfigFlow(Editor, config_entries.ConfigFlow, domain=DOMAIN):
         await self.async_set_unique_id(DOMAIN)
         self._abort_if_unique_id_configured()
         self._init_editor()
+        self._workspace_setup = "frontend" in self.hass.config.components
         if self.hass.data.get(DOMAIN, {}).get("config_method") == "yaml":
             return self.async_abort(reason="yaml_selected")
         return await self.async_step_method(user_input)
+
+    async def async_step_workspace(self, user_input=None):
+        """Finish initial setup; actual editing belongs in the custom panel."""
+        if user_input is not None:
+            return await self.async_step_save(user_input)
+        return self._form("workspace", count=str(len(self._draft["devices"])))
 
     async def async_step_method(self, user_input=None):
         if user_input is None:
@@ -660,4 +685,7 @@ class PicoLinkOptionsFlow(Editor, config_entries.OptionsFlow):
         if self.hass.data.get(DOMAIN, {}).get("config_method") == "yaml":
             return self.async_abort(reason="yaml_selected")
         self._init_editor(entry_config(self._entry))
+        from .panel import revision
+
+        self._revision = revision(self.hass)
         return await self.async_step_editor()

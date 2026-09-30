@@ -4,8 +4,9 @@ Use Lutron Pico remotes to control Home Assistant lights, shades, fans, media
 players, and switches. Keep each button's built-in behavior, replace its tap
 or hold with a list of actions, or add a double-tap action.
 
-**The 1.0 beta adds configuration through Home Assistant's UI.** Choose your
-configuration method first: **UI** for guided setup, or **YAML** for file-based
+**The 1.0 beta adds a dedicated Pico Link configuration workspace.** Search
+your remotes, select buttons on a visual Pico, and edit their actions in one
+place. Choose your configuration method first: **UI**, or **YAML** for file-based
 configuration. Existing YAML installations continue working. Moving to the UI
 is an explicit import; settings are never silently merged between the two.
 
@@ -100,29 +101,38 @@ the UI lets the current remotes keep working until you save.
 
 1. Open **Settings → Devices & services → Add integration → Pico Link**.
 2. Choose **UI**. If an existing YAML configuration is found, confirm its import.
-3. Select **Add Pico**, choose a registered Lutron remote, and leave its layout
-   on **Automatic** unless you need an explicit model selection.
-4. Choose what the Pico controls, then its light, shade, fan, media-player or
-   switch entities. Four-button scene Picos use explicit button actions instead.
-5. Optionally customize **Button actions**, **Button timing**, **Device settings**
-   and **Run behavior**. Select **Keep Pico changes** to return to the main editor.
-6. Select **Save changes** and confirm. Changes take effect without a Home
-   Assistant restart. Pico Link stops its running actions and reloads its remotes.
+3. Submit the final setup step, then open **Pico Link** in the Home Assistant
+   sidebar. The integration's **Configure** button opens the same workspace.
+4. Select **Add Pico** and choose a registered Lutron remote. Its layout is
+   detected automatically. Under **Remote & targets**, choose what it controls
+   and select its light, shade, fan, media-player or switch entities. Four-button
+   scene Picos use targets inside their button actions instead.
+5. Select a button on the visual Pico, then **Tap**, **Hold**, or **Double tap**.
+   Use the other tabs for **Timing**, **Device settings**, and **Run behavior**.
+6. Select **Save changes**. Pico Link validates all remotes, stops its running
+   actions, and reloads the settings without restarting Home Assistant.
 
-Open Pico Link's settings to see an alphabetical list with one selectable row
-per configured Pico. **Add Pico**, **Shared defaults**, and **Save changes** are
-at the top. Select a Pico to edit its settings or choose **Remove this Pico**;
-removal asks for confirmation and takes effect only when you save.
+The workspace is available to Home Assistant administrators. It has a searchable,
+alphabetical list of configured Picos, with **Add Pico** and **Shared defaults**
+at the top. Select a remote to edit it. **Remove** asks for confirmation and
+takes effect only when you save; it does not delete the Lutron device.
 
-Edits stay in a draft until the final **Save changes**. Closing the editor
-cancels the draft. **Discard Pico changes** discards only the current remote's
-edits. Picos with identical names have numbered labels so each remains selectable.
+Existing UI settings appear automatically after updating; no reimport is needed.
+Changes stay in a draft until **Save changes**. **Discard changes** restores the
+last saved configuration. Leaving the workspace discards unsaved edits. If
+another editor saves first, your save is rejected with an explanation rather
+than overwriting its changes. An explicit YAML selection keeps the panel read-only.
 
-For each button, select **Tap**, **Hold**, or **Double tap**, then its behavior:
+In **Timing**, **Device settings**, and **Run behavior**, an empty value or
+**Use default** inherits the shared setting, or the built-in value when no shared
+setting is supplied. The inherited values are shown beside the controls.
+
+For each button gesture, select its behavior:
 
 - **Normal / inherited behavior:** remove the local override and use existing
   behavior, including any applicable imported shared settings.
-- **Custom actions:** build a sequence in Home Assistant's action editor.
+- **Custom actions:** build a sequence in Home Assistant's action editor,
+  including conditions, delays, loops, waits, and calls to scripts.
 - **Do nothing:** explicitly disable that gesture.
 - **Use shared Stop action:** opt into the corresponding shared Stop sequence.
 

@@ -32,6 +32,10 @@ jobs:
         run: python -m pip install -r requirements-test.txt
       - name: Lint
         run: python -m ruff check custom_components/pico_link tests
+      - name: Frontend syntax and draft tests
+        run: |
+          node --check custom_components/pico_link/frontend/pico-link-panel.js
+          node --test tests/frontend-model.test.mjs
       - name: Run regression tests
         run: >-
           python -m pytest -q
