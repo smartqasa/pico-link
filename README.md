@@ -4,11 +4,16 @@ Use Lutron Pico remotes to control Home Assistant lights, shades, fans, media
 players, and switches. Keep each button's built-in behavior, replace its tap
 or hold with a list of actions, or add a double-tap action.
 
-**The 1.0 beta adds a dedicated Pico Link configuration workspace.** Search
-your remotes, select buttons on a visual Pico, and edit their actions in one
-place. Choose your configuration method first: **UI**, or **YAML** for file-based
-configuration. Existing YAML installations continue working. Moving to the UI
-is an explicit import; settings are never silently merged between the two.
+**The 1.0 beta introduces a custom configuration UI inside Home Assistant.**
+The **Lutron Picos** workspace lists your configured remotes, with search,
+**Add Pico**, and **Shared defaults**. Select a remote to assign its targets,
+choose a button on its visual preview, and configure tap, hold, or double-tap
+actions. Changes take effect when you save, without restarting Home Assistant.
+
+Choose your [configuration method](#choose-your-configuration-method) before
+setup: **UI** for the visual workspace, or **YAML** for file-based configuration.
+Existing YAML installations continue working after an update. Moving their
+settings to the UI requires an explicit import and save.
 
 This beta also includes Home Assistant's script engine for conditions, delays,
 templates, loops and waits. Custom sequences default to `single`: another
@@ -27,6 +32,7 @@ command should take over. Built-in device controls retain their normal timing.
 - [Installation](#installation)
 - [Choose your configuration method](#choose-your-configuration-method)
 - [Getting started](#getting-started)
+- [Using the UI workspace](#using-the-ui-workspace)
 - [Default button behavior](#default-button-behavior)
 - [Button action overrides](#button-action-overrides)
 - [Action format](#action-format)
@@ -109,45 +115,95 @@ the UI lets the current remotes keep working until you save.
    and select its light, shade, fan, media-player or switch entities. Four-button
    scene Picos use targets inside their button actions instead.
 5. Select a button on the visual Pico, then **Tap**, **Hold**, or **Double tap**.
-   Use the other tabs for **Timing**, **Device settings**, and **Run behavior**.
+   Leave its normal behavior in place or choose **Custom actions** to build a
+   sequence. Selecting buttons in the preview does not operate your devices.
 6. Select **Save changes**. Pico Link validates all remotes, stops its running
    actions, and reloads the settings without restarting Home Assistant.
 
-The workspace is available to Home Assistant administrators. It has a searchable,
-alphabetical list of configured Picos, with **Add Pico** and **Shared defaults**
-at the top. Select a remote to edit it. **Remove** asks for confirmation and
-takes effect only when you save; it does not delete the Lutron device.
-Under **Remote & targets**, expand **Device details** to view or copy the
-remote's Home Assistant device ID. This field is read-only.
+### Using the UI workspace
 
-Existing UI settings appear automatically after updating; no reimport is needed.
-Changes stay in a draft until **Save changes**. **Discard changes** restores the
-last saved configuration. Leaving the workspace discards unsaved edits. If
-another editor saves first, your save is rejected with an explanation rather
-than overwriting its changes. An explicit YAML selection keeps the panel read-only.
+Open **Pico Link** from the Home Assistant sidebar or the integration's
+**Configure** button. The workspace is available to administrators. If you
+already use UI configuration, your saved remotes appear automatically after an
+update; no reimport is needed.
 
-In **Timing**, **Device settings**, and **Run behavior**, an empty value or
-**Use default** inherits the shared setting, or the built-in value when no shared
-setting is supplied. The inherited values are shown beside the controls.
+The **Lutron Picos** list is alphabetical and searchable by name or room. Each
+remote has an icon matching its layout. Select a row to edit that Pico, use
+**Add Pico** for another remote, or select **Shared defaults** for settings
+that multiple Picos can use.
 
-For each button gesture, select its behavior:
+| Tab | What you configure |
+| --- | --- |
+| **Button actions** | Select a button on the remote preview, then choose its **Tap**, **Hold**, or **Double tap** behavior. |
+| **Remote & targets** | Choose the physical Pico and the entities it controls. **Device details** shows its read-only device ID with a **Copy** button. **Advanced** contains the optional manual Pico layout. |
+| **Timing** | Adjust the hold threshold, double-tap window, and interval between built-in dimming or volume steps. |
+| **Device settings** | Adjust the normal controls for the assigned device type, such as light brightness limits or shade direction. |
+| **Run behavior** | Choose how the Pico handles another custom gesture while a sequence is running, including run limits and logging. |
 
-- **Normal / inherited behavior:** remove the local override and use existing
-  behavior, including any applicable imported shared settings.
-- **Custom actions:** build a sequence in Home Assistant's action editor,
-  including conditions, delays, loops, waits, and calls to scripts.
-- **Do nothing:** explicitly disable that gesture.
-- **Use shared Stop action:** opt into the corresponding shared Stop sequence.
+UI configurations identify a remote by its Home Assistant device ID, so renaming
+it does not break its configuration. Selecting a different remote under
+**Remote & targets** reassigns the current settings to that remote; it does not
+load that remote's settings. Pico Link rejects duplicate remote assignments
+when you save.
 
-Shared Stop tap, hold and double tap remain separate opt-ins. A custom hold
-runs once. A configured double tap delays the single tap by the selected window.
-Run behavior belongs to the **whole Pico**, across its custom button sequences;
+#### Configure a button
+
+Select the button and gesture, then choose a behavior:
+
+| Behavior | Effect |
+| --- | --- |
+| **Normal / inherited behavior** | Removes the local override. The gesture uses its built-in behavior or an applicable imported shared setting. |
+| **Custom actions** | Opens Home Assistant's action editor for service calls, scripts, conditions, delays, loops, and waits. |
+| **Do nothing** | Disables this gesture while leaving the other gestures unchanged. |
+| **Use shared Stop action** | Available for the Stop/middle button; uses the shared sequence for the selected gesture. |
+
+For example, select **Raise → Tap → Custom actions** to change a light's color
+temperature with a tap, while leaving **Raise → Hold** on normal behavior to
+keep dimming. Each gesture has its own setting.
+
+Normal behavior depends on the Pico model and controlled device. Holds can have
+built-in behavior, such as dimming or volume adjustment; **double tap has no
+built-in action**. A custom hold runs its sequence once and lets it finish after
+release. Configuring double tap adds a short wait before the single-tap action.
+See [Default button behavior](#default-button-behavior) and
+[Tap and hold timing](#tap-and-hold-timing) for the details.
+
+Run behavior applies to the **whole Pico**, across its custom button sequences.
 **Continue on error** belongs to individual actions in the action editor.
+Action shortcuts such as `lights` are supported in the editor's YAML view;
+they refer to the entities assigned to that Pico. Four-button scene Picos
+use explicit action targets instead. See [Action format](#action-format).
 
-An empty timing or device-setting field inherits the shared default, or the
-built-in default if none exists. Clear an existing value to remove its override.
-Action shortcuts such as `lights` remain supported in the action editor's YAML
-view; they refer to the entities assigned to that Pico.
+#### Use shared defaults
+
+Open **Shared defaults** to set common timing, device-control settings, and run
+behavior. On an individual Pico, an empty field or **Use default** inherits the
+shared value, or the built-in value when no shared value is set. The inherited
+values appear beside the controls. Clear a local value to return to the default.
+
+Shared Stop actions work differently: each Pico must explicitly opt in for
+each gesture. For example, create a sequence under
+**Shared defaults → Button actions → Tap**, then select
+**Stop → Tap → Use shared Stop action** on each Pico that should use it.
+Repeat separately for **Hold** and **Double tap** if needed. Merely defining
+a shared Stop sequence does not activate it on every remote.
+
+#### Save, discard, or remove
+
+All workspace edits stay in a draft until **Save changes**. Saving validates
+the complete configuration and reloads Pico Link, which stops its running
+actions. A validation error leaves the saved configuration unchanged.
+**Discard changes** restores the last saved settings; leaving the workspace
+also discards unsaved edits. If another editor saves first, your save is
+rejected rather than overwriting its changes.
+
+To remove a Pico, select it and choose **Remove**. Confirm the removal, then
+save. This removes its Pico Link configuration, not the Lutron device itself.
+
+Home Assistant stores UI settings as JSON in its managed configuration storage,
+not in `pico_link.yaml`. Use the workspace to edit them. An explicit
+`config_method: yaml` selection keeps the workspace read-only; see
+[Importing YAML and switching methods](#importing-yaml-and-switching-methods).
 
 ### Importing YAML and switching methods
 
@@ -1049,9 +1105,13 @@ control the same device simultaneously, their commands can compete.
 ### Installing an update
 
 Install the new version through HACS or your normal update method, then restart
-Home Assistant. Check the startup log for the expected controllers and test
-the configured taps and holds. Existing `middle_button` and `buttons` settings
-remain valid; new overrides are optional.
+Home Assistant. If you use the UI, refresh your browser before reopening the
+Pico Link workspace so its updated controls load. Your saved UI settings are
+retained; no reimport is needed.
+
+Check the startup log for the expected controllers and test the configured
+taps, holds, and double taps. Existing YAML installations, including
+`middle_button` and `buttons` settings, remain valid; new overrides are optional.
 
 ## Support Pico Link
 
