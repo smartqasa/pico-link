@@ -4,12 +4,15 @@ Use Lutron Pico remotes to control Home Assistant lights, shades, fans, media
 players, and switches. Keep each button's built-in behavior, replace its tap
 or hold with a list of actions, or add a double-tap action.
 
-**Beta 0.3.15b1 adds Home Assistant script sequences** to button actions,
+**Beta 0.3.15 adds Home Assistant script sequences** to button actions,
 including conditions, delays, templates, loops, and waits. Custom sequences now
 default to `mode: single`: another custom gesture on the same Pico is ignored
 until its current sequence finishes. Use `mode: parallel` for the previous
 overlap behavior, or `restart` when a newer command should take over. This beta
 keeps existing tap/hold/double-tap timing and built-in device controls.
+
+**Beta 0.3.15b2** also fixes the device-registry deprecation warning on newer
+Home Assistant versions while retaining support for older registries.
 
 [![HACS Custom](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://hacs.xyz)
 ![GitHub release](https://img.shields.io/github/v/release/smartqasa/pico-link)

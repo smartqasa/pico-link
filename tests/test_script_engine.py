@@ -1,14 +1,22 @@
 """Real HA script execution, per-Pico policies, compatibility and cleanup."""
 
 import asyncio
+import logging
 from copy import deepcopy
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
 import pytest
 import voluptuous as vol
+from homeassistant.components.media_player import (
+    MediaPlayerEntity,
+    MediaPlayerEntityFeature,
+)
 from homeassistant.core import callback
-from homeassistant.exceptions import HomeAssistantError
+from homeassistant.exceptions import HomeAssistantError, ServiceNotSupported
+from homeassistant.helpers import area_registry as ar
+from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers.entity_component import EntityComponent
 from homeassistant.helpers.script import DATA_SCRIPTS
 from homeassistant.setup import async_setup_component
 
@@ -541,7 +549,9 @@ async def test_cleanup_adapter_for_ha_without_script_unload(pico, registry_type)
 async def test_external_script_lifecycle_under_parent_restart(pico, detached):
     started, finished = asyncio.Event(), asyncio.Event()
     pico.hass.bus.async_listen("pico_child_started", callback(lambda _: started.set()))
-    pico.hass.bus.async_listen("pico_child_finished", callback(lambda _: finished.set()))
+    pico.hass.bus.async_listen(
+        "pico_child_finished", callback(lambda _: finished.set())
+    )
     assert await async_setup_component(
         pico.hass,
         "script",
@@ -586,3 +596,57 @@ async def test_external_script_lifecycle_under_parent_restart(pico, detached):
     await pico.drain()
     assert finished.is_set() is detached
     assert pico.calls == [("light", "turn_off", {"entity_id": ["light.test"]})]
+
+
+async def test_area_turn_off_keeps_unsupported_entity_error_and_legacy_continuation(
+    pico, caplog
+):
+    """Broad area commands fail the same way with the old API and the script engine."""
+    hass = pico.hass
+    assert await async_setup_component(hass, "homeassistant", {})
+
+    class VoicePlayer(MediaPlayerEntity):
+        _attr_name = "Voice test"
+        _attr_unique_id = "voice-test"
+        _attr_should_poll = False
+        _attr_supported_features = MediaPlayerEntityFeature.PLAY_MEDIA
+
+    component = EntityComponent(logging.getLogger(__name__), "media_player", hass)
+    player = VoicePlayer()
+    await component.async_add_entities([player])
+    component.async_register_entity_service(
+        "turn_off", None, "async_turn_off", [MediaPlayerEntityFeature.TURN_OFF]
+    )
+    office = ar.async_get(hass).async_create("Office")
+    er.async_get(hass).async_update_entity(player.entity_id, area_id=office.id)
+    # This is the exact service API used by Pico Link before the script engine.
+    with pytest.raises(ServiceNotSupported):
+        await hass.services.async_call(
+            "homeassistant",
+            "turn_off",
+            {},
+            target={"area_id": office.id},
+            blocking=True,
+        )
+    assert await pico.setup(
+        [
+            scene_device(
+                button_1_tap=[
+                    {
+                        "action": "homeassistant.turn_off",
+                        "target": {"area_id": office.id},
+                    },
+                    {
+                        "action": "scene.turn_on",
+                        "target": {"entity_id": "scene.after_error"},
+                    },
+                ]
+            )
+        ]
+    )
+    pico.tap("button_1", kind="4B")
+    await pico.drain()
+    assert "error calling homeassistant.turn_off" in caplog.text
+    assert "ServiceNotSupported" in caplog.text
+    assert pico.calls == [("scene", "turn_on", {"entity_id": "scene.after_error"})]
+    await component.async_remove_entity(player.entity_id)

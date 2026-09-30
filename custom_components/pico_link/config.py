@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import re
+from collections.abc import Mapping
 from copy import deepcopy
 from dataclasses import dataclass, field
 from typing import Any
@@ -169,6 +170,10 @@ def lookup_device_id(
 ) -> str | None:
     """Resolve a unique device by user-assigned or registry name."""
     device_registry = dr.async_get(hass)
+    devices = device_registry.devices
+    # New HA registries iterate entries directly; older releases expose a mapping.
+    # Check the container type without accessing deprecated lookup methods.
+    entries = tuple(devices.values() if isinstance(devices, Mapping) else devices)
 
     # Prefer the user-assigned name over the integration-provided name.
     for attribute in (
@@ -177,7 +182,7 @@ def lookup_device_id(
     ):
         matches = [
             device
-            for device in device_registry.devices.values()
+            for device in entries
             if getattr(device, attribute) == name
         ]
 
