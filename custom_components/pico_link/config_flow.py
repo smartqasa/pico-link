@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+from collections import Counter
 from copy import deepcopy
+from functools import partial
 
 import voluptuous as vol
 from homeassistant import config_entries
@@ -94,6 +96,7 @@ class Editor:
         self._shared = False
         self._gesture = "stop_tap"
         self._error = ""
+        self._pico_steps = []
 
     def _form(self, step, fields=None, errors=None, **placeholders):
         return self.async_show_form(
@@ -111,12 +114,35 @@ class Editor:
         )
 
     async def async_step_editor(self, user_input=None):
-        options = ["add"]
-        if self._draft["devices"]:
-            options += ["edit", "remove"]
-        options += ["defaults", "save"]
+        # A labelled HA menu gives every remote its own clickable row. Register
+        # handlers only for the current draft; the flow's schema validates the
+        # selected row before dispatch. No configuration migration is needed.
+        for step in self._pico_steps:
+            delattr(self, f"async_step_{step}")
+        self._pico_steps = []
+        options = {
+            "add": "Add Pico",
+            "defaults": "Shared defaults",
+            "save": "Save changes",
+        }
         names = [remote_name(self.hass, raw) for raw in self._draft["devices"]]
-        return self._menu("editor", options, remotes=", ".join(names) or "None yet")
+        counts = Counter(names)
+        for index in sorted(range(len(names)), key=lambda i: (names[i].casefold(), i)):
+            step = f"pico_{index}"
+            label = names[index]
+            if counts[label] > 1:
+                label = (
+                    f"{label} ({names[: index + 1].count(label)} of {counts[label]})"
+                )
+            options[step] = label
+            setattr(self, f"async_step_{step}", partial(self._async_open_pico, index))
+            self._pico_steps.append(step)
+        return self._menu("editor", options, count=str(len(names)))
+
+    async def _async_open_pico(self, index, user_input=None):
+        self._index = index
+        self._remote = deepcopy(self._draft["devices"][index])
+        return await self.async_step_remote()
 
     async def async_step_add(self, user_input=None):
         errors = {}
@@ -151,31 +177,11 @@ class Editor:
             errors,
         )
 
-    def _remote_choices(self):
-        return select(
-            [
-                {"value": str(i), "label": remote_name(self.hass, raw)}
-                for i, raw in enumerate(self._draft["devices"])
-            ]
-        )
-
-    async def async_step_edit(self, user_input=None):
-        if user_input is not None:
-            self._index = int(user_input["remote"])
-            self._remote = deepcopy(self._draft["devices"][self._index])
-            return await self.async_step_remote()
-        return self._form("edit", {vol.Required("remote"): self._remote_choices()})
-
-    async def async_step_remove(self, user_input=None):
-        if user_input is not None:
-            self._index = int(user_input["remote"])
-            return await self.async_step_confirm_remove()
-        return self._form("remove", {vol.Required("remote"): self._remote_choices()})
-
     async def async_step_confirm_remove(self, user_input=None):
         if user_input is not None:
             self._draft["devices"].pop(self._index)
             self._index = None
+            self._remote = None
             return await self.async_step_editor()
         return self._form(
             "confirm_remove",
@@ -201,13 +207,23 @@ class Editor:
         try:
             kind = self._kind()
         except ERRORS:
-            return await self.async_step_identity()
+            options = ["identity", "discard_remote"]
+            if self._index is not None:
+                options.append("confirm_remove")
+            return self._menu(
+                "remote",
+                options,
+                remote=remote_name(self.hass, self._remote),
+                model="Unavailable or unrecognized — choose a remote and layout to repair",
+            )
         options = ["identity", "button", "timing", "run"]
         if kind != "4B":
             options.insert(1, "assignment")
         if kind != "4B" and self._domain() != "switch":
             options.append("device_settings")
         options += ["done", "discard_remote"]
+        if self._index is not None:
+            options.append("confirm_remove")
         return self._menu(
             "remote",
             options,

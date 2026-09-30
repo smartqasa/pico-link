@@ -7,6 +7,7 @@ from unittest.mock import patch
 import pytest
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.data_entry_flow import FlowResultType
+from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.script import DATA_SCRIPTS
 from homeassistant.setup import async_setup_component
 from pytest_homeassistant_custom_component.common import MockConfigEntry
@@ -152,13 +153,114 @@ async def configured(hass, device, **extra):
     return entry
 
 
+@pytest.mark.parametrize("import_yaml", [False, True])
+async def test_large_list_opens_selected_remote_without_changing_others(
+    hass, registry_pico, register_pico, import_yaml
+):
+    devices = [
+        register_pico(
+            model="Test (Pico3ButtonRaiseLower)",
+            serial=str(i),
+            name=f"Room {i:02} Pico",
+        )
+        for i in range(50, 0, -1)
+    ]
+    root = {"defaults": {}, "devices": [doc(d)["devices"][0] for d in devices]}
+    if import_yaml:
+        await registry_pico.setup(root["devices"])
+        result = await begin(hass)
+        result = await advance(hass, result)
+    else:
+        entry = MockConfigEntry(domain=DOMAIN, unique_id=DOMAIN, data=root)
+        entry.add_to_hass(hass)
+        assert await hass.config_entries.async_setup(entry.entry_id)
+        result = await hass.config_entries.options.async_init(entry.entry_id)
+    options = not import_yaml
+    labels = result["menu_options"]
+    assert list(labels.values())[:3] == ["Add Pico", "Shared defaults", "Save changes"]
+    assert list(labels.values())[3:] == [f"Room {i:02} Pico" for i in range(1, 51)]
+    assert result["description_placeholders"] == {"count": "50"}
+    chosen = next(key for key, label in labels.items() if label == "Room 49 Pico")
+    result = await advance(hass, result, options=options, menu=chosen)
+    assert result["description_placeholders"]["remote"] == "Room 49 Pico"
+    result = await advance(hass, result, options=options, menu="timing")
+    result = await advance(hass, result, {"double_tap_time_ms": 450}, options=options)
+    result = await advance(hass, result, options=options, menu="done")
+    result = await advance(hass, result, options=options, menu="save")
+    result = await advance(hass, result, options=options)
+    await hass.async_block_till_done()
+    configs = {c.conf.device_id: c.conf for c in hass.data[DOMAIN]["controllers"]}
+    assert len(configs) == 50
+    assert configs[devices[1].id].double_tap_time_ms == 450
+    assert all(
+        conf.double_tap_time_ms == 300
+        for key, conf in configs.items()
+        if key != devices[1].id
+    )
+
+
+async def test_duplicate_names_and_removal_keep_remaining_row_correct(
+    hass, registry_pico, register_pico
+):
+    first = remote(register_pico, serial="first")
+    second = remote(register_pico, serial="second")
+    root = {"devices": [doc(first)["devices"][0], doc(second)["devices"][0]]}
+    entry = MockConfigEntry(domain=DOMAIN, unique_id=DOMAIN, data=root)
+    entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+    rows = result["menu_options"]
+    assert list(rows.values())[3:] == ["Test Pico (1 of 2)", "Test Pico (2 of 2)"]
+    selected = next(key for key, value in rows.items() if value == "Test Pico (1 of 2)")
+    result = await advance(hass, result, options=True, menu=selected)
+    result = await advance(hass, result, options=True, menu="confirm_remove")
+    assert len(hass.data[DOMAIN]["controllers"]) == 2
+    result = await advance(hass, result, options=True)
+    rows = result["menu_options"]
+    assert list(rows.values())[3:] == ["Test Pico"]
+    selected = next(key for key, value in rows.items() if value == "Test Pico")
+    result = await advance(hass, result, options=True, menu=selected)
+    result = await advance(hass, result, options=True, menu="timing")
+    result = await advance(hass, result, {"hold_time_ms": 600}, options=True)
+    result = await advance(hass, result, options=True, menu="done")
+    result = await advance(hass, result, options=True, menu="save")
+    await advance(hass, result, options=True)
+    await hass.async_block_till_done()
+    configs = [c.conf for c in hass.data[DOMAIN]["controllers"]]
+    assert len(configs) == 1
+    assert configs[0].device_id == second.id
+    assert configs[0].hold_time_ms == 600
+
+
+async def test_unrecognized_remote_can_still_be_removed_from_its_row(
+    hass, registry_pico, register_pico
+):
+    device = remote(register_pico)
+    entry = await configured(hass, device)
+    dr.async_get(hass).async_update_device(device.id, model="Unknown")
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+    result = await advance(hass, result, options=True, menu="pico_0")
+    assert "identity" in result["menu_options"]
+    result = await advance(hass, result, options=True, menu="confirm_remove")
+    result = await advance(hass, result, options=True)
+    assert list(result["menu_options"].values()) == [
+        "Add Pico",
+        "Shared defaults",
+        "Save changes",
+    ]
+    result = await advance(hass, result, options=True, menu="save")
+    await advance(hass, result, options=True)
+    await hass.async_block_till_done()
+    assert entry.options["devices"] == []
+    assert hass.data[DOMAIN]["controllers"] == []
+
+
 async def test_options_save_reload_and_cancel(hass, registry_pico, register_pico):
     device = remote(register_pico)
     entry = await configured(hass, device)
     old = hass.data[DOMAIN]["controllers"][0]
     result = await hass.config_entries.options.async_init(entry.entry_id)
-    result = await advance(hass, result, options=True, menu="edit")
-    result = await advance(hass, result, {"remote": "0"}, options=True)
+    result = await advance(hass, result, options=True, menu="pico_0")
     result = await advance(hass, result, options=True, menu="button")
     result = await advance(
         hass, result, {"button": "on", "gesture": "tap"}, options=True
@@ -186,8 +288,8 @@ async def test_options_save_reload_and_cancel(hass, registry_pico, register_pico
     assert [call[0] for call in registry_pico.calls] == ["scene"]
     snapshot = deepcopy(dict(entry.options))
     result = await hass.config_entries.options.async_init(entry.entry_id)
-    result = await advance(hass, result, options=True, menu="remove")
-    result = await advance(hass, result, {"remote": "0"}, options=True)
+    result = await advance(hass, result, options=True, menu="pico_0")
+    result = await advance(hass, result, options=True, menu="confirm_remove")
     result = await advance(hass, result, options=True)
     hass.config_entries.options.async_abort(result["flow_id"])
     assert dict(entry.options) == snapshot
@@ -353,8 +455,7 @@ async def test_shared_stop_is_opt_in_and_raw_shortcuts_survive(
     ]
     result = await advance(hass, result, {"actions": actions}, options=True)
     result = await advance(hass, result, options=True, menu="editor")
-    result = await advance(hass, result, options=True, menu="edit")
-    result = await advance(hass, result, {"remote": "0"}, options=True)
+    result = await advance(hass, result, options=True, menu="pico_0")
     result = await advance(hass, result, options=True, menu="button")
     result = await advance(
         hass, result, {"button": "stop", "gesture": gesture}, options=True
@@ -394,8 +495,7 @@ async def test_legacy_gesture_can_be_disabled_then_restored(
     assert await hass.config_entries.async_setup(entry.entry_id)
     for behavior in ("disabled", "normal"):
         result = await hass.config_entries.options.async_init(entry.entry_id)
-        result = await advance(hass, result, options=True, menu="edit")
-        result = await advance(hass, result, {"remote": "0"}, options=True)
+        result = await advance(hass, result, options=True, menu="pico_0")
         result = await advance(hass, result, options=True, menu="button")
         result = await advance(
             hass, result, {"button": button, "gesture": "tap"}, options=True
@@ -460,8 +560,7 @@ async def test_ui_run_policy_default_and_override(
         hass, result, {"mode": mode, "max": 4, "max_exceeded": "silent"}, options=True
     )
     result = await advance(hass, result, options=True, menu="editor")
-    result = await advance(hass, result, options=True, menu="edit")
-    result = await advance(hass, result, {"remote": "0"}, options=True)
+    result = await advance(hass, result, options=True, menu="pico_0")
     result = await advance(hass, result, options=True, menu="run")
     result = await advance(
         hass,
@@ -499,8 +598,7 @@ async def test_layout_change_preserves_actions_until_user_removes_them(
     entry.add_to_hass(hass)
     assert await hass.config_entries.async_setup(entry.entry_id)
     result = await hass.config_entries.options.async_init(entry.entry_id)
-    result = await advance(hass, result, options=True, menu="edit")
-    result = await advance(hass, result, {"remote": "0"}, options=True)
+    result = await advance(hass, result, options=True, menu="pico_0")
     result = await advance(hass, result, options=True, menu="identity")
     result = await advance(
         hass, result, {"device_id": device.id, "type": "2B"}, options=True
@@ -534,8 +632,7 @@ async def test_domain_settings_and_timing_round_trip(
     device = remote(register_pico)
     entry = await configured(hass, device)
     result = await hass.config_entries.options.async_init(entry.entry_id)
-    result = await advance(hass, result, options=True, menu="edit")
-    result = await advance(hass, result, {"remote": "0"}, options=True)
+    result = await advance(hass, result, options=True, menu="pico_0")
     result = await advance(hass, result, options=True, menu="assignment")
     result = await advance(hass, result, {"domain": domain}, options=True)
     result = await advance(hass, result, {"entities": [domain + ".test"]}, options=True)

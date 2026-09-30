@@ -4,24 +4,11 @@
     "step": {
       "editor": {
         "title": "Pico Link",
-        "description": "Configured remotes: {remotes}. Changes stay in this editor until you select **Save changes**.",
+        "description": "**{count} configured Picos.** Select a Pico below to edit it. Changes take effect when you select **Save changes**.",
         "menu_options": {
           "add": "Add Pico",
-          "edit": "Edit Pico",
-          "remove": "Remove Pico",
           "defaults": "Shared defaults",
-          "save": "Save changes",
-          "editor": "Back to Pico Link",
-          "assignment": "What this Pico controls",
-          "button": "Button actions",
-          "timing": "Button timing",
-          "run": "Run behavior",
-          "device_settings": "Device settings",
-          "done": "Keep Pico changes",
-          "discard_remote": "Discard Pico changes",
-          "shared_settings": "Device defaults",
-          "shared_stop": "Shared Stop actions",
-          "identity": "Remote and button layout"
+          "save": "Save changes"
         }
       },
       "method": {
@@ -47,20 +34,6 @@
           "type": "Button layout"
         }
       },
-      "edit": {
-        "title": "Edit Pico",
-        "description": "Choose the Pico to edit.",
-        "data": {
-          "remote": "Pico remote"
-        }
-      },
-      "remove": {
-        "title": "Remove Pico",
-        "description": "Choose the Pico to remove from this draft. It keeps working until you save.",
-        "data": {
-          "remote": "Pico remote"
-        }
-      },
       "confirm_remove": {
         "title": "Remove {remote}?",
         "description": "Continue to remove this Pico from the draft. Select Save changes afterward to apply the removal."
@@ -70,8 +43,7 @@
         "description": "**{remote}** — layout: {model}. Select **Keep Pico changes** when finished, then **Save changes** to apply them.",
         "menu_options": {
           "add": "Add Pico",
-          "edit": "Edit Pico",
-          "remove": "Remove Pico",
+          "confirm_remove": "Remove this Pico",
           "defaults": "Shared defaults",
           "save": "Save changes",
           "editor": "Back to Pico Link",
@@ -132,8 +104,7 @@
         "description": "Timing and device settings apply where a Pico has no local override. Shared Stop actions apply only where that gesture explicitly selects the shared action.",
         "menu_options": {
           "add": "Add Pico",
-          "edit": "Edit Pico",
-          "remove": "Remove Pico",
+          "confirm_remove": "Remove this Pico",
           "defaults": "Shared defaults",
           "save": "Save changes",
           "editor": "Back to Pico Link",
@@ -229,24 +200,11 @@
     "step": {
       "editor": {
         "title": "Pico Link",
-        "description": "Configured remotes: {remotes}. Changes stay in this editor until you select **Save changes**.",
+        "description": "**{count} configured Picos.** Select a Pico below to edit it. Changes take effect when you select **Save changes**.",
         "menu_options": {
           "add": "Add Pico",
-          "edit": "Edit Pico",
-          "remove": "Remove Pico",
           "defaults": "Shared defaults",
-          "save": "Save changes",
-          "editor": "Back to Pico Link",
-          "assignment": "What this Pico controls",
-          "button": "Button actions",
-          "timing": "Button timing",
-          "run": "Run behavior",
-          "device_settings": "Device settings",
-          "done": "Keep Pico changes",
-          "discard_remote": "Discard Pico changes",
-          "shared_settings": "Device defaults",
-          "shared_stop": "Shared Stop actions",
-          "identity": "Remote and button layout"
+          "save": "Save changes"
         }
       },
       "method": {
@@ -272,20 +230,6 @@
           "type": "Button layout"
         }
       },
-      "edit": {
-        "title": "Edit Pico",
-        "description": "Choose the Pico to edit.",
-        "data": {
-          "remote": "Pico remote"
-        }
-      },
-      "remove": {
-        "title": "Remove Pico",
-        "description": "Choose the Pico to remove from this draft. It keeps working until you save.",
-        "data": {
-          "remote": "Pico remote"
-        }
-      },
       "confirm_remove": {
         "title": "Remove {remote}?",
         "description": "Continue to remove this Pico from the draft. Select Save changes afterward to apply the removal."
@@ -295,8 +239,7 @@
         "description": "**{remote}** — layout: {model}. Select **Keep Pico changes** when finished, then **Save changes** to apply them.",
         "menu_options": {
           "add": "Add Pico",
-          "edit": "Edit Pico",
-          "remove": "Remove Pico",
+          "confirm_remove": "Remove this Pico",
           "defaults": "Shared defaults",
           "save": "Save changes",
           "editor": "Back to Pico Link",
@@ -357,8 +300,7 @@
         "description": "Timing and device settings apply where a Pico has no local override. Shared Stop actions apply only where that gesture explicitly selects the shared action.",
         "menu_options": {
           "add": "Add Pico",
-          "edit": "Edit Pico",
-          "remove": "Remove Pico",
+          "confirm_remove": "Remove this Pico",
           "defaults": "Shared defaults",
           "save": "Save changes",
           "editor": "Back to Pico Link",

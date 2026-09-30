@@ -109,10 +109,14 @@ the UI lets the current remotes keep working until you save.
 6. Select **Save changes** and confirm. Changes take effect without a Home
    Assistant restart. Pico Link stops its running actions and reloads its remotes.
 
-Open Pico Link's settings again to edit or remove remotes and manage shared
-defaults. Edits stay in a draft until the final **Save changes**. Closing the
-editor cancels the draft. **Discard Pico changes** discards only the current
-remote's edits.
+Open Pico Link's settings to see an alphabetical list with one selectable row
+per configured Pico. **Add Pico**, **Shared defaults**, and **Save changes** are
+at the top. Select a Pico to edit its settings or choose **Remove this Pico**;
+removal asks for confirmation and takes effect only when you save.
+
+Edits stay in a draft until the final **Save changes**. Closing the editor
+cancels the draft. **Discard Pico changes** discards only the current remote's
+edits. Picos with identical names have numbered labels so each remains selectable.
 
 For each button, select **Tap**, **Hold**, or **Double tap**, then its behavior:
 
