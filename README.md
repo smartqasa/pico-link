@@ -4,15 +4,16 @@ Use Lutron Pico remotes to control Home Assistant lights, shades, fans, media
 players, and switches. Keep each button's built-in behavior, replace its tap
 or hold with a list of actions, or add a double-tap action.
 
-**Beta 0.3.15 adds Home Assistant script sequences** to button actions,
-including conditions, delays, templates, loops, and waits. Custom sequences now
-default to `mode: single`: another custom gesture on the same Pico is ignored
-until its current sequence finishes. Use `mode: parallel` for the previous
-overlap behavior, or `restart` when a newer command should take over. This beta
-keeps existing tap/hold/double-tap timing and built-in device controls.
+**The 1.0 beta adds configuration through Home Assistant's UI.** Choose your
+configuration method first: **UI** for guided setup, or **YAML** for file-based
+configuration. Existing YAML installations continue working. Moving to the UI
+is an explicit import; settings are never silently merged between the two.
 
-**Beta 0.3.15b2** also fixes the device-registry deprecation warning on newer
-Home Assistant versions while retaining support for older registries.
+This beta also includes Home Assistant's script engine for conditions, delays,
+templates, loops and waits. Custom sequences default to `single`: another
+custom gesture on the same Pico is ignored until the current sequence finishes.
+Choose `parallel` for overlapping sequences or `restart` when the newest
+command should take over. Built-in device controls retain their normal timing.
 
 [![HACS Custom](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://hacs.xyz)
 ![GitHub release](https://img.shields.io/github/v/release/smartqasa/pico-link)
@@ -23,6 +24,7 @@ Home Assistant versions while retaining support for older registries.
 </p>
 
 - [Installation](#installation)
+- [Choose your configuration method](#choose-your-configuration-method)
 - [Getting started](#getting-started)
 - [Default button behavior](#default-button-behavior)
 - [Button action overrides](#button-action-overrides)
@@ -34,9 +36,9 @@ Home Assistant versions while retaining support for older registries.
 ## Installation
 
 Pico Link requires Home Assistant's **Lutron Caséta** integration and supported
-Picos that emit `lutron_caseta_button_event` press and release events. The
-integration declares Home Assistant 2023.1.0 as its minimum version.
-Configuration is through YAML; there is no configuration flow in the UI.
+Picos that emit `lutron_caseta_button_event` press and release events.
+**Home Assistant 2026.4.0 or newer is required.** This is the tested minimum
+and includes the Lutron library support needed for Paddle Picos.
 
 Pico Link uses the Lutron Caséta integration's event format. It does not support
 the different event format used by the separate Lutron integration.
@@ -46,7 +48,7 @@ the different event format used by the separate Lutron integration.
 1. Open HACS and its **Custom repositories** menu.
 2. Add `https://github.com/smartqasa/pico-link` with the **Integration** type.
 3. Install **Pico Link**.
-4. Restart Home Assistant, then add the configuration below.
+4. Restart Home Assistant, then choose a configuration method below.
 
 ### Manual installation
 
@@ -55,13 +57,106 @@ Home Assistant's `config/custom_components/` directory, then restart Home
 Assistant. The installed folder must contain `manifest.json`, `__init__.py`,
 and the other files and subfolders supplied with the integration.
 
+## Choose your configuration method
+
+**Choose UI or YAML before configuring your remotes.** The method applies to
+the whole Pico Link installation, so the same remote cannot receive commands
+from two configurations.
+
+| Method | How to select it | Where settings are saved |
+| --- | --- | --- |
+| **UI** (default for new installations) | Add Pico Link under **Settings → Devices & services** and choose **UI** | Home Assistant's managed configuration storage |
+| **YAML** | Set `config_method: yaml` directly under `pico_link`, alongside `devices` and `defaults` | Your existing YAML file |
+
+For YAML, start with:
+
+```yaml
+pico_link:
+  config_method: yaml
+  devices:
+    - name: Kitchen Pico
+      lights: light.kitchen
+```
+
+If `configuration.yaml` contains `pico_link: !include pico_link.yaml`, put
+`config_method: yaml` at the top of **pico_link.yaml**, alongside `devices`
+and `defaults`; do not add another `pico_link:` wrapper.
+
+**Existing configurations:** if `config_method` is omitted, existing Pico Link
+YAML continues to load until you explicitly import and save a UI configuration.
+There is no automatic migration on update. You can add `config_method: yaml`
+to make the choice explicit. An explicit YAML selection takes precedence even
+if an older UI configuration remains saved.
+
+**Explicit UI selection:** you may set `config_method: ui` under `pico_link`.
+This stops loading remote settings from YAML after the next restart. If no UI
+configuration exists yet, complete setup and import before the remotes resume.
+For an existing YAML installation without an explicit method, importing through
+the UI lets the current remotes keep working until you save.
+
 ## Getting started
+
+### UI setup
+
+1. Open **Settings → Devices & services → Add integration → Pico Link**.
+2. Choose **UI**. If an existing YAML configuration is found, confirm its import.
+3. Select **Add Pico**, choose a registered Lutron remote, and leave its layout
+   on **Automatic** unless you need an explicit model selection.
+4. Choose what the Pico controls, then its light, shade, fan, media-player or
+   switch entities. Four-button scene Picos use explicit button actions instead.
+5. Optionally customize **Button actions**, **Button timing**, **Device settings**
+   and **Run behavior**. Select **Keep Pico changes** to return to the main editor.
+6. Select **Save changes** and confirm. Changes take effect without a Home
+   Assistant restart. Pico Link stops its running actions and reloads its remotes.
+
+Open Pico Link's settings again to edit or remove remotes and manage shared
+defaults. Edits stay in a draft until the final **Save changes**. Closing the
+editor cancels the draft. **Discard Pico changes** discards only the current
+remote's edits.
+
+For each button, select **Tap**, **Hold**, or **Double tap**, then its behavior:
+
+- **Normal / inherited behavior:** remove the local override and use existing
+  behavior, including any applicable imported shared settings.
+- **Custom actions:** build a sequence in Home Assistant's action editor.
+- **Do nothing:** explicitly disable that gesture.
+- **Use shared Stop action:** opt into the corresponding shared Stop sequence.
+
+Shared Stop tap, hold and double tap remain separate opt-ins. A custom hold
+runs once. A configured double tap delays the single tap by the selected window.
+Run behavior belongs to the **whole Pico**, across its custom button sequences;
+**Continue on error** belongs to individual actions in the action editor.
+
+An empty timing or device-setting field inherits the shared default, or the
+built-in default if none exists. Clear an existing value to remove its override.
+Action shortcuts such as `lights` remain supported in the action editor's YAML
+view; they refer to the entities assigned to that Pico.
+
+### Importing YAML and switching methods
+
+Import copies shared defaults, remote assignments and actions, including the
+existing `middle_button` and `buttons` formats. It resolves device names to
+stable registry IDs and validates the whole configuration before saving. If a
+remote or action is invalid, correct it before completing the import.
+
+Once saved, UI settings are authoritative unless you explicitly select YAML.
+The original file is left unchanged. Remove its unused Pico Link block or keep
+it as a backup; UI edits are **not** written back to that file.
+
+If you previously selected `config_method: yaml`, change it to `ui` and restart
+before using UI setup. An existing saved UI configuration will resume; otherwise
+add Pico Link and import your YAML. To return to YAML, restore or update the
+file, set `config_method: yaml`, and restart. Saved UI settings remain inactive
+and can be removed through Devices & services if no longer needed.
+
+### YAML setup
 
 Add this to `configuration.yaml`, replacing the device name and light entity
 with values from your system:
 
 ```yaml
 pico_link:
+  config_method: yaml
   devices:
     - name: Kitchen Pico
       lights: light.kitchen
@@ -80,8 +175,8 @@ If you prefer a separate file, put this in `configuration.yaml`:
 pico_link: !include pico_link.yaml
 ```
 
-The contents of `pico_link.yaml` then start with `devices:` (and optionally
-`defaults:`), without another `pico_link:` wrapper.
+The contents of `pico_link.yaml` then contain `config_method: yaml`, `devices:`
+and optionally `defaults:`, without another `pico_link:` wrapper.
 
 ### Pico type: automatic or explicit
 
@@ -830,7 +925,9 @@ retaining its existing tap. An explicit `button_1_tap` replaces that tap.
 
 ## Settings reference
 
-Settings can be placed on a device or under `defaults`, except `type`, which
+`config_method` belongs at the top of the Pico Link configuration and accepts
+`ui` or `yaml`; see [Choose your configuration method](#choose-your-configuration-method).
+The remaining settings can be placed on a device or under `defaults`, except `type`, which
 is optional and only read from the individual device. Configure a unique name
 or device ID per Pico.
 
@@ -885,7 +982,7 @@ shade motor moves.
 
 ### A configured device was skipped
 
-Pico Link validates entries at startup and logs invalid entries without
+In YAML mode, Pico Link validates entries at startup and logs invalid entries without
 preventing other valid Picos from loading. Common causes include duplicate
 Pico IDs, an ambiguous device name, assigning more than one entity group,
 using a button key that does not exist on the chosen model, or supplying an
@@ -895,6 +992,11 @@ If no valid devices remain, the log says
 `pico_link is configured, but no valid Pico devices were created`.
 The preceding messages identify the individual errors. Restart Home Assistant
 after correcting the configuration.
+
+In UI mode, the editor validates the whole draft before saving. A startup
+failure appears on the Pico Link integration and is retried by Home Assistant;
+correct its settings or restore the missing registry device. UI loading does
+not silently skip a remote or activate leftover YAML.
 
 If the log says it cannot detect the Pico type, check that the remote belongs
 to the Lutron Caséta integration and has a recognized model in the device

@@ -1,0 +1,452 @@
+{
+  "title": "Pico Link",
+  "config": {
+    "step": {
+      "editor": {
+        "title": "Pico Link",
+        "description": "Configured remotes: {remotes}. Changes stay in this editor until you select **Save changes**.",
+        "menu_options": {
+          "add": "Add Pico",
+          "edit": "Edit Pico",
+          "remove": "Remove Pico",
+          "defaults": "Shared defaults",
+          "save": "Save changes",
+          "editor": "Back to Pico Link",
+          "assignment": "What this Pico controls",
+          "button": "Button actions",
+          "timing": "Button timing",
+          "run": "Run behavior",
+          "device_settings": "Device settings",
+          "done": "Keep Pico changes",
+          "discard_remote": "Discard Pico changes",
+          "shared_settings": "Device defaults",
+          "shared_stop": "Shared Stop actions",
+          "identity": "Remote and button layout"
+        }
+      },
+      "method": {
+        "title": "Configuration method",
+        "description": "UI is recommended for new installations. Existing YAML continues working until you explicitly import and save. To keep file-based configuration, choose YAML and set config_method: yaml under pico_link in your configuration.",
+        "data": {
+          "config_method": "Configuration method"
+        }
+      },
+      "add": {
+        "title": "Add Pico",
+        "description": "Choose a remote already registered by Lutron Caséta. Automatic reads its stored model. Choose a layout explicitly only when necessary.",
+        "data": {
+          "device_id": "Pico remote",
+          "type": "Button layout"
+        }
+      },
+      "identity": {
+        "title": "Remote and button layout",
+        "description": "Choose the registered Pico and its layout. Existing actions are preserved. If you change the layout, adjust any actions for buttons that are no longer present before saving.",
+        "data": {
+          "device_id": "Pico remote",
+          "type": "Button layout"
+        }
+      },
+      "edit": {
+        "title": "Edit Pico",
+        "description": "Choose the Pico to edit.",
+        "data": {
+          "remote": "Pico remote"
+        }
+      },
+      "remove": {
+        "title": "Remove Pico",
+        "description": "Choose the Pico to remove from this draft. It keeps working until you save.",
+        "data": {
+          "remote": "Pico remote"
+        }
+      },
+      "confirm_remove": {
+        "title": "Remove {remote}?",
+        "description": "Continue to remove this Pico from the draft. Select Save changes afterward to apply the removal."
+      },
+      "remote": {
+        "title": "Configure Pico",
+        "description": "**{remote}** — layout: {model}. Select **Keep Pico changes** when finished, then **Save changes** to apply them.",
+        "menu_options": {
+          "add": "Add Pico",
+          "edit": "Edit Pico",
+          "remove": "Remove Pico",
+          "defaults": "Shared defaults",
+          "save": "Save changes",
+          "editor": "Back to Pico Link",
+          "assignment": "What this Pico controls",
+          "button": "Button actions",
+          "timing": "Button timing",
+          "run": "Run behavior",
+          "device_settings": "Device settings",
+          "done": "Keep Pico changes",
+          "discard_remote": "Discard Pico changes",
+          "shared_settings": "Device defaults",
+          "shared_stop": "Shared Stop actions",
+          "identity": "Remote and button layout"
+        }
+      },
+      "assignment": {
+        "title": "What this Pico controls",
+        "description": "Choose one kind of device. A Pico can control several entities of that kind.",
+        "data": {
+          "domain": "Control"
+        }
+      },
+      "entities": {
+        "title": "Choose controlled entities",
+        "description": "These entities receive the normal button commands and are used by action shortcuts such as lights or covers.",
+        "data": {
+          "entities": "Entities controlled by this Pico"
+        }
+      },
+      "button": {
+        "title": "Button actions",
+        "description": "Choose the physical button and gesture to customize. A custom hold runs once; double tap adds a waiting window to single tap.",
+        "data": {
+          "button": "Button",
+          "gesture": "Gesture"
+        }
+      },
+      "behavior": {
+        "title": "{gesture}",
+        "description": "Normal / inherited removes the local override. Custom actions replace only this gesture. Do nothing disables it. Shared Stop actions require an explicit selection for each gesture.",
+        "data": {
+          "behavior": "Behavior"
+        }
+      },
+      "actions": {
+        "title": "{gesture}",
+        "description": "Build the sequence with Home Assistant’s action editor. Conditions, delays, loops and script calls are supported. Continue on error belongs to each action. For shortcuts such as lights, use the editor’s YAML view. Shared Stop sequences are used only by Picos that select them.",
+        "data": {
+          "actions": "Actions"
+        }
+      },
+      "done": {
+        "title": "Review Pico settings",
+        "description": "{detail}\n\nContinue to return to this Pico and correct its settings."
+      },
+      "defaults": {
+        "title": "Shared defaults",
+        "description": "Timing and device settings apply where a Pico has no local override. Shared Stop actions apply only where that gesture explicitly selects the shared action.",
+        "menu_options": {
+          "add": "Add Pico",
+          "edit": "Edit Pico",
+          "remove": "Remove Pico",
+          "defaults": "Shared defaults",
+          "save": "Save changes",
+          "editor": "Back to Pico Link",
+          "assignment": "What this Pico controls",
+          "button": "Button actions",
+          "timing": "Button timing",
+          "run": "Run behavior",
+          "device_settings": "Device settings",
+          "done": "Keep Pico changes",
+          "discard_remote": "Discard Pico changes",
+          "shared_settings": "Device defaults",
+          "shared_stop": "Shared Stop actions",
+          "identity": "Remote and button layout"
+        }
+      },
+      "shared_stop": {
+        "title": "Shared Stop actions",
+        "description": "Choose which Stop gesture to define. An empty action list does nothing. Existing middle-button defaults remain supported.",
+        "data": {
+          "gesture": "Gesture"
+        }
+      },
+      "timing": {
+        "title": "Button timing",
+        "description": "Leave a field empty to inherit its default; clear an existing value to remove its override. Inherited values: {inherited}.",
+        "data": {
+          "hold_time_ms": "Hold threshold",
+          "double_tap_time_ms": "Double-tap window",
+          "step_time_ms": "Ramp step interval"
+        }
+      },
+      "device_settings": {
+        "title": "Device settings",
+        "description": "Leave a field empty to inherit its default; clear an existing value to remove its override. Inherited values: {inherited}.",
+        "data": {
+          "light_on_pct": "Turn-on brightness",
+          "light_low_pct": "Minimum brightness",
+          "light_step_pct": "Brightness step",
+          "light_transition_on": "Turn-on transition",
+          "light_transition_off": "Turn-off transition",
+          "cover_open_pos": "Open position",
+          "cover_step_pct": "Position step",
+          "cover_inverted": "Reverse shade direction",
+          "fan_on_pct": "Turn-on speed",
+          "media_player_vol_step": "Volume step"
+        }
+      },
+      "shared_settings": {
+        "title": "Device defaults",
+        "description": "Leave a field empty to inherit its default; clear an existing value to remove its override. Inherited values: {inherited}.",
+        "data": {
+          "light_on_pct": "Turn-on brightness",
+          "light_low_pct": "Minimum brightness",
+          "light_step_pct": "Brightness step",
+          "light_transition_on": "Turn-on transition",
+          "light_transition_off": "Turn-off transition",
+          "cover_open_pos": "Open position",
+          "cover_step_pct": "Position step",
+          "cover_inverted": "Reverse shade direction",
+          "fan_on_pct": "Turn-on speed",
+          "media_player_vol_step": "Volume step"
+        }
+      },
+      "run": {
+        "title": "Run behavior",
+        "description": "This policy covers custom actions across all buttons on this Pico. Single ignores a new sequence while busy; restart replaces unfinished work; queued waits; parallel runs alongside it. The limit includes active and waiting sequences in queued mode and active sequences in parallel mode. Silent suppresses rejection warnings. Inherited settings: {inherited}. Leave the limit empty to inherit it. Normal device controls retain their timing.",
+        "data": {
+          "mode": "When another custom action starts",
+          "max": "Maximum active and queued sequences",
+          "max_exceeded": "When a sequence is rejected"
+        }
+      },
+      "save": {
+        "title": "Apply settings",
+        "description": "This draft contains {count} Pico remote(s). Saving makes the UI the configuration source and reloads Pico Link without restarting Home Assistant. Running Pico actions will stop during reload. Leftover Pico Link YAML will be ignored. {detail}"
+      },
+      "import_yaml": {
+        "title": "Import existing YAML?",
+        "description": "Your current YAML keeps working until you save. Continue to copy its shared defaults, remotes and actions into this editor. After saving, Pico Link uses these UI settings, stored by Home Assistant; the YAML file is not edited. Cancel to keep using YAML. {detail}"
+      }
+    },
+    "error": {
+      "invalid_config": "{detail}",
+      "entities_required": "Choose at least one entity.",
+      "positive_integer": "Enter a whole number greater than zero."
+    },
+    "abort": {
+      "already_configured": "Pico Link is already configured. Open its settings to manage your remotes.",
+      "yaml_selected": "To use YAML, set config_method: yaml under pico_link in configuration.yaml (or inside the included pico_link.yaml file), then restart Home Assistant. No UI entry is needed. To switch to the UI later, set config_method: ui, restart, and open Pico Link setup to import your settings."
+    }
+  },
+  "options": {
+    "step": {
+      "editor": {
+        "title": "Pico Link",
+        "description": "Configured remotes: {remotes}. Changes stay in this editor until you select **Save changes**.",
+        "menu_options": {
+          "add": "Add Pico",
+          "edit": "Edit Pico",
+          "remove": "Remove Pico",
+          "defaults": "Shared defaults",
+          "save": "Save changes",
+          "editor": "Back to Pico Link",
+          "assignment": "What this Pico controls",
+          "button": "Button actions",
+          "timing": "Button timing",
+          "run": "Run behavior",
+          "device_settings": "Device settings",
+          "done": "Keep Pico changes",
+          "discard_remote": "Discard Pico changes",
+          "shared_settings": "Device defaults",
+          "shared_stop": "Shared Stop actions",
+          "identity": "Remote and button layout"
+        }
+      },
+      "method": {
+        "title": "Configuration method",
+        "description": "UI is recommended for new installations. Existing YAML continues working until you explicitly import and save. To keep file-based configuration, choose YAML and set config_method: yaml under pico_link in your configuration.",
+        "data": {
+          "config_method": "Configuration method"
+        }
+      },
+      "add": {
+        "title": "Add Pico",
+        "description": "Choose a remote already registered by Lutron Caséta. Automatic reads its stored model. Choose a layout explicitly only when necessary.",
+        "data": {
+          "device_id": "Pico remote",
+          "type": "Button layout"
+        }
+      },
+      "identity": {
+        "title": "Remote and button layout",
+        "description": "Choose the registered Pico and its layout. Existing actions are preserved. If you change the layout, adjust any actions for buttons that are no longer present before saving.",
+        "data": {
+          "device_id": "Pico remote",
+          "type": "Button layout"
+        }
+      },
+      "edit": {
+        "title": "Edit Pico",
+        "description": "Choose the Pico to edit.",
+        "data": {
+          "remote": "Pico remote"
+        }
+      },
+      "remove": {
+        "title": "Remove Pico",
+        "description": "Choose the Pico to remove from this draft. It keeps working until you save.",
+        "data": {
+          "remote": "Pico remote"
+        }
+      },
+      "confirm_remove": {
+        "title": "Remove {remote}?",
+        "description": "Continue to remove this Pico from the draft. Select Save changes afterward to apply the removal."
+      },
+      "remote": {
+        "title": "Configure Pico",
+        "description": "**{remote}** — layout: {model}. Select **Keep Pico changes** when finished, then **Save changes** to apply them.",
+        "menu_options": {
+          "add": "Add Pico",
+          "edit": "Edit Pico",
+          "remove": "Remove Pico",
+          "defaults": "Shared defaults",
+          "save": "Save changes",
+          "editor": "Back to Pico Link",
+          "assignment": "What this Pico controls",
+          "button": "Button actions",
+          "timing": "Button timing",
+          "run": "Run behavior",
+          "device_settings": "Device settings",
+          "done": "Keep Pico changes",
+          "discard_remote": "Discard Pico changes",
+          "shared_settings": "Device defaults",
+          "shared_stop": "Shared Stop actions",
+          "identity": "Remote and button layout"
+        }
+      },
+      "assignment": {
+        "title": "What this Pico controls",
+        "description": "Choose one kind of device. A Pico can control several entities of that kind.",
+        "data": {
+          "domain": "Control"
+        }
+      },
+      "entities": {
+        "title": "Choose controlled entities",
+        "description": "These entities receive the normal button commands and are used by action shortcuts such as lights or covers.",
+        "data": {
+          "entities": "Entities controlled by this Pico"
+        }
+      },
+      "button": {
+        "title": "Button actions",
+        "description": "Choose the physical button and gesture to customize. A custom hold runs once; double tap adds a waiting window to single tap.",
+        "data": {
+          "button": "Button",
+          "gesture": "Gesture"
+        }
+      },
+      "behavior": {
+        "title": "{gesture}",
+        "description": "Normal / inherited removes the local override. Custom actions replace only this gesture. Do nothing disables it. Shared Stop actions require an explicit selection for each gesture.",
+        "data": {
+          "behavior": "Behavior"
+        }
+      },
+      "actions": {
+        "title": "{gesture}",
+        "description": "Build the sequence with Home Assistant’s action editor. Conditions, delays, loops and script calls are supported. Continue on error belongs to each action. For shortcuts such as lights, use the editor’s YAML view. Shared Stop sequences are used only by Picos that select them.",
+        "data": {
+          "actions": "Actions"
+        }
+      },
+      "done": {
+        "title": "Review Pico settings",
+        "description": "{detail}\n\nContinue to return to this Pico and correct its settings."
+      },
+      "defaults": {
+        "title": "Shared defaults",
+        "description": "Timing and device settings apply where a Pico has no local override. Shared Stop actions apply only where that gesture explicitly selects the shared action.",
+        "menu_options": {
+          "add": "Add Pico",
+          "edit": "Edit Pico",
+          "remove": "Remove Pico",
+          "defaults": "Shared defaults",
+          "save": "Save changes",
+          "editor": "Back to Pico Link",
+          "assignment": "What this Pico controls",
+          "button": "Button actions",
+          "timing": "Button timing",
+          "run": "Run behavior",
+          "device_settings": "Device settings",
+          "done": "Keep Pico changes",
+          "discard_remote": "Discard Pico changes",
+          "shared_settings": "Device defaults",
+          "shared_stop": "Shared Stop actions",
+          "identity": "Remote and button layout"
+        }
+      },
+      "shared_stop": {
+        "title": "Shared Stop actions",
+        "description": "Choose which Stop gesture to define. An empty action list does nothing. Existing middle-button defaults remain supported.",
+        "data": {
+          "gesture": "Gesture"
+        }
+      },
+      "timing": {
+        "title": "Button timing",
+        "description": "Leave a field empty to inherit its default; clear an existing value to remove its override. Inherited values: {inherited}.",
+        "data": {
+          "hold_time_ms": "Hold threshold",
+          "double_tap_time_ms": "Double-tap window",
+          "step_time_ms": "Ramp step interval"
+        }
+      },
+      "device_settings": {
+        "title": "Device settings",
+        "description": "Leave a field empty to inherit its default; clear an existing value to remove its override. Inherited values: {inherited}.",
+        "data": {
+          "light_on_pct": "Turn-on brightness",
+          "light_low_pct": "Minimum brightness",
+          "light_step_pct": "Brightness step",
+          "light_transition_on": "Turn-on transition",
+          "light_transition_off": "Turn-off transition",
+          "cover_open_pos": "Open position",
+          "cover_step_pct": "Position step",
+          "cover_inverted": "Reverse shade direction",
+          "fan_on_pct": "Turn-on speed",
+          "media_player_vol_step": "Volume step"
+        }
+      },
+      "shared_settings": {
+        "title": "Device defaults",
+        "description": "Leave a field empty to inherit its default; clear an existing value to remove its override. Inherited values: {inherited}.",
+        "data": {
+          "light_on_pct": "Turn-on brightness",
+          "light_low_pct": "Minimum brightness",
+          "light_step_pct": "Brightness step",
+          "light_transition_on": "Turn-on transition",
+          "light_transition_off": "Turn-off transition",
+          "cover_open_pos": "Open position",
+          "cover_step_pct": "Position step",
+          "cover_inverted": "Reverse shade direction",
+          "fan_on_pct": "Turn-on speed",
+          "media_player_vol_step": "Volume step"
+        }
+      },
+      "run": {
+        "title": "Run behavior",
+        "description": "This policy covers custom actions across all buttons on this Pico. Single ignores a new sequence while busy; restart replaces unfinished work; queued waits; parallel runs alongside it. The limit includes active and waiting sequences in queued mode and active sequences in parallel mode. Silent suppresses rejection warnings. Inherited settings: {inherited}. Leave the limit empty to inherit it. Normal device controls retain their timing.",
+        "data": {
+          "mode": "When another custom action starts",
+          "max": "Maximum active and queued sequences",
+          "max_exceeded": "When a sequence is rejected"
+        }
+      },
+      "save": {
+        "title": "Apply settings",
+        "description": "This draft contains {count} Pico remote(s). Saving makes the UI the configuration source and reloads Pico Link without restarting Home Assistant. Running Pico actions will stop during reload. Leftover Pico Link YAML will be ignored. {detail}"
+      },
+      "import_yaml": {
+        "title": "Import existing YAML?",
+        "description": "Your current YAML keeps working until you save. Continue to copy its shared defaults, remotes and actions into this editor. After saving, Pico Link uses these UI settings, stored by Home Assistant; the YAML file is not edited. Cancel to keep using YAML. {detail}"
+      }
+    },
+    "error": {
+      "invalid_config": "{detail}",
+      "entities_required": "Choose at least one entity.",
+      "positive_integer": "Enter a whole number greater than zero."
+    },
+    "abort": {
+      "yaml_selected": "To use YAML, set config_method: yaml under pico_link in configuration.yaml (or inside the included pico_link.yaml file), then restart Home Assistant. No UI entry is needed. To switch to the UI later, set config_method: ui, restart, and open Pico Link setup to import your settings."
+    }
+  }
+}

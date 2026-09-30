@@ -3,17 +3,20 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from copy import deepcopy
 from typing import Any
 
 import voluptuous as vol
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import EVENT_HOMEASSISTANT_STOP
 from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import HomeAssistantError
+from homeassistant.exceptions import ConfigEntryNotReady, HomeAssistantError
 from homeassistant.helpers.typing import ConfigType
 
 from .config import PicoConfig, parse_pico_config
 from .const import DOMAIN
 from .controller import PicoController
+from .ui_config import entry_config, validate_document
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -24,6 +27,19 @@ async def async_setup(
 ) -> bool:
     """Set up Pico Link from configuration.yaml."""
     root = config.get(DOMAIN)
+    runtime = hass.data.setdefault(DOMAIN, {})
+    runtime["yaml_config"] = deepcopy(root)
+    method = root.get("config_method") if isinstance(root, dict) else None
+    if method is not None and method not in ("yaml", "ui"):
+        _LOGGER.error("pico_link.config_method must be yaml or ui")
+        return False
+    runtime["config_method"] = method
+    # A saved UI entry owns the installation, including when disabled. Never
+    # silently activate a second set of controllers from leftover YAML.
+    if method == "ui" or (method != "yaml" and hass.config_entries.async_entries(DOMAIN)):
+        if root is not None:
+            _LOGGER.info("Pico Link is managed in the UI; its YAML is not loaded")
+        return True
 
     if root is None:
         _LOGGER.debug(
@@ -156,10 +172,8 @@ async def async_setup(
         )
         return True
 
-    hass.data.setdefault(
-        DOMAIN,
-        {},
-    )["controllers"] = controllers
+    runtime["controllers"] = controllers
+    runtime["source"] = "yaml"
 
     # =============================================================
     # SHUTDOWN
@@ -168,7 +182,7 @@ async def async_setup(
     async def _async_stop(_: Any) -> None:
         await asyncio.gather(*(controller.async_stop() for controller in controllers))
 
-    hass.bus.async_listen_once(
+    runtime["unsub_stop"] = hass.bus.async_listen_once(
         EVENT_HOMEASSISTANT_STOP,
         _async_stop,
     )
@@ -179,4 +193,61 @@ async def async_setup(
         len(controllers),
     )
 
+    return True
+
+
+async def _async_stop_controllers(hass: HomeAssistant) -> None:
+    runtime = hass.data[DOMAIN]
+    if unsub := runtime.pop("unsub_stop", None):
+        unsub()
+    controllers = runtime.pop("controllers", [])
+    await asyncio.gather(*(controller.async_stop() for controller in controllers))
+    runtime.pop("source", None)
+
+
+async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    """Load one UI document without concurrent YAML or partial controllers."""
+    runtime = hass.data.setdefault(DOMAIN, {})
+    if runtime.get("config_method") == "yaml":
+        # Explicit YAML wins even if an older UI document is still saved.
+        # Keep that document available for a later deliberate switch back.
+        _LOGGER.info("Pico Link UI settings are inactive because config_method is yaml")
+        return True
+    if runtime.get("entry_id") not in (None, entry.entry_id):
+        raise HomeAssistantError("Only one Pico Link configuration is supported")
+    controllers = []
+    try:
+        configs = await validate_document(hass, entry_config(entry))
+        # Validation precedes retiring YAML. Never subscribe new controllers
+        # until the previous ones have finished stopping.
+        for conf in configs:
+            controllers.append(PicoController(hass, conf))
+        await _async_stop_controllers(hass)
+        for controller in controllers:
+            await controller.async_start()
+    except Exception as err:
+        await asyncio.gather(*(controller.async_stop() for controller in controllers))
+        raise ConfigEntryNotReady(f"Cannot load Pico Link settings: {err}") from err
+    runtime["controllers"] = controllers
+    runtime["entry_id"] = entry.entry_id
+    runtime["source"] = "ui"
+
+    async def stop(_event):
+        await _async_stop_controllers(hass)
+
+    runtime["unsub_stop"] = hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, stop)
+    entry.async_on_unload(entry.add_update_listener(_async_options_updated))
+    return True
+
+
+async def _async_options_updated(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    await hass.config_entries.async_reload(entry.entry_id)
+
+
+async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    """Drain scripts and timers before a reload replaces their controllers."""
+    runtime = hass.data.get(DOMAIN, {})
+    if runtime.get("entry_id") == entry.entry_id:
+        await _async_stop_controllers(hass)
+        runtime.pop("entry_id", None)
     return True

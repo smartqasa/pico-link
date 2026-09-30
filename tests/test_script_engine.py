@@ -53,6 +53,16 @@ def runner(pico):
     return pico.hass.data["pico_link"]["controllers"][0].script_runner
 
 
+def registered_scripts(hass):
+    """Compare object identities across HA's old list and newer dict registry."""
+    registry = hass.data[DATA_SCRIPTS]
+    return (
+        {id(item["instance"]) for item in registry}
+        if isinstance(registry, list)
+        else set(registry)
+    )
+
+
 @pytest.mark.parametrize("mode", ["single", "parallel", "queued", "restart"])
 async def test_policy_inheritance_and_device_precedence(hass, mode):
     raw = scene_device()
@@ -395,27 +405,27 @@ async def test_shutdown_cancels_waits_queues_and_removes_registered_scripts(pico
     scripts = [
         script for prepared in engine.sequences.values() for script in prepared.scripts
     ]
-    registered = set(pico.hass.data[DATA_SCRIPTS])
+    registered = registered_scripts(pico.hass)
     pico.tap("button_1", kind="4B")
     await pico.next_call()
     pico.tap("button_1", kind="4B")
     await settle()
-    assert set(pico.hass.data[DATA_SCRIPTS]) == registered
+    assert registered_scripts(pico.hass) == registered
     await pico.stop()
     assert not engine.sequences and not engine._runs
     assert not any(script.is_running for script in scripts)
-    assert all(id(script) not in pico.hass.data[DATA_SCRIPTS] for script in scripts)
+    assert all(id(script) not in registered_scripts(pico.hass) for script in scripts)
     assert all(data["label"] == "start" for _, _, data in pico.calls)
 
 
 async def test_completed_runs_reuse_script_objects(pico):
     assert await pico.setup([scene_device()])
-    initial = set(pico.hass.data[DATA_SCRIPTS])
+    initial = registered_scripts(pico.hass)
     for _ in range(15):
         pico.tap("button_1", kind="4B")
         await pico.drain()
     assert len(pico.calls) == 15
-    assert set(pico.hass.data[DATA_SCRIPTS]) == initial
+    assert registered_scripts(pico.hass) == initial
     assert not runner(pico)._runs
 
 
