@@ -252,8 +252,8 @@ main {
 }
 .mini-pico {
   display: block;
-  width: 28px;
-  height: 42px;
+  width: 20px;
+  height: 34px;
   color: var(--muted);
   flex-shrink: 0;
 }

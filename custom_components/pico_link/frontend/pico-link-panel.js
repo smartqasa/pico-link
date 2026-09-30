@@ -42,17 +42,17 @@ const modeLabels = {
   parallel: "Parallel — run together",
 };
 const miniPicoButtons = {
-  P2B: '<rect x="4" y="5" width="20" height="32" rx="2"/><path d="M4 21h20"/>',
-  "2B": '<rect x="4" y="5" width="20" height="14" rx="2"/><rect x="4" y="23" width="20" height="14" rx="2"/>',
+  P2B: '<rect x="5" y="5" width="10" height="11" rx="1"/><rect x="5" y="18" width="10" height="11" rx="1"/>',
+  "2B": '<rect x="5" y="8" width="10" height="4" rx="1"/><rect x="5" y="22" width="10" height="4" rx="1"/>',
   "3BRL":
-    '<rect x="4" y="4" width="20" height="7" rx="1.5"/><path d="m11 17 3-4 3 4zm0 8 3 4 3-4z"/><circle cx="14" cy="21" r="2.5"/><rect x="4" y="32" width="20" height="7" rx="1.5"/>',
-  "4B": '<rect x="4" y="4" width="20" height="7" rx="1.5"/><rect x="4" y="13" width="20" height="7" rx="1.5"/><rect x="4" y="22" width="20" height="7" rx="1.5"/><rect x="4" y="31" width="20" height="7" rx="1.5"/>',
+    '<rect x="5" y="5" width="10" height="3" rx="1"/><path d="m8 13 2-3 2 3zm0 8 2 3 2-3z"/><circle cx="10" cy="17" r="1.7"/><rect x="5" y="26" width="10" height="3" rx="1"/>',
+  "4B": '<rect x="5" y="6" width="10" height="3" rx="1"/><rect x="5" y="12" width="10" height="3" rx="1"/><rect x="5" y="19" width="10" height="3" rx="1"/><rect x="5" y="25" width="10" height="3" rx="1"/>',
 };
 function miniPico(type) {
   const buttons =
     miniPicoButtons[type] ||
-    '<path d="M10 16a4 4 0 1 1 6 3.5c-2 1-2 2-2 4M14 28v1"/>';
-  return `<svg class="mini-pico" viewBox="0 0 28 42" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="1" width="26" height="40" rx="4"/>${buttons}</svg>`;
+    '<circle cx="10" cy="13" r="1.5"/><circle cx="10" cy="21" r="1.5"/>';
+  return `<svg class="mini-pico" viewBox="0 0 20 34" aria-hidden="true" focusable="false"><rect x="1" y="1" width="18" height="32" rx="3" fill="none" stroke="currentColor" stroke-width="1.2"/><g fill="currentColor">${buttons}</g></svg>`;
 }
 const stylesheet = new URL("./panel.css", import.meta.url).href;
 let componentsReady;
