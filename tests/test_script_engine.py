@@ -611,14 +611,29 @@ async def test_area_turn_off_keeps_unsupported_entity_error_and_legacy_continuat
         _attr_should_poll = False
         _attr_supported_features = MediaPlayerEntityFeature.PLAY_MEDIA
 
+    class Television(MediaPlayerEntity):
+        _attr_name = "TV test"
+        _attr_unique_id = "tv-test"
+        _attr_should_poll = False
+        _attr_supported_features = MediaPlayerEntityFeature.TURN_OFF
+        async_turn_off = AsyncMock()
+
     component = EntityComponent(logging.getLogger(__name__), "media_player", hass)
     player = VoicePlayer()
-    await component.async_add_entities([player])
+    television = Television()
+    await component.async_add_entities([player, television])
     component.async_register_entity_service(
         "turn_off", None, "async_turn_off", [MediaPlayerEntityFeature.TURN_OFF]
     )
     office = ar.async_get(hass).async_create("Office")
-    er.async_get(hass).async_update_entity(player.entity_id, area_id=office.id)
+    entity_registry = er.async_get(hass)
+    for entity in (player, television):
+        entity_registry.async_update_entity(entity.entity_id, area_id=office.id)
+    lamp = entity_registry.async_get_or_create(
+        "light", "test", "office-lamp", suggested_object_id="office_lamp"
+    )
+    entity_registry.async_update_entity(lamp.entity_id, area_id=office.id)
+    hass.states.async_set(lamp.entity_id, "on")
     # This is the exact service API used by Pico Link before the script engine.
     with pytest.raises(ServiceNotSupported):
         await hass.services.async_call(
@@ -628,6 +643,12 @@ async def test_area_turn_off_keeps_unsupported_entity_error_and_legacy_continuat
             target={"area_id": office.id},
             blocking=True,
         )
+    await pico.drain()
+    assert pico.calls == [
+        ("light", "turn_off", {"area_id": office.id, "entity_id": [lamp.entity_id]})
+    ]
+    television.async_turn_off.assert_not_called()
+    pico.calls.clear()
     assert await pico.setup(
         [
             scene_device(
@@ -648,5 +669,18 @@ async def test_area_turn_off_keeps_unsupported_entity_error_and_legacy_continuat
     await pico.drain()
     assert "error calling homeassistant.turn_off" in caplog.text
     assert "ServiceNotSupported" in caplog.text
-    assert pico.calls == [("scene", "turn_on", {"entity_id": "scene.after_error"})]
+    assert (
+        "light",
+        "turn_off",
+        {"area_id": office.id, "entity_id": [lamp.entity_id]},
+    ) in pico.calls
+    assert ("scene", "turn_on", {"entity_id": "scene.after_error"}) in pico.calls
+    television.async_turn_off.assert_not_called()
+    # A domain-specific area target remains indirect: HA skips the unsupported
+    # player and still turns off a capable player, without targeting it by ID.
+    await hass.services.async_call(
+        "media_player", "turn_off", {}, target={"area_id": office.id}, blocking=True
+    )
+    television.async_turn_off.assert_awaited_once()
     await component.async_remove_entity(player.entity_id)
+    await component.async_remove_entity(television.entity_id)
