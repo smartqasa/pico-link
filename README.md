@@ -104,7 +104,8 @@ the UI lets the current remotes keep working until you save.
 3. Submit the final setup step, then open **Pico Link** in the Home Assistant
    sidebar. The integration's **Configure** button opens the same workspace.
 4. Select **Add Pico** and choose a registered Lutron remote. Its layout is
-   detected automatically. Under **Remote & targets**, choose what it controls
+   detected automatically; a manual **Pico layout** override is under
+   **Remote & targets → Advanced**. Under **Remote & targets**, choose what it controls
    and select its light, shade, fan, media-player or switch entities. Four-button
    scene Picos use targets inside their button actions instead.
 5. Select a button on the visual Pico, then **Tap**, **Hold**, or **Double tap**.
@@ -116,6 +117,8 @@ The workspace is available to Home Assistant administrators. It has a searchable
 alphabetical list of configured Picos, with **Add Pico** and **Shared defaults**
 at the top. Select a remote to edit it. **Remove** asks for confirmation and
 takes effect only when you save; it does not delete the Lutron device.
+Under **Remote & targets**, expand **Device details** to view or copy the
+remote's Home Assistant device ID. This field is read-only.
 
 Existing UI settings appear automatically after updating; no reimport is needed.
 Changes stay in a draft until **Save changes**. **Discard changes** restores the

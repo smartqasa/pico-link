@@ -41,6 +41,19 @@ const modeLabels = {
   queued: "Queued — run in order",
   parallel: "Parallel — run together",
 };
+const miniPicoButtons = {
+  P2B: '<rect x="4" y="5" width="20" height="32" rx="2"/><path d="M4 21h20"/>',
+  "2B": '<rect x="4" y="5" width="20" height="14" rx="2"/><rect x="4" y="23" width="20" height="14" rx="2"/>',
+  "3BRL":
+    '<rect x="4" y="4" width="20" height="7" rx="1.5"/><path d="m11 17 3-4 3 4zm0 8 3 4 3-4z"/><circle cx="14" cy="21" r="2.5"/><rect x="4" y="32" width="20" height="7" rx="1.5"/>',
+  "4B": '<rect x="4" y="4" width="20" height="7" rx="1.5"/><rect x="4" y="13" width="20" height="7" rx="1.5"/><rect x="4" y="22" width="20" height="7" rx="1.5"/><rect x="4" y="31" width="20" height="7" rx="1.5"/>',
+};
+function miniPico(type) {
+  const buttons =
+    miniPicoButtons[type] ||
+    '<path d="M10 16a4 4 0 1 1 6 3.5c-2 1-2 2-2 4M14 28v1"/>';
+  return `<svg class="mini-pico" viewBox="0 0 28 42" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="1" width="26" height="40" rx="4"/>${buttons}</svg>`;
+}
 const stylesheet = new URL("./panel.css", import.meta.url).href;
 let componentsReady;
 
@@ -254,7 +267,7 @@ class PicoLinkPanel extends HTMLElement {
       rows
         .map(
           (row) =>
-            `<button class="remote-row ${this._selected === row.index ? "selected" : ""}" data-index="${row.index}" aria-pressed="${this._selected === row.index}"><span class="mini-pico" aria-hidden="true">▰<br>▰<br>▰</span><span class="remote-copy"><strong>${esc(row.name)}</strong><small>${esc(row.area || TYPES[row.type] || "Check remote identity")}</small></span><span class="chevron" aria-hidden="true">›</span></button>`,
+            `<button class="remote-row ${this._selected === row.index ? "selected" : ""}" data-index="${row.index}" aria-pressed="${this._selected === row.index}">${miniPico(row.type)}<span class="remote-copy"><strong>${esc(row.name)}</strong><small>${esc(row.area || TYPES[row.type] || "Check remote identity")}</small></span><span class="chevron" aria-hidden="true">›</span></button>`,
         )
         .join("") || '<p class="empty-list">No Picos found.</p>';
     this.shadowRoot.querySelectorAll(".remote-row").forEach((button) =>
@@ -482,8 +495,39 @@ class PicoLinkPanel extends HTMLElement {
   _assignment(body) {
     const raw = this.remote;
     const meta = deviceMeta(raw, this._state.catalog);
-    body.innerHTML =
-      '<div class="section"><h3>Remote identity</h3><p>Automatic uses the model stored by Lutron. Select a layout only when needed.</p><div id="identity"></div><div id="targets"></div></div>';
+    body.innerHTML = `<div class="section"><h3>Remote identity</h3><div id="identity"></div><details class="device-details"><summary>Device details</summary><label class="field" for="device-id">Home Assistant device ID</label><div class="device-id-row"><input id="device-id" type="text" value="${esc(raw.device_id)}" readonly spellcheck="false"><button id="copy-device-id" ${raw.device_id ? "" : "disabled"}>Copy</button></div><small id="copy-status" role="status"></small></details><div id="targets"></div><details class="device-details" id="advanced"><summary>Advanced</summary><p class="hint">Automatic uses the model stored by Lutron. Select a layout only when needed.</p><div id="layout"></div></details></div>`;
+    this._on(
+      "#copy-device-id",
+      "click",
+      async () => {
+        const input = body.querySelector("#device-id");
+        const status = body.querySelector("#copy-status");
+        const button = body.querySelector("#copy-device-id");
+        let copied = false;
+        if (navigator.clipboard?.writeText) {
+          try {
+            await navigator.clipboard.writeText(input.value);
+            copied = true;
+          } catch {
+            // Local HTTP installations may not expose or allow the clipboard API.
+          }
+        }
+        if (!copied) {
+          input.focus();
+          input.select();
+          try {
+            copied = document.execCommand("copy");
+          } catch {
+            // Keep the ID selected for manual copying if the browser blocks it.
+          }
+        }
+        status.textContent = copied
+          ? "Device ID copied."
+          : "Select and copy the device ID manually; the browser blocked copying.";
+        if (copied) button.focus();
+      },
+      body,
+    );
     this._form(
       body.querySelector("#identity"),
       [
@@ -492,6 +536,18 @@ class PicoLinkPanel extends HTMLElement {
           required: true,
           selector: { device: { integration: "lutron_caseta" } },
         },
+      ],
+      { device_id: raw.device_id },
+      (data) => {
+        raw.device_id = data.device_id;
+        this._changed();
+        this._renderDetail();
+      },
+      { device_id: "Lutron remote" },
+    );
+    this._form(
+      body.querySelector("#layout"),
+      [
         {
           name: "layout",
           selector: {
@@ -508,15 +564,15 @@ class PicoLinkPanel extends HTMLElement {
           },
         },
       ],
-      { device_id: raw.device_id, layout: raw.type || "automatic" },
+      { layout: raw.type || "automatic" },
       (data) => {
-        raw.device_id = data.device_id;
         if (data.layout === "automatic") delete raw.type;
         else raw.type = data.layout;
         this._changed();
         this._renderDetail();
+        this.shadowRoot.querySelector("#advanced").open = true;
       },
-      { device_id: "Lutron remote", layout: "Pico layout" },
+      { layout: "Pico layout" },
     );
     const targets = body.querySelector("#targets");
     if (meta.type === "4B") {

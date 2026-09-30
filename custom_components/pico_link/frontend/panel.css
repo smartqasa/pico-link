@@ -252,20 +252,13 @@ main {
 }
 .mini-pico {
   display: block;
-  border: 1px solid var(--line);
-  border-radius: 5px;
-  width: 26px;
-  text-align: center;
-  background: var(--surface);
-  font-size: 10px;
-  line-height: 9px;
-  padding: 6px 2px;
+  width: 28px;
+  height: 42px;
   color: var(--muted);
   flex-shrink: 0;
 }
 .selected .mini-pico {
   color: var(--accent);
-  border-color: var(--accent);
 }
 .chevron {
   font-size: 22px;
@@ -486,6 +479,35 @@ main {
 }
 #targets h3 {
   margin-top: 28px;
+}
+.device-details {
+  margin: 20px 0;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+}
+.device-details summary {
+  cursor: pointer;
+}
+.device-details .field {
+  margin: 16px 0 8px;
+}
+.device-id-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.device-id-row input {
+  min-width: 0;
+  font-family: monospace;
+  font-size: 12px;
+}
+.device-id-row button {
+  flex-shrink: 0;
+}
+#copy-status:not(:empty) {
+  display: block;
+  margin-top: 8px;
 }
 ha-form {
   display: block;
