@@ -5,8 +5,10 @@ import asyncio
 import logging
 from typing import Any
 
+import voluptuous as vol
 from homeassistant.const import EVENT_HOMEASSISTANT_STOP
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.typing import ConfigType
 
 from .config import PicoConfig, parse_pico_config
@@ -127,14 +129,20 @@ async def async_setup(
             )
             continue
 
-        configured_device_entries[pico_config.device_id] = index
-
         controller = PicoController(
             hass,
             pico_config,
         )
 
-        await controller.async_start()
+        try:
+            await controller.async_start()
+        except (ValueError, vol.Invalid, HomeAssistantError) as err:
+            await controller.async_stop()
+            _LOGGER.error(
+                "Invalid Pico %s script configuration: %s", pico_config.device_id, err
+            )
+            continue
+        configured_device_entries[pico_config.device_id] = index
         controllers.append(controller)
 
     # =============================================================

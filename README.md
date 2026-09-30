@@ -4,10 +4,12 @@ Use Lutron Pico remotes to control Home Assistant lights, shades, fans, media
 players, and switches. Keep each button's built-in behavior, replace its tap
 or hold with a list of actions, or add a double-tap action.
 
-**Version 0.3.14** makes the Pico `type` optional. Pico Link detects it from
-Home Assistant's stored Lutron model when omitted. An explicit `type` still
-takes precedence. Existing button actions and shared Stop defaults remain
-supported.
+**Beta 0.3.15b1 adds Home Assistant script sequences** to button actions,
+including conditions, delays, templates, loops, and waits. Custom sequences now
+default to `mode: single`: another custom gesture on the same Pico is ignored
+until its current sequence finishes. Use `mode: parallel` for the previous
+overlap behavior, or `restart` when a newer command should take over. This beta
+keeps existing tap/hold/double-tap timing and built-in device controls.
 
 [![HACS Custom](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://hacs.xyz)
 ![GitHub release](https://img.shields.io/github/v/release/smartqasa/pico-link)
@@ -540,7 +542,9 @@ Do not assign an entity group such as `lights` to it.
 
 ## Action format
 
-Every custom action list uses the same service-call format:
+Custom button lists run through Home Assistant's script engine. All gesture
+overrides, shared Stop actions, `middle_button`, and the existing `buttons`
+mapping accept script sequences. The simplest action is still a service call:
 
 ```yaml
 - action: light.turn_on
@@ -550,23 +554,160 @@ Every custom action list uses the same service-call format:
     brightness_pct: 80
 ```
 
-`action` is required and must be a `domain.service` string. `target` and `data`
-are optional mappings. Target selectors such as `entity_id`, `area_id`, and
-`device_id` are passed to Home Assistant.
+For service calls, `action` identifies the service, while `target` and `data`
+are optional mappings. Home Assistant's `service` spelling is also accepted.
+You can add conditions, delays, variables, templates, `choose`, `if`, repeats,
+parallel branches, waits, and stop actions using the
+[Home Assistant script syntax](https://www.home-assistant.io/docs/scripts/)
+supported by your installed Home Assistant version. Pico Link validates the
+sequence during setup and reports invalid configurations for the affected Pico.
 
-Actions in one list run in order, waiting for each service call to return
-before submitting the next. This does not guarantee that a physical device has
-finished moving or that a script launched with `script.turn_on` has finished.
-Service failures are logged, and later actions are still attempted.
+### Example: a button with conditional actions
 
-These lists support service calls, not the full Home Assistant automation
-language. For conditions, delays, templates, loops, or color cycling, put the
-logic in a Home Assistant script and call that script from the button.
+This Stop tap uses a dim setting after sunset and a brighter setting during
+the day. Its double tap runs two actions with a short delay between them.
 
-Separate button gestures can start overlapping action lists. If a long-running
-sequence needs queuing or cancellation rules, manage that behavior inside a
-Home Assistant script. Home Assistant shutdown cancels Pico Link's pending
-work; it does not undo completed commands or stop scripts launched separately.
+```yaml
+pico_link:
+  devices:
+    - name: Bedroom Pico
+      lights: light.bedroom
+      stop_tap:
+        - if:
+            - condition: state
+              entity_id: sun.sun
+              state: below_horizon
+          then:
+            - action: light.turn_on
+              target:
+                entity_id: lights
+              data:
+                brightness_pct: 15
+          else:
+            - action: light.turn_on
+              target:
+                entity_id: lights
+              data:
+                brightness_pct: 80
+      stop_double_tap:
+        - action: light.turn_on
+          target:
+            entity_id: lights
+          data:
+            brightness_pct: 100
+        - delay: 2
+        - action: scene.turn_on
+          target:
+            entity_id: scene.bedtime
+```
+
+### Overlapping sequences: mode and limits
+
+Set `mode`, `max`, and `max_exceeded` under `defaults`, on an individual device,
+or both. Each device setting overrides its shared default; omitted settings
+use the built-in values shown below.
+
+| Setting | Built-in default | Purpose |
+| --- | --- | --- |
+| `mode` | `single` | What happens when another custom sequence starts |
+| `max` | `10` | Maximum active runs in parallel mode, or running plus waiting runs in queued mode |
+| `max_exceeded` | `warning` | Log level when a new run is rejected: `debug`, `info`, `warning`, `error`, `critical`, or `silent` |
+
+| Mode | Another custom gesture on the same Pico |
+| --- | --- |
+| `single` | Ignore the new sequence while a sequence is running. This also applies to a different button, including a custom Off action. |
+| `restart` | Stop the older sequence's remaining work, then run the new sequence. |
+| `queued` | Wait for previous sequences to finish, preserving arrival order. |
+| `parallel` | Start a separate run immediately; its actions may overlap earlier runs. |
+
+The policy and limit cover **the whole Pico**, across all custom buttons and
+gestures. Different remotes have independent runs and limits. Shared Stop
+defaults supply actions; they do not create one shared execution queue.
+
+```yaml
+pico_link:
+  defaults:
+    mode: single
+    max: 10
+    max_exceeded: warning
+  devices:
+    - name: Kitchen Pico
+      lights: light.kitchen
+      mode: restart
+      on_tap:
+        - delay: 2
+        - action: light.turn_on
+          target:
+            entity_id: lights
+    - name: Bedroom Pico
+      lights: light.bedroom
+      # Inherits the shared settings.
+```
+
+In this example, Kitchen Off retains its built-in action. With `restart`, it
+cancels the pending custom On sequence before sending Off, so the old delay
+does not turn the light on afterward. Built-in controls are never queued or
+ignored because a custom sequence is busy. In other modes, built-in commands
+do not cancel a running custom sequence. Normal tap/hold/double-tap recognition
+and ramp timing are unchanged.
+
+**Upgrade note:** earlier versions allowed custom lists to overlap. This beta
+defaults to `single`, matching Home Assistant. Select `parallel` explicitly
+where that old behavior is wanted. The new `max` limit still applies.
+
+`max` must be a positive integer and applies only to `queued` and `parallel`.
+Single mode always permits one run. When a limit is reached, the new sequence
+is rejected and existing runs continue. `max_exceeded: silent` suppresses only
+that log message; it does not suppress errors within actions. This setting also
+controls the rejection message in single mode.
+
+### Errors and existing action lists
+
+For compatibility, a plain list containing only `action`, optional `data`, and
+optional `target`, with no templates, keeps the original behavior: log a failed
+service call and attempt the next one. These service calls also run through
+Home Assistant's engine, with compatibility handling around each step.
+
+A list using additional script features or keys (including `alias`, `service`,
+or `continue_on_error`) uses native script semantics for the **whole list**.
+An action error normally stops that sequence. Set `continue_on_error: true`
+on a particular action when later steps should still run:
+
+```yaml
+stop_tap:
+  - action: notify.mobile_app_phone
+    continue_on_error: true
+    data:
+      message: Good night
+  - action: light.turn_off
+    target:
+      entity_id: lights
+```
+
+An explicit `continue_on_error: false` also selects native error handling.
+This option belongs on an action, not under Pico Link defaults or a device.
+It does not bypass invalid configuration or every unhandled error; see
+[Home Assistant's error rules](https://www.home-assistant.io/docs/scripts/#continuing-on-error).
+A failed condition or an explicit stop follows normal script control flow.
+One failed sequence does not disable later presses or other remotes.
+
+### Completion, cancellation, and external scripts
+
+Actions normally run in order. Parallel branches run concurrently. A service
+call returning does not guarantee that a physical light or shade has finished
+moving. Releasing a custom hold lets its sequence finish; it does not repeat
+the sequence or trigger its tap. A later command in restart mode may cancel it.
+
+Home Assistant shutdown cancels Pico Link's unfinished sequences, queued runs,
+waits, and gesture timers. They do not resume automatically after restart.
+Cancellation cannot undo commands already sent to a device.
+
+You can still call a separate Home Assistant script for reusable logic.
+Calling `script.NAME` waits for that script to return; `script.turn_on` starts
+it separately and continues without waiting. Separately launched scripts keep
+their own modes and lifecycle; cancelling Pico Link's sequence does not stop
+them. Two remotes controlling the same device can send competing commands;
+use a shared script when they need coordinated behavior.
 
 ### Entity placeholders
 
@@ -596,12 +737,15 @@ stop_tap:
 ```
 
 Only use a placeholder for a group assigned to that device. Other target fields
-are preserved. Since 4B Picos have no assigned entity group, use explicit
+are preserved. Placeholders also work in nested action branches and loops;
+they are not substituted inside template text or arbitrary service data.
+Since 4B Picos have no assigned entity group, use explicit
 entity IDs or other Home Assistant target selectors for their actions.
 
 ## Existing middle-button and scene-button configuration
 
-Existing configurations continue to work without being rewritten.
+Existing configuration formats remain supported. Review the new default
+[execution mode](#overlapping-sequences-mode-and-limits) when upgrading.
 
 ### `middle_button` on 3BRL
 
@@ -698,6 +842,9 @@ or device ID per Pico.
 | `stop_tap`, `stop_double_tap`, `stop_hold` under `defaults` | Not set | Shared lists; used only when a 3BRL explicitly selects `default` |
 | `middle_button` | Domain behavior | Older 3BRL tap setting, still supported; action list, or `default` to opt into the shared list |
 | `buttons` | None | 4B button-to-action mapping |
+| `mode` | `single` | `single`, `restart`, `queued`, or `parallel`; shared across custom sequences on one Pico |
+| `max` | `10` | Positive integer; active/queued run limit for queued and parallel modes |
+| `max_exceeded` | `warning` | Log severity when rejecting a new run, or `silent` |
 | `hold_time_ms` | `400` | `100–2000` ms before a hold is recognized |
 | `double_tap_time_ms` | `300` | `100–2000` ms from first release to second press; used only for buttons with a double-tap key |
 | `step_time_ms` | `650` | `100–2000` ms between built-in brightness/volume ramp commands |
@@ -712,7 +859,9 @@ or device ID per Pico.
 | `fan_on_pct` | `100` | `1–100`, speed for built-in On presses |
 | `media_player_vol_step` | `10` | `1–20`, volume change per step in percent |
 
-Numeric values outside the accepted range are clamped. Invalid numeric values
+Invalid `mode`, `max`, or `max_exceeded` values are configuration errors.
+For the timing and device-control settings in the table, numeric values outside the
+accepted range are clamped. Invalid numeric values
 and zero use the setting's default (the transition defaults are themselves
 zero). `hold_time_ms` also applies to custom holds for fans, switches, and 4B
 remotes. `step_time_ms` does not repeat custom actions or control how fast a
@@ -761,6 +910,10 @@ makes it easier to trigger a hold accidentally. Buttons without overrides keep
 their existing timing.
 
 ### Holds or repeated presses behave unexpectedly
+
+If a custom press is ignored while a previous sequence is running, check
+`mode`. The default is now `single`, shared across the Pico's custom
+gestures. With `queued` or `parallel`, check `max` and the rejection logs.
 
 Built-in fan and switch controls do not ramp. Custom hold lists run once;
 `step_time_ms` does not make them repeat. A held button's custom sequence is

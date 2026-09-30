@@ -129,6 +129,7 @@ class SharedUtils:
         blocking: bool = False,
     ) -> None:
         """Call a service for every configured entity in a domain."""
+        await self.ctrl.script_runner.async_wait_interrupted()
         entities = self.entities_for_domain(domain)
 
         if not entities:
@@ -155,74 +156,6 @@ class SharedUtils:
     # CONFIGURED ACTION EXECUTION
     # =============================================================
 
-    async def execute_button_action(
-        self,
-        action: Any,
-    ) -> None:
-        """Execute one configured action or an ordered list of actions."""
-        if isinstance(action, list):
-            for item in action:
-                await self.execute_button_action(item)
-
-            return
-
-        if not isinstance(action, dict):
-            _LOGGER.error(
-                "Device %s: invalid action format: %r",
-                self.conf.device_id,
-                action,
-            )
-            return
-
-        action_name = action.get("action")
-
-        if not isinstance(action_name, str):
-            _LOGGER.error(
-                "Device %s: invalid action string %r",
-                self.conf.device_id,
-                action_name,
-            )
-            return
-
-        domain, separator, service = action_name.partition(".")
-
-        if not separator or not domain or not service:
-            _LOGGER.error(
-                "Device %s: invalid action string %r",
-                self.conf.device_id,
-                action_name,
-            )
-            return
-
-        raw_data = action.get("data", {})
-
-        if not isinstance(raw_data, dict):
-            _LOGGER.error(
-                "Device %s: data for %s must be a mapping",
-                self.conf.device_id,
-                action_name,
-            )
-            return
-
-        raw_target = action.get("target")
-
-        if raw_target is not None and not isinstance(
-            raw_target,
-            dict,
-        ):
-            _LOGGER.error(
-                "Device %s: target for %s must be a mapping",
-                self.conf.device_id,
-                action_name,
-            )
-            return
-
-        # Configured action lists are deliberately blocking so each
-        # action completes before the next action begins.
-        await self._execute_service_call(
-            domain,
-            service,
-            raw_data,
-            blocking=True,
-            target=raw_target,
-        )
+    async def execute_button_action(self, actions: list[dict[str, Any]]) -> None:
+        """Execute a prepared sequence under this Pico's shared run policy."""
+        await self.ctrl.script_runner.async_run(actions)

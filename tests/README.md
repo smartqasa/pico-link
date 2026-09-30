@@ -45,6 +45,7 @@ python -m pytest -q tests/test_gestures.py
 | `test_setup_and_events.py` | Full HA setup, invalid and duplicate entries, event filtering, independent remotes, multiple targets, and shutdown cancellation |
 | `test_device_controls.py` | On/Off behavior for all three domain-controlling Pico models; shade position/direction, fan speeds/direction, volume limits/mute, and switches |
 | `test_gestures.py` | Tap/hold distinctions, release and direction changes, shade stop ordering, natural ramp limits, and concurrent remotes |
+| `test_script_engine.py` | Real HA script syntax, cross-button modes, per-Pico limits, error compatibility, native Off interruption, cancellation, reuse, and cleanup |
 | `test_custom_actions.py` | All four scene buttons, middle-button overrides, ordered completion, target/data preservation, service errors, and interrupted sequences |
 | `test_button_overrides.py` | Tap/hold overrides on every supported button, native fallback, legacy precedence, empty lists, release timing, cover stop ordering, shutdown, and five concurrent remotes |
 | `test_double_tap.py` | Every model/button, single-tap delay and fallback, native/custom holds, timing inheritance, slow/repeated taps, cross-button ordering, duplicate events, shutdown, cover stops, and concurrent remotes |
