@@ -12,6 +12,17 @@ import {
   deviceMeta,
   listRows,
 } from "./model.js";
+import {
+  actionEditorResult,
+  actionEditorValue,
+  actionTargetRows,
+  allowedTargetGroups,
+  groupLabel,
+  setActionTarget,
+  targetChoice,
+  targetGroups,
+  targetShortcuts,
+} from "./action-targets.js";
 
 const esc = (value) =>
   String(value ?? "").replace(
@@ -105,7 +116,9 @@ class PicoLinkPanel extends HTMLElement {
     this.shadowRoot
       .querySelectorAll("ha-form, ha-menu-button")
       .forEach((el) => {
-        el.hass = value;
+        el.hass = el.dataset.picoActionEditor
+          ? this._actionEditorHass()
+          : value;
       });
     if (this.isConnected && !this._loading && !this._state) this._load();
   }
@@ -454,17 +467,19 @@ class PicoLinkPanel extends HTMLElement {
   _renderActions(host, target, key, selected) {
     const value = gestureValue(target, key);
     if (selected === "custom") {
-      host.innerHTML = `<p class="hint">Build a sequence with actions, delays, conditions, or scripts. ${this.shared ? "Each Pico chooses whether to use this shared sequence." : "Releasing a custom hold lets its sequence finish."}</p><div class="action-form"></div>`;
+      host.innerHTML = `<p class="hint">Build a sequence with actions, delays, conditions, or scripts. ${this.shared ? "Each Pico chooses whether to use this shared sequence." : "Releasing a custom hold lets its sequence finish."}</p><div class="action-form"></div><section class="action-targets" aria-label="Pico action targets"></section>`;
       this._form(
         host.querySelector(".action-form"),
         [{ name: "actions", selector: { action: {} } }],
-        { actions: Array.isArray(value) ? clone(value) : [] },
+        { actions: Array.isArray(value) ? this._editorActions(value) : [] },
         (data) => {
-          setGesture(target, key, data.actions || []);
+          setGesture(target, key, actionEditorResult(data.actions || []));
           this._changed();
+          this._renderActionTargets(host, target, key);
         },
         { actions: "Action sequence" },
       );
+      this._renderActionTargets(host, target, key);
     } else {
       let text;
       if (selected === "shared") {
@@ -482,13 +497,111 @@ class PicoLinkPanel extends HTMLElement {
       host.innerHTML = `<div class="behavior-note">${esc(text)}</div>`;
     }
   }
+  _renderActionTargets(host, target, key) {
+    const box = host.querySelector(".action-targets");
+    if (!box) return;
+    const sequence = gestureValue(target, key) || [];
+    const rows = actionTargetRows(sequence);
+    box.hidden = !rows.length;
+    if (!rows.length) return;
+    const available = targetGroups(
+      target,
+      this._draft.defaults,
+      this.shared,
+      this.shared ? undefined : deviceMeta(target, this._state.catalog).type,
+    );
+    box.innerHTML = `<h3>Pico targets</h3><p class="hint">Use the entities assigned to this Pico without entering their IDs. Each choice applies to one action. Choosing an assigned group replaces that action's existing targets.${this.shared ? " The action editor previews targets from configured Picos; each Pico will use its own assignments." : ""}</p>${rows
+      .map((row, index) => {
+        const choice = targetChoice(row.action);
+        const allowed = allowedTargetGroups(row.action, available);
+        const shortcuts = targetShortcuts(row.action);
+        const [domain, service] = String(row.service).split(".");
+        const name =
+          row.action.alias ||
+          this.hass.services[domain]?.[service]?.name ||
+          `${LABELS[domain] || domain}: ${(service || "").replaceAll("_", " ")}`;
+        const options = [...new Set([...allowed, ...shortcuts])];
+        const missing = shortcuts.some((group) => !allowed.includes(group));
+        const note = missing
+          ? "This assigned target is unavailable for this Pico or action. Choose specific targets or review Remote & targets."
+          : choice === "mixed"
+            ? `Keeps assigned ${shortcuts.map((group) => groupLabel(group).toLowerCase()).join(", ")} and the other targets already in this action.`
+            : choice !== "explicit"
+              ? this.shared
+                ? "Resolves separately for each Pico using this shared sequence. Each Pico must have this group assigned."
+                : "Follows this Pico's assignments in Remote & targets, including future changes."
+              : allowed.length
+                ? "Use Add target in the action above, or select an assigned group here."
+                : "Use Add target in the action above. No compatible group is assigned to this Pico.";
+        return `<label class="field action-target-field"><span>Action ${esc(row.location)} · ${esc(name)}</span><select data-target-index="${index}" aria-label="Target for action ${esc(row.location)}" ${this._state.read_only ? "disabled" : ""}><option value="explicit">Choose specific entities, devices or areas</option>${choice === "mixed" ? '<option value="mixed" disabled>Assigned group + other targets (preserved)</option>' : ""}${options.map((group) => `<option value="${group}" ${allowed.includes(group) ? "" : "disabled"}>Use this Pico's assigned ${esc(groupLabel(group).toLowerCase())}${allowed.includes(group) ? "" : " (unavailable)"}</option>`).join("")}</select><small ${missing ? 'role="alert"' : ""}>${esc(note)}</small></label>`;
+      })
+      .join("")}`;
+    box.querySelectorAll("select").forEach((select, index) => {
+      select.value = targetChoice(rows[index].action);
+      select.addEventListener("change", () => {
+        if (this._state.read_only || this._busy) return;
+        const updated = setActionTarget(
+          gestureValue(target, key),
+          rows[index].path,
+          select.value,
+        );
+        setGesture(target, key, updated);
+        // Update only the action form, without reaching into HA's private DOM.
+        const form = host.querySelector("ha-form");
+        if (form) form.data = { actions: this._editorActions(updated) };
+        this._changed();
+        this._renderActionTargets(host, target, key);
+        box.querySelectorAll("select")[index]?.focus();
+      });
+    });
+  }
+  _editorActions(sequence) {
+    const assignments = {};
+    const remotes = this.shared ? this._draft.devices : [this.remote];
+    for (const remote of remotes) {
+      const available = targetGroups(
+        remote,
+        this._draft.defaults,
+        false,
+        deviceMeta(remote, this._state.catalog).type,
+      );
+      for (const group of available)
+        assignments[group] ||= remote[group] ?? this._draft.defaults[group];
+    }
+    return actionEditorValue(sequence, assignments);
+  }
+  _actionEditorHass() {
+    const hass = this.hass;
+    return {
+      ...hass,
+      callWS: (message) => {
+        if (message.type === "execute_script") {
+          const sequence = actionEditorResult(message.sequence);
+          if (
+            actionTargetRows(sequence).some(
+              ({ action }) => targetShortcuts(action).length,
+            )
+          )
+            return Promise.reject(
+              new Error(
+                "Save changes and test assigned Pico targets with the remote. Home Assistant's Run action cannot resolve Pico Link shortcuts.",
+              ),
+            );
+          return hass.callWS({ ...message, sequence });
+        }
+        return hass.callWS(message);
+      },
+    };
+  }
   async _form(host, schema, data, onchange, labels = {}) {
     host.innerHTML = '<p class="hint">Loading editor…</p>';
     try {
       await loadEditors();
       if (!host.isConnected) return;
       const form = document.createElement("ha-form");
-      form.hass = this.hass;
+      const actionEditor = schema.some((field) => field.selector?.action);
+      if (actionEditor) form.dataset.picoActionEditor = "true";
+      form.hass = actionEditor ? this._actionEditorHass() : this.hass;
       form.schema = schema;
       form.data = data;
       form.disabled = this._state.read_only;

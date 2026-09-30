@@ -486,6 +486,20 @@ main {
 .gesture-editor {
   min-width: 0;
 }
+.action-targets {
+  border-top: 1px solid var(--divider-color, #e1e7e8);
+  margin-top: 24px;
+  padding-top: 20px;
+}
+.action-targets[hidden] {
+  display: none;
+}
+.action-target-field {
+  margin-bottom: 18px;
+}
+.action-target-field:last-child {
+  margin-bottom: 0;
+}
 .section-heading {
   display: flex;
   align-items: center;

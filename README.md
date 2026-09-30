@@ -249,9 +249,43 @@ See [Default button behavior](#default-button-behavior) and
 
 Run behavior applies to the **whole Pico**, across its custom button sequences.
 **Continue on error** belongs to individual actions in the action editor.
-Action shortcuts such as `lights` are supported in the editor's YAML view;
-they refer to the entities assigned to that Pico. Four-button scene Picos
-use explicit action targets instead. See [Action format](#action-format).
+
+#### Target this Pico's assigned entities
+
+After adding a service action, use **Pico targets** below the action sequence.
+Each supported service action has its own target choice, including actions
+inside conditions, choices, loops, and parallel branches:
+
+- **Use this Pico's assigned lights** (or shades, fans, media players, or
+  switches) follows the assignments under **Remote & targets**. No entity IDs
+  or YAML editing are needed. Only compatible assigned groups are offered.
+- **Choose specific entities, devices or areas** uses Home Assistant's
+  **Add target** control in the action above.
+
+For example, add **Light: Turn on**, set a brightness, then select
+**Use this Pico's assigned lights** for that action under **Pico targets**.
+Select **Save changes** to apply it. If you later change the Pico's assigned
+lights, this action follows the new assignment.
+The Home Assistant action card previews the assigned entities; the saved
+configuration retains the shortcut. Editing those targets directly in Home
+Assistant's picker switches that action to explicit targets.
+
+Selecting an assigned group replaces that action's existing targets. Returning
+to specific targets removes the shortcut; select the desired targets in the
+action editor. Existing configurations that mix shortcuts with other targets
+are shown as **Assigned group + other targets (preserved)** and remain unchanged
+unless you choose a different target option.
+
+Shared Stop sequences offer the same choices. The assigned group resolves
+separately for every Pico using the sequence; each Pico must have that group
+assigned. Their action cards preview example targets from configured Picos;
+that preview does not fix the shared action to those entities. If no Pico has
+the group assigned yet, the preview has no entities until one is configured.
+For actions using Pico targets, save and test with the remote: the action
+editor's **Run action** command cannot resolve Pico Link shortcuts.
+Four-button scene Picos have no assigned entity group and use
+explicit action targets instead. These choices use the existing
+[entity placeholders](#entity-placeholders), which remain supported in YAML.
 
 #### Use shared defaults
 
