@@ -150,7 +150,7 @@ class PicoLinkPanel extends HTMLElement {
   _render() {
     this.shadowRoot.innerHTML = `<link rel="stylesheet" href="${stylesheet}">
       <header class="topbar"><button id="menu" class="quiet" aria-label="Sidebar toggle">☰</button><span class="wordmark">Pico Link</span><span class="badge">${this._state.read_only ? "Read only" : "Configuration"}</span><div class="spacer"></div><a href="https://github.com/smartqasa/pico-link#choose-your-configuration-method" target="_blank" rel="noopener noreferrer">Help</a></header>
-      <main><div class="page-heading"><div><div class="eyebrow">YOUR HOME, ONE BUTTON AWAY</div><h1>Your Picos</h1><p>Choose a remote. Make every button your own.</p></div><div class="heading-actions"><button id="defaults">Shared defaults</button><button class="primary" id="add">＋ Add Pico</button></div></div>
+      <main><div class="page-heading"><div><h1>Lutron Picos</h1></div><div class="heading-actions"><button id="defaults">Shared defaults</button><button class="primary" id="add">＋ Add Pico</button></div></div>
       <div id="notice"></div><div id="status" aria-live="polite"></div>
       <div class="workspace"><aside class="library"><label class="search"><span aria-hidden="true">⌕</span><input id="search" type="search" aria-label="Search Picos" placeholder="Search name or room"></label><div class="list-caption" id="count"></div><div id="list" class="remote-list"></div></aside><section id="detail" class="detail" aria-label="Pico settings"></section></div>
       </main><footer class="savebar"><div><strong id="save-state"></strong><span>Settings apply when you save. Button previews do not operate devices.</span></div><div><button id="discard">Discard changes</button><button id="save" class="primary">Save changes</button></div></footer>`;
@@ -277,7 +277,7 @@ class PicoLinkPanel extends HTMLElement {
     if (!detail) return;
     if (this._selected === null) {
       detail.innerHTML =
-        '<div class="welcome"><div class="welcome-icon" aria-hidden="true">⌁</div><h2>A place for every Pico</h2><p>Add a remote to assign what it controls, customize its buttons, and fine-tune how it responds.</p><button class="primary" id="first-add">Add your first Pico</button></div>';
+        '<div class="welcome"><h2>No Picos configured</h2><p>Add a Pico to configure its targets, button actions, and settings.</p><button class="primary" id="first-add">Add Pico</button></div>';
       this._on("#first-add", "click", () => this._add());
       detail.querySelector("button").disabled = this._state.read_only;
       return;
@@ -299,7 +299,7 @@ class PicoLinkPanel extends HTMLElement {
       device: "Device settings",
       run: "Run behavior",
     };
-    detail.innerHTML = `<div class="detail-heading"><div><div class="eyebrow">${this.shared ? "SHARED SETTINGS" : esc(meta.area || TYPES[meta.type] || "REMOTE")}</div><h2>${esc(meta.name)}</h2><p>${this.shared ? "Set once. Reuse where it makes sense." : `${esc(meta.model || "Device unavailable")}${this.remote.type ? " · Explicit layout" : " · Automatic layout"}`}</p></div>${!this.shared ? '<button class="quiet danger" id="remove" aria-label="Remove this Pico">Remove</button>' : ""}</div><nav class="tabs" role="tablist" aria-label="Pico settings">${tabs.map((tab) => `<button role="tab" aria-selected="${tab === this._tab}" id="tab-${tab}" data-tab="${tab}">${tabNames[tab]}</button>`).join("")}</nav><div id="tab-content" role="tabpanel" aria-labelledby="tab-${this._tab}"></div>`;
+    detail.innerHTML = `<div class="detail-heading"><div><div class="eyebrow">${this.shared ? "SHARED SETTINGS" : esc(meta.area || TYPES[meta.type] || "REMOTE")}</div><h2>${esc(meta.name)}</h2><p>${this.shared ? "Defaults for Pico settings and shared Stop actions." : `${esc(meta.model || "Device unavailable")}${this.remote.type ? " · Explicit layout" : " · Automatic layout"}`}</p></div>${!this.shared ? '<button class="quiet danger" id="remove" aria-label="Remove this Pico">Remove</button>' : ""}</div><nav class="tabs" role="tablist" aria-label="Pico settings">${tabs.map((tab) => `<button role="tab" aria-selected="${tab === this._tab}" id="tab-${tab}" data-tab="${tab}">${tabNames[tab]}</button>`).join("")}</nav><div id="tab-content" role="tabpanel" aria-labelledby="tab-${this._tab}"></div>`;
     detail.querySelectorAll("[data-tab]").forEach((button) =>
       button.addEventListener("click", () => {
         this._tab = button.dataset.tab;
@@ -360,7 +360,7 @@ class PicoLinkPanel extends HTMLElement {
       return;
     }
     if (!buttons.includes(this._button)) this._button = buttons[0];
-    body.innerHTML = `<div class="button-workspace"><div class="remote-preview"><div class="pico-body ${type === "P2B" ? "paddle" : ""}">${buttons.map((button) => `<button class="physical-button ${button === this._button ? "active" : ""} ${button === "stop" ? "middle" : ""}" data-button="${button}" aria-label="Configure ${LABELS[button]}" aria-pressed="${button === this._button}">${button === "raise" ? "▲" : button === "lower" ? "▼" : button === "stop" ? "●" : LABELS[button]}</button>`).join("")}</div><p>${this.shared ? "Shared Stop / middle actions" : "Select a button to configure"}</p></div><div class="gesture-editor"><div class="section-heading"><h3>${esc(LABELS[this._button])}</h3><span class="subtle">${this.shared ? "Explicit opt-in per Pico" : "One gesture, one behavior"}</span></div><div class="gestures" role="tablist" aria-label="Gesture">${["tap", "hold", "double_tap"].map((gesture) => `<button role="tab" aria-selected="${gesture === this._gesture}" data-gesture="${gesture}">${LABELS[gesture]}</button>`).join("")}</div><div id="behavior"></div><div id="actions"></div></div></div>`;
+    body.innerHTML = `<div class="button-workspace"><div class="remote-preview"><div class="pico-body ${type === "P2B" ? "paddle" : ""}">${buttons.map((button) => `<button class="physical-button ${button === this._button ? "active" : ""} ${button === "stop" ? "middle" : ""}" data-button="${button}" aria-label="Configure ${LABELS[button]}" aria-pressed="${button === this._button}">${button === "raise" ? "▲" : button === "lower" ? "▼" : button === "stop" ? "●" : LABELS[button]}</button>`).join("")}</div><p>${this.shared ? "Shared Stop / middle actions" : "Select a button to configure"}</p></div><div class="gesture-editor"><div class="section-heading"><h3>${esc(LABELS[this._button])}</h3>${this.shared ? '<span class="subtle">Explicit opt-in per Pico</span>' : ""}</div><div class="gestures" role="tablist" aria-label="Gesture">${["tap", "hold", "double_tap"].map((gesture) => `<button role="tab" aria-selected="${gesture === this._gesture}" data-gesture="${gesture}">${LABELS[gesture]}</button>`).join("")}</div><div id="behavior"></div><div id="actions"></div></div></div>`;
     body.querySelectorAll("[data-button]").forEach((button) =>
       button.addEventListener("click", () => {
         this._button = button.dataset.button;
