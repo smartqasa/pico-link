@@ -4,7 +4,7 @@ Use Lutron Pico remotes to control Home Assistant lights, shades, fans, media
 players, and switches. Keep each button's built-in behavior, replace its tap
 or hold with a list of actions, or add a double-tap action.
 
-**The 1.0 beta introduces a custom configuration UI inside Home Assistant.**
+**Pico Link 1.0 introduces a custom configuration UI inside Home Assistant.**
 The **Lutron Picos** workspace lists your configured remotes, with search,
 **Add Pico**, and **Shared defaults**. Select a remote to assign its targets,
 choose a button on its visual preview, and configure tap, hold, or double-tap
@@ -15,7 +15,7 @@ setup: **UI** for the visual workspace, or **YAML** for file-based configuration
 Existing YAML installations continue working after an update. Moving their
 settings to the UI requires an explicit import and save.
 
-This beta also includes Home Assistant's script engine for conditions, delays,
+Version 1.0 also includes Home Assistant's script engine for conditions, delays,
 templates, loops and waits. Custom sequences default to `single`: another
 custom gesture on the same Pico is ignored until the current sequence finishes.
 Choose `parallel` for overlapping sequences or `restart` when the newest
@@ -59,17 +59,16 @@ configuring your remotes is a separate step below.
 
 1. Open HACS and its **Custom repositories** menu.
 2. Add `https://github.com/smartqasa/pico-link` with the **Integration** type.
-3. Open **Pico Link** in HACS and download the version you want to use.
-   The UI described in this README requires a **1.0 beta** release; select a
-   published prerelease in HACS to try it. The stable 0.3 releases use YAML.
+3. Open **Pico Link** in HACS and download the latest stable release.
+   The UI described in this README is included in **1.0.0 and later**.
 
 HACS places the files in the correct configuration directory for you.
 
 #### Manual installation
 
 1. Download and extract the source archive for your chosen
-   [release](https://github.com/smartqasa/pico-link/releases). Choose a **1.0 beta**
-   release for the UI described here.
+   [release](https://github.com/smartqasa/pico-link/releases). Choose **1.0.0 or
+   later** for the UI described here.
 2. Locate Home Assistant's **configuration directory**: the folder containing
    the active `configuration.yaml` file. See Home Assistant's
    [instructions for finding it](https://www.home-assistant.io/docs/configuration/#to-find-the-configuration-directory).
@@ -207,7 +206,7 @@ that multiple Picos can use.
 The screenshots below show the actual workspace with simulated remotes and
 sample settings; no live home configuration is shown.
 
-![Pico Link workspace with four sample remotes and the visual Kitchen Pico editor](https://raw.githubusercontent.com/smartqasa/pico-link/beta/docs/images/ui-workspace.png)
+![Pico Link workspace with four sample remotes and the visual Kitchen Pico editor](https://raw.githubusercontent.com/smartqasa/pico-link/v1.0.0/docs/images/ui-workspace.png)
 
 | Tab | What you configure |
 | --- | --- |
@@ -234,7 +233,7 @@ Select the button and gesture, then choose a behavior:
 | **Do nothing** | Disables this gesture while leaving the other gestures unchanged. |
 | **Use shared Stop action** | Available for the Stop/middle button; uses the shared sequence for the selected gesture. |
 
-![An On double-tap sequence in Home Assistant's action editor, with Add action and Save changes controls](https://raw.githubusercontent.com/smartqasa/pico-link/beta/docs/images/ui-button-actions.png)
+![An On double-tap sequence in Home Assistant's action editor, with Add action and Save changes controls](https://raw.githubusercontent.com/smartqasa/pico-link/v1.0.0/docs/images/ui-button-actions.png)
 
 For example, select **Raise → Tap → Custom actions** to change a light's color
 temperature with a tap, while leaving **Raise → Hold** on normal behavior to
@@ -284,7 +283,7 @@ behavior. On an individual Pico, an empty field or **Use default** inherits the
 shared value, or the built-in value when no shared value is set. The inherited
 values appear beside the controls. Clear a local value to return to the default.
 
-![Shared timing defaults with a sample hold threshold, double-tap window, and inherited dimming interval](https://raw.githubusercontent.com/smartqasa/pico-link/beta/docs/images/ui-shared-defaults.png)
+![Shared timing defaults with a sample hold threshold, double-tap window, and inherited dimming interval](https://raw.githubusercontent.com/smartqasa/pico-link/v1.0.0/docs/images/ui-shared-defaults.png)
 
 Shared Stop actions work differently: each Pico must explicitly opt in for
 each gesture. For example, create a sequence under
@@ -501,7 +500,7 @@ For each Stop gesture on an individual 3BRL:
 
 If a device supplies both `stop_tap` and `middle_button`, `stop_tap` wins.
 Requesting `stop_tap: default`, `stop_double_tap: default`, or `stop_hold: default`
-without a corresponding shared list is a configuration error. For tap,
+without a corresponding shared list means **Do nothing**. For tap,
 `defaults.middle_button` is also accepted as that shared list. See the
 [shared Stop example](#example-shared-stop-tap-double-tap-and-hold).
 
@@ -942,7 +941,7 @@ ignored because a custom sequence is busy. In other modes, built-in commands
 do not cancel a running custom sequence. Normal tap/hold/double-tap recognition
 and ramp timing are unchanged.
 
-**Upgrade note:** earlier versions allowed custom lists to overlap. This beta
+**Upgrade note:** earlier versions allowed custom lists to overlap. Version 1.0
 defaults to `single`, matching Home Assistant. Select `parallel` explicitly
 where that old behavior is wanted. The new `max` limit still applies.
 
@@ -1164,7 +1163,7 @@ shade motor moves.
 
 ### Pico Link does not appear in Add integration
 
-Confirm you installed a **1.0 beta** or later version with UI support, restarted
+Confirm you installed **1.0.0 or later** with UI support, restarted
 Home Assistant, and refreshed the browser. For a manual installation, check the
 [folder layout](#manual-installation): `manifest.json` must be directly inside
 `custom_components/pico_link` under the active configuration directory. Check
