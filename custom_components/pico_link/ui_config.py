@@ -16,6 +16,7 @@ from .config import (
     parse_pico_config,
 )
 from .const import DOMAIN_ENTITY_FIELDS, VALID_PICO_TYPES
+from .placeholder import placeholder_entity_id
 from .script_runner import script_schema
 
 # key: (minimum, maximum, built-in default, unit)
@@ -82,6 +83,8 @@ async def validate_actions(hass, actions, placeholders=None) -> None:
             field: [f"{domain}.pico_link_example"]
             for domain, field in DOMAIN_ENTITY_FIELDS.items()
         }
+        if light_placeholder := placeholder_entity_id(hass):
+            placeholders[light_placeholder] = placeholders["lights"]
     expanded = _expand_action_placeholders(actions, placeholders, "actions")
     await async_validate_actions_config(hass, script_schema(expanded))
 

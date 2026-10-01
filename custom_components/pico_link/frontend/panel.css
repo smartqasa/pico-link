@@ -486,19 +486,11 @@ main {
 .gesture-editor {
   min-width: 0;
 }
-.action-targets {
-  border-top: 1px solid var(--divider-color, #e1e7e8);
-  margin-top: 24px;
-  padding-top: 20px;
+.button-workspace.shared-actions {
+  grid-template-columns: minmax(0, 1fr);
 }
-.action-targets[hidden] {
-  display: none;
-}
-.action-target-field {
-  margin-bottom: 18px;
-}
-.action-target-field:last-child {
-  margin-bottom: 0;
+.placeholder-help code {
+  overflow-wrap: anywhere;
 }
 .section-heading {
   display: flex;

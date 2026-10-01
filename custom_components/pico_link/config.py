@@ -12,6 +12,7 @@ from homeassistant.core import HomeAssistant, valid_entity_id
 from homeassistant.helpers import device_registry as dr
 
 from .const import PICO_TYPE_MAP, VALID_PICO_TYPES
+from .placeholder import placeholder_entity_id
 from .script_runner import has_template, script_schema
 
 _LOGGER = logging.getLogger(__name__)
@@ -567,6 +568,19 @@ def _expand_action_placeholders(
             rewritten.append(new_action)
             continue
 
+        # An unassigned placeholder must not become a silent, empty target.
+        for candidate in entity_ids if isinstance(entity_ids, list) else [entity_ids]:
+            if (
+                isinstance(candidate, str)
+                and candidate in placeholders
+                and not placeholders[candidate]
+            ):
+                raise ValueError(
+                    f"{context} action {action_index}: placeholder {candidate!r} "
+                    "has no assigned entities for this Pico. Use specific targets "
+                    "or assign the matching group in Remote & targets."
+                )
+
         if isinstance(entity_ids, str):
             expanded_entity_ids: str | list[str]
 
@@ -937,6 +951,13 @@ def parse_pico_config(
         "media_players": pico_config.media_players,
         "switches": pico_config.switches,
     }
+    if light_placeholder := placeholder_entity_id(hass):
+        if light_placeholder in pico_config.lights:
+            raise ValueError(
+                "Assign real lights in Remote & targets. "
+                "Pico Link placeholder belongs only in action targets."
+            )
+        placeholders[light_placeholder] = pico_config.lights
 
     pico_config.middle_button = _expand_action_placeholders(
         pico_config.middle_button,

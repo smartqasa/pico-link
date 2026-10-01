@@ -13,10 +13,6 @@ import {
   actionEditorResult,
   actionEditorValue,
   actionTargetRows,
-  allowedTargetGroups,
-  setActionTarget,
-  targetChoice,
-  targetGroups,
 } from "../custom_components/pico_link/frontend/action-targets.js";
 
 test("legacy Stop alias is preserved until that gesture changes", () => {
@@ -82,57 +78,6 @@ test("missing remote stays selectable for repair or removal", () => {
   assert.equal(rows[0].available, false);
 });
 
-test("assigned target follows the Pico group and explicit empty overrides", () => {
-  assert.deepEqual(targetGroups({}, { lights: ["light.desk"] }), ["lights"]);
-  assert.deepEqual(
-    targetGroups({ lights: [] }, { lights: ["light.desk"] }),
-    [],
-  );
-  assert.deepEqual(
-    targetGroups({}, { lights: ["light.desk"] }, false, "4B"),
-    [],
-  );
-  assert.deepEqual(targetGroups({}, {}, true), [
-    "lights",
-    "covers",
-    "fans",
-    "media_players",
-    "switches",
-  ]);
-});
-
-test("target choices match the service domain and generic Home Assistant actions", () => {
-  const available = targetGroups({}, {}, true);
-  for (const [domain, group] of Object.entries({
-    light: "lights",
-    cover: "covers",
-    fan: "fans",
-    media_player: "media_players",
-    switch: "switches",
-  })) {
-    assert.deepEqual(
-      allowedTargetGroups({ action: `${domain}.turn_on` }, available),
-      [group],
-    );
-    assert.deepEqual(
-      allowedTargetGroups({ service: `${domain}.turn_on` }, available),
-      [group],
-    );
-  }
-  assert.deepEqual(
-    allowedTargetGroups({ action: "homeassistant.turn_off" }, available),
-    available,
-  );
-  assert.deepEqual(
-    allowedTargetGroups({ action: "scene.turn_on" }, available),
-    [],
-  );
-  assert.deepEqual(
-    allowedTargetGroups({ action: "light.turn_on" }, ["covers"]),
-    [],
-  );
-});
-
 test("service action traversal includes nested branches without inspecting payloads", () => {
   const service = { action: "light.turn_on", target: { entity_id: "lights" } };
   const sequence = [
@@ -183,238 +128,129 @@ test("service action traversal includes nested branches without inspecting paylo
   assert.deepEqual(sequence, snapshot);
 });
 
-test("changing one nested target preserves action options and every other action", () => {
-  const sequence = [
-    {
-      choose: [
-        {
-          conditions: [],
-          sequence: [
-            {
-              action: "light.turn_on",
-              alias: "Evening",
-              target: {
-                entity_id: "light.old",
-                area_id: "office",
-                device_id: "old",
-              },
-              data: { brightness_pct: 50 },
-              continue_on_error: true,
-            },
-            {
-              action: "cover.close_cover",
-              target: { entity_id: "cover.shade" },
-            },
-          ],
-        },
-      ],
-    },
-  ];
-  const original = clone(sequence);
-  const path = [0, "choose", 0, "sequence", 0];
-  const updated = setActionTarget(sequence, path, "lights");
-  assert.deepEqual(updated[0].choose[0].sequence[0], {
-    ...original[0].choose[0].sequence[0],
-    target: { entity_id: "lights" },
-  });
-  assert.deepEqual(
-    updated[0].choose[0].sequence[1],
-    original[0].choose[0].sequence[1],
-  );
-  assert.deepEqual(sequence, original);
-});
+const placeholder = "light.pico_link_placeholder";
 
-test("existing shortcuts, explicit targets, templates and mixed targets are distinguished", () => {
-  for (const entity_id of ["lights", ["lights"]])
-    assert.equal(targetChoice({ target: { entity_id } }), "lights");
-  for (const target of [
-    undefined,
-    { area_id: "office" },
-    { entity_id: "{{ targets }}" },
-    { entity_id: ["light.a", "light.b"] },
-  ])
-    assert.equal(targetChoice({ target }), "explicit");
-  assert.equal(
-    targetChoice({ target: { entity_id: ["lights", "light.a"] } }),
-    "mixed",
-  );
-  assert.equal(
-    targetChoice({ target: { entity_id: "lights", area_id: "office" } }),
-    "mixed",
-  );
-});
-
-test("returning to specific targets removes shortcuts but preserves extra selections", () => {
-  const sequence = [
+test("legacy light targets show the real placeholder, never a preview lamp", () => {
+  const actions = [
     {
       action: "light.turn_on",
-      target: {
-        entity_id: ["lights", "light.a", "{{ extra }}"],
-        area_id: "office",
-      },
-      data: { brightness_pct: 42 },
+      target: { entity_id: "lights" },
+      data: { brightness_pct: 80, color_temp_kelvin: 2800 },
     },
   ];
-  const updated = setActionTarget(sequence, [0], "explicit");
-  assert.deepEqual(updated[0].target, {
-    entity_id: ["light.a", "{{ extra }}"],
-    area_id: "office",
-  });
-  const assigned = setActionTarget(sequence, [0], "lights");
-  assert.equal(setActionTarget(assigned, [0], "explicit")[0].target, undefined);
-  const explicit = [
-    { service: "light.turn_on", target: { entity_id: "light.a" } },
-  ];
-  assert.deepEqual(setActionTarget(explicit, [0], "explicit"), explicit);
+  const shown = actionEditorValue(actions, placeholder);
+  assert.equal(shown[0].target.entity_id, placeholder);
+  assert.deepEqual(actionEditorResult(shown, placeholder), actions);
+  assert.equal(actions[0].target.entity_id, "lights");
+  assert.ok(!shown[0].metadata);
 });
 
-test("reordering or deleting actions produces fresh target paths without stale matches", () => {
-  const first = { action: "light.turn_on", alias: "First" };
-  const second = { service: "cover.close_cover", alias: "Second" };
+test("native picker selection saves a portable light shortcut", () => {
+  const actions = [
+    { action: "light.turn_on", target: { entity_id: [placeholder] } },
+  ];
   assert.deepEqual(
-    actionTargetRows([second, first]).map((r) => [r.path, r.action.alias]),
-    [
-      [[0], "Second"],
-      [[1], "First"],
-    ],
-  );
-  assert.throws(() => setActionTarget([first], [1], "lights"), /changed/);
-  assert.throws(() => setActionTarget([first], [0], "unknown"), /Unknown/);
-  assert.throws(
-    () =>
-      setActionTarget(
-        [{ variables: { nested: first } }],
-        [0, "variables", "nested"],
-        "lights",
-      ),
-    /changed/,
+    actionEditorResult(actions, placeholder)[0].target.entity_id,
+    ["lights"],
   );
 });
 
-test("native editor display round-trips shortcuts, mixed targets and metadata", () => {
-  const sequence = [
-    {
-      action: "light.turn_on",
-      target: {
-        entity_id: ["lights", "light.extra", "{{ existing_template }}"],
-        area_id: "office",
-      },
-      metadata: { note: "keep", pico_link_target_editor: { user_data: 2 } },
-      data: { brightness_pct: 50 },
-    },
+test("nested mixed targets and unrelated payloads survive editing", () => {
+  const actions = [
     {
       repeat: {
         count: 2,
         sequence: [
-          { service: "cover.close_cover", target: { entity_id: "covers" } },
+          {
+            action: "light.turn_on",
+            target: { entity_id: ["light.fixed", "lights"], area_id: "office" },
+            data: { note: "lights" },
+            metadata: { note: "retain" },
+          },
+        ],
+      },
+    },
+    {
+      action: "script.turn_on",
+      data: {
+        sequence: [
+          { action: "light.turn_on", target: { entity_id: "lights" } },
         ],
       },
     },
   ];
-  const original = clone(sequence);
-  const display = actionEditorValue(sequence, {
-    lights: ["light.assigned"],
-    covers: ["cover.assigned"],
-  });
-  assert.deepEqual(display[0].target.entity_id, [
-    "light.assigned",
-    "light.extra",
-    "{{ existing_template }}",
+  const shown = actionEditorValue(actions, placeholder);
+  assert.deepEqual(shown[0].repeat.sequence[0].target.entity_id, [
+    "light.fixed",
+    placeholder,
   ]);
-  assert.deepEqual(actionEditorResult(display), original);
-  assert.deepEqual(sequence, original);
-  assert.deepEqual(actionEditorResult(clone(display)), original);
-});
-
-test("native editor edits, duplication and reordering retain the correct shortcuts", () => {
-  const sequence = [
-    {
-      action: "light.turn_on",
-      target: { entity_id: "lights" },
-      data: { brightness_pct: 20 },
-    },
-    { action: "cover.close_cover", target: { entity_id: "covers" } },
-  ];
-  const display = actionEditorValue(sequence);
-  display[0].data.brightness_pct = 80;
-  const edited = actionEditorResult([
-    display[1],
-    clone(display[0]),
-    display[0],
-  ]);
+  assert.equal(shown[1].data.sequence[0].target.entity_id, "lights");
+  shown[0].repeat.sequence[0].data.brightness_pct = 80;
+  const saved = actionEditorResult(shown, placeholder);
   assert.deepEqual(
-    edited.map((a) => a.target.entity_id),
-    ["covers", "lights", "lights"],
+    saved[0].repeat.sequence[0].target,
+    actions[0].repeat.sequence[0].target,
   );
-  assert.equal(edited[1].data.brightness_pct, 80);
-  assert.ok(edited.every((a) => !a.metadata));
+  assert.equal(saved[0].repeat.sequence[0].data.brightness_pct, 80);
+  assert.deepEqual(saved[0].repeat.sequence[0].metadata, { note: "retain" });
 });
 
-test("explicit target changes in the native editor win and arbitrary templates stay literal", () => {
-  const display = actionEditorValue([
+test("renamed placeholder identity and explicit target edits work", () => {
+  const original = [
     { action: "light.turn_on", target: { entity_id: "lights" } },
-  ]);
-  display[0].target = { entity_id: "light.selected" };
-  assert.deepEqual(actionEditorResult(display), [
-    { action: "light.turn_on", target: { entity_id: "light.selected" } },
-  ]);
-  const explicit = [
-    {
-      action: "light.turn_on",
-      target: { entity_id: "{{ pico_link_assigned_lights }}" },
-    },
   ];
-  assert.deepEqual(actionEditorResult(actionEditorValue(explicit)), explicit);
+  const renamed = "light.my_placeholder";
+  const shown = actionEditorValue(original, renamed);
+  assert.equal(shown[0].target.entity_id, renamed);
+  assert.deepEqual(actionEditorResult(shown, renamed), original);
+  shown[0].target.entity_id = "light.selected";
+  assert.equal(
+    actionEditorResult(shown, renamed)[0].target.entity_id,
+    "light.selected",
+  );
 });
 
-test("editor decoration is removed if a service or target field is removed", () => {
-  const display = actionEditorValue([
-    { action: "light.turn_on", target: { entity_id: "lights" }, metadata: {} },
-  ]);
-  display[0].action = "script.turn_on";
-  delete display[0].target;
-  assert.deepEqual(actionEditorResult(display), [
-    { action: "script.turn_on", metadata: {} },
-  ]);
-  delete display[0].action;
-  display[0].delay = 1;
-  assert.deepEqual(actionEditorResult(display), [{ delay: 1, metadata: {} }]);
-});
-
-test("empty shared previews never turn into saved none targets", () => {
+test("other domain shortcuts, template text and missing registry are preserved", () => {
+  for (const entity_id of [
+    "covers",
+    "fans",
+    "switches",
+    "media_players",
+    "{{ targets }}",
+    "light.pico_link_placeholder_2",
+  ]) {
+    const sequence = [
+      { action: "homeassistant.turn_off", target: { entity_id } },
+    ];
+    assert.deepEqual(
+      actionEditorResult(actionEditorValue(sequence, placeholder), placeholder),
+      sequence,
+    );
+  }
   const sequence = [
     { action: "light.turn_on", target: { entity_id: "lights" } },
   ];
-  const display = actionEditorValue(sequence);
-  assert.deepEqual(display[0].target, { entity_id: ["none"] });
-  assert.deepEqual(actionEditorResult(display), sequence);
+  assert.deepEqual(actionEditorValue(sequence), sequence);
 });
 
-test("native target normalization preserves the logical assignment", () => {
-  const sequence = [
-    { action: "light.turn_on", target: { entity_id: "lights" } },
-  ];
-  const display = actionEditorValue(sequence, {
-    lights: ["light.a", "light.b"],
-  });
-  display[0].target.entity_id.reverse();
-  assert.deepEqual(actionEditorResult(display), sequence);
-  const single = actionEditorValue(sequence, { lights: "light.a" });
-  single[0].target.entity_id = "light.a";
-  assert.deepEqual(actionEditorResult(single), sequence);
-});
-
-test("malformed unrelated editor metadata and existing metadata are preserved", () => {
-  const action = {
+test("native reordering, duplication, and removing targets need no editor metadata", () => {
+  const shown = actionEditorValue(
+    [
+      { action: "light.turn_on", target: { entity_id: "lights" } },
+      { action: "light.turn_off", target: { entity_id: "light.fixed" } },
+    ],
+    placeholder,
+  );
+  const result = actionEditorResult(
+    [shown[1], clone(shown[0]), shown[0]],
+    placeholder,
+  );
+  assert.deepEqual(
+    result.map((a) => a.target.entity_id),
+    ["light.fixed", "lights", "lights"],
+  );
+  delete shown[0].target;
+  assert.deepEqual(actionEditorResult(shown, placeholder)[0], {
     action: "light.turn_on",
-    target: { entity_id: "light.a" },
-    metadata: {
-      pico_link_target_editor: {
-        version: 1,
-        original: "%bad",
-        displayed: "bad",
-      },
-    },
-  };
-  assert.deepEqual(actionEditorResult([action]), [action]);
+  });
 });

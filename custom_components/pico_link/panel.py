@@ -18,6 +18,7 @@ from homeassistant.helpers import device_registry as dr
 from homeassistant.loader import async_get_integration
 
 from .const import DOMAIN
+from .placeholder import placeholder_info
 from .ui_config import (
     DEVICE_SETTINGS,
     NUMBERS,
@@ -82,6 +83,7 @@ def panel_state(hass) -> dict:
         "catalog": sorted(catalog, key=lambda d: (d["name"].casefold(), d["id"])),
         "numbers": NUMBERS,
         "device_settings": DEVICE_SETTINGS,
+        "light_placeholder": placeholder_info(hass),
     }
 
 

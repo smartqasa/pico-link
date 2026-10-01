@@ -40,6 +40,7 @@ python -m pytest -q tests/test_gestures.py
 | File | Behavior checked |
 | --- | --- |
 | `test_config_flow.py` | Native setup and options flows, explicit configuration method, YAML import/cancellation, stored action round trips, inherited settings, exclusive controller ownership, options reload, and shutdown cleanup |
+| `test_light_placeholder.py` | Registered light capabilities, startup identity reuse, name collisions and renames, per-Pico expansion of shared and custom targets, mixed/nested sequences, invalid assignments, reloads, and direct-use errors |
 | `test_light_brightness.py` | Minimum brightness from off, rapid taps with delayed state feedback, upward holds, normal On brightness, and brightness limits |
 | `test_configuration.py` | Timing defaults and overrides, normalization, invalid configurations, device-name precedence and ambiguity, entity deduplication, and action placeholders |
 | `test_type_detection.py` | Supported registry model formats, unknown/missing/non-Lutron models, explicit-type precedence, name/ID resolution, unchanged event checks, isolation of invalid remotes, and metadata changes between setups |

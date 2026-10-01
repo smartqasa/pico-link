@@ -250,42 +250,32 @@ See [Default button behavior](#default-button-behavior) and
 Run behavior applies to the **whole Pico**, across its custom button sequences.
 **Continue on error** belongs to individual actions in the action editor.
 
-#### Target this Pico's assigned entities
+#### Target the triggering Pico's assigned lights
 
-After adding a service action, use **Pico targets** below the action sequence.
-Each supported service action has its own target choice, including actions
-inside conditions, choices, loops, and parallel branches:
+In a **Light: Turn on** action, choose **Add target**, then select
+**Pico Link placeholder** (normally `light.pico_link_placeholder`). Set brightness,
+color, Kelvin temperature, or transition in the normal action editor. The short
+instruction above the editor shows the placeholder's current name and ID.
 
-- **Use this Pico's assigned lights** (or shades, fans, media players, or
-  switches) follows the assignments under **Remote & targets**. No entity IDs
-  or YAML editing are needed. Only compatible assigned groups are offered.
-- **Choose specific entities, devices or areas** uses Home Assistant's
-  **Add target** control in the action above.
+When that Pico triggers the sequence, Pico Link replaces the placeholder with
+the lights assigned under **Remote & targets**. This works in individual button
+actions and shared Stop tap, hold, and double-tap actions, including nested
+conditions and loops. You can mix it with specifically selected lights in the
+same action or use different targets in other steps; only the placeholder is
+replaced. If a Pico's light assignment changes, the action follows that change.
 
-For example, add **Light: Turn on**, set a brightness, then select
-**Use this Pico's assigned lights** for that action under **Pico targets**.
-Select **Save changes** to apply it. If you later change the Pico's assigned
-lights, this action follows the new assignment.
-The Home Assistant action card previews the assigned entities; the saved
-configuration retains the shortcut. Editing those targets directly in Home
-Assistant's picker switches that action to explicit targets.
+Pico Link provides this entity itself; no helper or other custom integration is
+needed. It exposes broad light controls for editing, but the actual lights must
+support the requested features. Effect names depend on those lights. The
+placeholder is not a real lamp, should not be assigned a room or included in
+light groups, and cannot be operated directly. Save and test with the physical
+Pico: **Run action** has no triggering remote to supply the light assignment.
 
-Selecting an assigned group replaces that action's existing targets. Returning
-to specific targets removes the shortcut; select the desired targets in the
-action editor. Existing configurations that mix shortcuts with other targets
-are shown as **Assigned group + other targets (preserved)** and remain unchanged
-unless you choose a different target option.
-
-Shared Stop sequences offer the same choices. The assigned group resolves
-separately for every Pico using the sequence; each Pico must have that group
-assigned. Their action cards preview example targets from configured Picos;
-that preview does not fix the shared action to those entities. If no Pico has
-the group assigned yet, the preview has no entities until one is configured.
-For actions using Pico targets, save and test with the remote: the action
-editor's **Run action** command cannot resolve Pico Link shortcuts.
-Four-button scene Picos have no assigned entity group and use
-explicit action targets instead. These choices use the existing
-[entity placeholders](#entity-placeholders), which remain supported in YAML.
+Picos using this placeholder must have lights assigned. Four-button scene Picos
+have no assigned group and need explicit action targets. Existing `lights`
+shortcuts appear as the selectable placeholder in the editor and remain
+portable in saved settings. The other [entity placeholders](#entity-placeholders)
+remain supported through YAML; this selectable entity is for lights.
 
 #### Use shared defaults
 

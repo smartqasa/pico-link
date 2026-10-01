@@ -147,6 +147,7 @@ def register_pico(hass):
 async def pico(hass, enable_custom_integrations, type_setting, register_pico):
     """Fake only the Lutron bridge and device services, not Pico Link."""
     mock_integration(hass, MockModule("lutron_caseta"))
+    await async_setup_component(hass, "light", {})
     harness = PicoHarness(hass, register_pico if type_setting == "detected" else None)
     yield harness
     await harness.stop()
@@ -156,6 +157,7 @@ async def pico(hass, enable_custom_integrations, type_setting, register_pico):
 async def registry_pico(hass, enable_custom_integrations):
     """Use exact device configurations for detection and explicit-type tests."""
     mock_integration(hass, MockModule("lutron_caseta"))
+    await async_setup_component(hass, "light", {})
     harness = PicoHarness(hass)
     yield harness
     await harness.stop()

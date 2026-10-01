@@ -16,6 +16,7 @@ from homeassistant.helpers.typing import ConfigType
 from .config import PicoConfig, parse_pico_config
 from .const import DOMAIN
 from .controller import PicoController
+from .placeholder import async_setup_placeholder
 from .ui_config import entry_config, validate_document
 
 _LOGGER = logging.getLogger(__name__)
@@ -37,6 +38,7 @@ async def async_setup(
     from .panel import async_setup_panel
 
     await async_setup_panel(hass)
+    await async_setup_placeholder(hass, config)
     # A saved UI entry owns the installation, including when disabled. Never
     # silently activate a second set of controllers from leftover YAML.
     if method == "ui" or (method != "yaml" and hass.config_entries.async_entries(DOMAIN)):
