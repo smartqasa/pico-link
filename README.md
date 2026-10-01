@@ -386,8 +386,13 @@ When specifying a type, use one of these values:
 | --- | --- | --- |
 | `P2B` | Paddle Pico | `on`, `off` |
 | `2B` | Two-button Pico | `on`, `off` |
+| `2BRL` | Four-button Pico with Raise/Lower | `on`, `raise`, `lower`, `off` |
 | `3BRL` | Five-button Pico with Raise/Lower | `on`, `raise`, `stop`, `lower`, `off` |
 | `4B` | Four-button scene Pico | `button_1`, `button_2`, `button_3`, `off` |
+
+A `2BRL` behaves exactly like a `3BRL` without the Stop button: On and Off tap
+the same way, Raise and Lower step and ramp the same way, and `middle_button`
+and the `stop_*` gestures are rejected for it.
 
 **Stop and middle button refer to the same physical button** on a 3BRL Pico,
 including models with a favorite symbol. Use `stop_tap`, `stop_double_tap`, and
@@ -419,7 +424,7 @@ provided, `device_id` takes precedence.
 
 ### Assign the controlled entities
 
-P2B, 2B, and 3BRL remotes require **exactly one** of these entity groups, even
+P2B, 2B, 2BRL, and 3BRL remotes require **exactly one** of these entity groups, even
 when you override their buttons:
 
 | Setting | Entity type |
@@ -608,10 +613,10 @@ any entity, regardless of the remote's assigned entity group.
 
 | Physical button | Tap key | Hold key | Double-tap key | Models |
 | --- | --- | --- | --- | --- |
-| On | `on_tap` | `on_hold` | `on_double_tap` | P2B, 2B, 3BRL |
+| On | `on_tap` | `on_hold` | `on_double_tap` | P2B, 2B, 2BRL, 3BRL |
 | Off | `off_tap` | `off_hold` | `off_double_tap` | All |
-| Raise | `raise_tap` | `raise_hold` | `raise_double_tap` | 3BRL |
-| Lower | `lower_tap` | `lower_hold` | `lower_double_tap` | 3BRL |
+| Raise | `raise_tap` | `raise_hold` | `raise_double_tap` | 2BRL, 3BRL |
+| Lower | `lower_tap` | `lower_hold` | `lower_double_tap` | 2BRL, 3BRL |
 | Middle / Stop | `stop_tap` | `stop_hold` | `stop_double_tap` | 3BRL |
 | First scene button | `button_1_tap` | `button_1_hold` | `button_1_double_tap` | 4B |
 | Second scene button | `button_2_tap` | `button_2_hold` | `button_2_double_tap` | 4B |
@@ -1120,7 +1125,7 @@ or device ID per Pico.
 
 | Setting | Default | Accepted values / purpose |
 | --- | --- | --- |
-| `type` | Auto-detected | Optional per device: `P2B`, `2B`, `3BRL`, `4B`. An explicit value takes precedence. |
+| `type` | Auto-detected | Optional per device: `P2B`, `2B`, `2BRL`, `3BRL`, `4B`. An explicit value takes precedence. |
 | `name` / `device_id` | One required | Identify the Pico |
 | `lights`, `covers`, `fans`, `media_players`, `switches` | None | Exactly one group for non-4B remotes |
 | `<button>_tap` / `<button>_hold` | Existing behavior | Action list; `[]` disables the gesture |

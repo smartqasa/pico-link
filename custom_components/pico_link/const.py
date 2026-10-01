@@ -11,6 +11,7 @@ PICO_EVENT_TYPE = "lutron_caseta_button_event"
 VALID_PICO_TYPES = {
     "P2B",  # Paddle Pico
     "2B",  # Two-button on/off Pico
+    "2BRL",  # Four-button raise/lower (no Stop)
     "3BRL",  # Five-button raise/lower
     "4B",  # Four-button scene Pico
 }
@@ -24,6 +25,7 @@ VALID_PICO_TYPES = {
 PICO_TYPE_MAP = {
     "PaddleSwitchPico": "P2B",
     "Pico2Button": "2B",
+    "Pico2ButtonRaiseLower": "2BRL",
     "Pico3ButtonRaiseLower": "3BRL",
     "Pico4ButtonScene": "4B",
 }

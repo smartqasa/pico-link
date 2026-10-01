@@ -82,7 +82,7 @@ class ButtonOverrides:
             {"on", "off"}
             if self.ctrl.conf.type in {"P2B", "2B"}
             else {"raise", "lower"}
-            if self.ctrl.conf.type == "3BRL"
+            if self.ctrl.conf.type in {"2BRL", "3BRL"}
             else set()
         )
 

@@ -13,6 +13,7 @@ from custom_components.pico_link.config import parse_pico_config
 MODELS = [
     ("PaddleSwitchPico", "P2B"),
     ("Pico2Button", "2B"),
+    ("Pico2ButtonRaiseLower", "2BRL"),
     ("Pico3ButtonRaiseLower", "3BRL"),
     ("Pico4ButtonScene", "4B"),
 ]

@@ -31,6 +31,7 @@ ActionConfig = dict[str, Any]
 PICO_BUTTONS = {
     "P2B": frozenset({"on", "off"}),
     "2B": frozenset({"on", "off"}),
+    "2BRL": frozenset({"on", "off", "raise", "lower"}),
     "3BRL": frozenset({"on", "off", "raise", "lower", "stop"}),
     "4B": _VALID_4B_BUTTONS,
 }

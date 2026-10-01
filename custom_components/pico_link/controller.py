@@ -21,6 +21,7 @@ from .overrides import ButtonOverrides
 # Profiles
 from .profiles.base import PicoProfile
 from .profiles.pico_2b import Pico2Button
+from .profiles.pico_2brl import Pico2ButtonRaiseLower
 from .profiles.pico_3brl import Pico3ButtonRaiseLower
 from .profiles.pico_4b import Pico4ButtonScene
 from .profiles.pico_p2b import PaddleSwitchPico
@@ -35,6 +36,7 @@ _T = TypeVar("_T")
 BEHAVIOR_CLASSES = {
     "P2B": PaddleSwitchPico,
     "2B": Pico2Button,
+    "2BRL": Pico2ButtonRaiseLower,
     "3BRL": Pico3ButtonRaiseLower,
     "4B": Pico4ButtonScene,
 }

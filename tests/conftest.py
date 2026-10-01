@@ -16,6 +16,7 @@ EVENT = "lutron_caseta_button_event"
 HARDWARE_TYPES = {
     "P2B": "PaddleSwitchPico",
     "2B": "Pico2Button",
+    "2BRL": "Pico2ButtonRaiseLower",
     "3BRL": "Pico3ButtonRaiseLower",
     "4B": "Pico4ButtonScene",
 }
