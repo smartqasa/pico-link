@@ -16,6 +16,7 @@ EVENT = "lutron_caseta_button_event"
 HARDWARE_TYPES = {
     "P2B": "PaddleSwitchPico",
     "2B": "Pico2Button",
+    "2BRL": "Pico2ButtonRaiseLower",
     "3BRL": "Pico3ButtonRaiseLower",
     "4B": "Pico4ButtonScene",
 }
@@ -147,6 +148,7 @@ def register_pico(hass):
 async def pico(hass, enable_custom_integrations, type_setting, register_pico):
     """Fake only the Lutron bridge and device services, not Pico Link."""
     mock_integration(hass, MockModule("lutron_caseta"))
+    await async_setup_component(hass, "light", {})
     harness = PicoHarness(hass, register_pico if type_setting == "detected" else None)
     yield harness
     await harness.stop()
@@ -156,6 +158,7 @@ async def pico(hass, enable_custom_integrations, type_setting, register_pico):
 async def registry_pico(hass, enable_custom_integrations):
     """Use exact device configurations for detection and explicit-type tests."""
     mock_integration(hass, MockModule("lutron_caseta"))
+    await async_setup_component(hass, "light", {})
     harness = PicoHarness(hass)
     yield harness
     await harness.stop()

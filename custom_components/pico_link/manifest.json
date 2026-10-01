@@ -1,12 +1,14 @@
 {
   "name": "Pico Link",
   "domain": "pico_link",
-  "version": "0.3.14",
+  "version": "1.0.0",
+  "config_flow": true,
   "documentation": "https://github.com/smartqasa/pico-link",
   "issue_tracker": "https://github.com/smartqasa/pico-link/issues",
   "codeowners": ["@smartqasa"],
   "iot_class": "local_push",
   "quality_scale": "internal",
   "dependencies": ["lutron_caseta"],
+  "after_dependencies": ["frontend"],
   "requirements": []
 }

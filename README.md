@@ -4,10 +4,22 @@ Use Lutron Pico remotes to control Home Assistant lights, shades, fans, media
 players, and switches. Keep each button's built-in behavior, replace its tap
 or hold with a list of actions, or add a double-tap action.
 
-**Version 0.3.14** makes the Pico `type` optional. Pico Link detects it from
-Home Assistant's stored Lutron model when omitted. An explicit `type` still
-takes precedence. Existing button actions and shared Stop defaults remain
-supported.
+**Pico Link 1.0 introduces a custom configuration UI inside Home Assistant.**
+The **Lutron Picos** workspace lists your configured remotes, with search,
+**Add Pico**, and **Shared defaults**. Select a remote to assign its targets,
+choose a button on its visual preview, and configure tap, hold, or double-tap
+actions. Changes take effect when you save, without restarting Home Assistant.
+
+Choose your [configuration method](#choose-your-configuration-method) before
+setup: **UI** for the visual workspace, or **YAML** for file-based configuration.
+Existing YAML installations continue working after an update. Moving their
+settings to the UI requires an explicit import and save.
+
+Version 1.0 also includes Home Assistant's script engine for conditions, delays,
+templates, loops and waits. Custom sequences default to `single`: another
+custom gesture on the same Pico is ignored until the current sequence finishes.
+Choose `parallel` for overlapping sequences or `restart` when the newest
+command should take over. Built-in device controls retain their normal timing.
 
 [![HACS Custom](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://hacs.xyz)
 ![GitHub release](https://img.shields.io/github/v/release/smartqasa/pico-link)
@@ -18,7 +30,9 @@ supported.
 </p>
 
 - [Installation](#installation)
+- [Choose your configuration method](#choose-your-configuration-method)
 - [Getting started](#getting-started)
+- [Using the UI workspace](#using-the-ui-workspace)
 - [Default button behavior](#default-button-behavior)
 - [Button action overrides](#button-action-overrides)
 - [Action format](#action-format)
@@ -29,34 +43,303 @@ supported.
 ## Installation
 
 Pico Link requires Home Assistant's **Lutron Caséta** integration and supported
-Picos that emit `lutron_caseta_button_event` press and release events. The
-integration declares Home Assistant 2023.1.0 as its minimum version.
-Configuration is through YAML; there is no configuration flow in the UI.
+Picos that emit `lutron_caseta_button_event` press and release events.
+**Home Assistant 2026.4.0 or newer is required.** This is the tested minimum
+and includes the Lutron library support needed for Paddle Picos.
 
 Pico Link uses the Lutron Caséta integration's event format. It does not support
 the different event format used by the separate Lutron integration.
 
-### HACS
+### 1. Install the integration files
+
+Choose **HACS** or **manual installation**. Both install the same integration;
+configuring your remotes is a separate step below.
+
+#### HACS (recommended)
 
 1. Open HACS and its **Custom repositories** menu.
 2. Add `https://github.com/smartqasa/pico-link` with the **Integration** type.
-3. Install **Pico Link**.
-4. Restart Home Assistant, then add the configuration below.
+3. Open **Pico Link** in HACS and download the latest stable release.
+   The UI described in this README is included in **1.0.0 and later**.
 
-### Manual installation
+HACS places the files in the correct configuration directory for you.
 
-Copy the entire `custom_components/pico_link` folder from this repository into
-Home Assistant's `config/custom_components/` directory, then restart Home
-Assistant. The installed folder must contain `manifest.json`, `__init__.py`,
-and the other files and subfolders supplied with the integration.
+#### Manual installation
+
+1. Download and extract the source archive for your chosen
+   [release](https://github.com/smartqasa/pico-link/releases). Choose **1.0.0 or
+   later** for the UI described here.
+2. Locate Home Assistant's **configuration directory**: the folder containing
+   the active `configuration.yaml` file. See Home Assistant's
+   [instructions for finding it](https://www.home-assistant.io/docs/configuration/#to-find-the-configuration-directory).
+3. Create `custom_components` in that directory if it does not already exist.
+4. Copy the archive's entire `custom_components/pico_link` folder into it,
+   including all files and subfolders.
+
+The destination is **`<your configuration directory>/custom_components/pico_link/`**.
+The configuration directory does not have to be named `config`. Its visible
+path depends on your installation and how you access the files:
+
+| Where the active configuration file appears | Where Pico Link belongs |
+| --- | --- |
+| `/config/configuration.yaml` | `/config/custom_components/pico_link/` |
+| `/homeassistant/configuration.yaml` | `/homeassistant/custom_components/pico_link/` |
+| Another folder containing `configuration.yaml` | `custom_components/pico_link/` inside that folder |
+
+Keep this structure, with `manifest.json` and `__init__.py` directly inside
+`pico_link` and the remaining integration files alongside them:
+
+```text
+<your configuration directory>/
+├── configuration.yaml
+└── custom_components/
+    └── pico_link/
+        ├── manifest.json
+        ├── __init__.py
+        └── ... all other supplied files and subfolders
+```
+
+Do not create an extra `config` folder or place the whole downloaded repository
+inside `custom_components`.
+
+### 2. Restart Home Assistant
+
+Restart Home Assistant after installing the files, then refresh your browser.
+Reloading YAML or refreshing the browser alone does not load a newly installed
+custom integration.
+
+### 3. Configure your remotes
+
+Choose your [configuration method](#choose-your-configuration-method):
+
+- **UI:** open **Settings → Devices & services → Add integration → Pico Link**,
+  then follow [UI setup](#ui-setup). Existing YAML settings can be imported after
+  you confirm the import; installing the files alone does not migrate them.
+- **YAML:** follow [YAML setup](#yaml-setup), then restart Home Assistant to load
+  the file changes. You do not need to add Pico Link through the UI.
+
+If you already use Pico Link, follow [Installing an update](#installing-an-update)
+instead of repeating initial setup. Existing YAML configurations remain supported.
+
+## Choose your configuration method
+
+**Choose UI or YAML before configuring your remotes.** The method applies to
+the whole Pico Link installation, so the same remote cannot receive commands
+from two configurations.
+
+| Method | How to select it | Where settings are saved |
+| --- | --- | --- |
+| **UI** (default for new installations) | Add Pico Link under **Settings → Devices & services** and choose **UI**. No YAML entry is needed for a new installation. | Home Assistant's managed configuration storage |
+| **YAML** | Set `config_method: yaml` directly under `pico_link`, alongside `devices` and `defaults` | Your existing YAML file |
+
+**Which choice takes precedence?** An explicit `config_method` in your YAML
+file is the authority. The choice shown during UI setup does not override it
+or edit your YAML file. Choosing **YAML** in the setup dialog shows instructions
+and exits setup; the file setting is what keeps YAML in control.
+
+| Setting in YAML | Configuration that runs |
+| --- | --- |
+| `config_method: yaml` | YAML, even if UI settings were previously saved. The workspace is read-only. |
+| `config_method: ui` | Saved UI settings. YAML devices and defaults are available for import but do not run. Complete UI setup if nothing has been saved yet. |
+| No `config_method` | Saved UI settings take precedence if present; otherwise existing YAML continues to run. |
+
+Changes to the YAML method setting take effect after restarting Home Assistant.
+Once you use UI configuration, ordinary workspace saves need no restart.
+
+**To keep using YAML**, set the method explicitly in your existing configuration:
+
+```yaml
+pico_link:
+  config_method: yaml
+  devices:
+    - name: Kitchen Pico
+      lights: light.kitchen
+```
+
+If `configuration.yaml` contains `pico_link: !include pico_link.yaml`, put
+`config_method: yaml` at the top of **pico_link.yaml**, alongside `devices`
+and `defaults`; do not add another `pico_link:` wrapper.
+
+**Existing configurations:** if `config_method` is omitted, existing Pico Link
+YAML continues to load until you explicitly import and save a UI configuration.
+On first UI setup, Pico Link offers to import those settings so you do not need
+to re-enter your remotes and actions. You confirm the import and complete setup
+before it takes over. Installing the update alone does not migrate anything.
+
+**Explicit UI selection:** you may set `config_method: ui` under `pico_link`.
+This stops loading remote settings from YAML after the next restart. If no UI
+configuration exists yet, complete setup and import before the remotes resume.
+For an existing YAML installation without an explicit method, importing through
+the UI lets the current remotes keep working until you save.
 
 ## Getting started
+
+### UI setup
+
+1. Open **Settings → Devices & services → Add integration → Pico Link**.
+2. Choose **UI**. If an existing YAML configuration is found, confirm its import.
+3. Submit the final setup step, then open **Pico Link** in the Home Assistant
+   sidebar. The integration's **Configure** button opens the same workspace.
+4. Select **Add Pico** and choose a registered Lutron remote. Its layout is
+   detected automatically; a manual **Pico layout** override is under
+   **Remote & targets → Advanced**. Under **Remote & targets**, choose what it controls
+   and select its light, shade, fan, media-player or switch entities. Four-button
+   scene Picos use targets inside their button actions instead.
+5. Select a button on the visual Pico, then **Tap**, **Hold**, or **Double tap**.
+   Leave its normal behavior in place or choose **Custom actions** to build a
+   sequence. Selecting buttons in the preview does not operate your devices.
+6. Select **Save changes**. Pico Link validates all remotes, stops its running
+   actions, and reloads the settings without restarting Home Assistant.
+
+### Using the UI workspace
+
+Open **Pico Link** from the Home Assistant sidebar or the integration's
+**Configure** button. The workspace is available to administrators. If you
+already use UI configuration, your saved remotes appear automatically after an
+update; no reimport is needed.
+
+The **Lutron Picos** list is alphabetical and searchable by name or room. Each
+remote has an icon matching its layout. Select a row to edit that Pico, use
+**Add Pico** for another remote, or select **Shared defaults** for settings
+that multiple Picos can use.
+
+The screenshots below show the actual workspace with simulated remotes and
+sample settings; no live home configuration is shown.
+
+![Pico Link workspace with four sample remotes and the visual Kitchen Pico editor](https://raw.githubusercontent.com/smartqasa/pico-link/v1.0.0/docs/images/ui-workspace.png)
+
+| Tab | What you configure |
+| --- | --- |
+| **Button actions** | Select a button on the remote preview, then choose its **Tap**, **Hold**, or **Double tap** behavior. |
+| **Remote & targets** | Choose the physical Pico and the entities it controls. **Advanced**, directly below **Remote identity**, contains the read-only device ID with a **Copy** button and the optional **Pico layout** selector. |
+| **Timing** | Adjust the hold threshold, double-tap window, and interval between built-in dimming or volume steps. |
+| **Device settings** | Adjust the normal controls for the assigned device type, such as light brightness limits or shade direction. |
+| **Run behavior** | Choose how the Pico handles another custom gesture while a sequence is running, including run limits and logging. |
+
+UI configurations identify a remote by its Home Assistant device ID, so renaming
+it does not break its configuration. Selecting a different remote under
+**Remote & targets** reassigns the current settings to that remote; it does not
+load that remote's settings. Pico Link rejects duplicate remote assignments
+when you save.
+
+#### Configure a button
+
+Select the button and gesture, then choose a behavior:
+
+| Behavior | Effect |
+| --- | --- |
+| **Normal / inherited behavior** | Removes the local override. The gesture uses its built-in behavior or an applicable imported shared setting. |
+| **Custom actions** | Opens Home Assistant's action editor for service calls, scripts, conditions, delays, loops, and waits. |
+| **Do nothing** | Disables this gesture while leaving the other gestures unchanged. |
+| **Use shared Stop action** | Available for the Stop/middle button; uses the shared sequence for the selected gesture. |
+
+![An On double-tap sequence in Home Assistant's action editor, with Add action and Save changes controls](https://raw.githubusercontent.com/smartqasa/pico-link/v1.0.0/docs/images/ui-button-actions.png)
+
+For example, select **Raise → Tap → Custom actions** to change a light's color
+temperature with a tap, while leaving **Raise → Hold** on normal behavior to
+keep dimming. Each gesture has its own setting.
+
+Normal behavior depends on the Pico model and controlled device. Holds can have
+built-in behavior, such as dimming or volume adjustment; **double tap has no
+built-in action**. A custom hold runs its sequence once and lets it finish after
+release. Configuring double tap adds a short wait before the single-tap action.
+See [Default button behavior](#default-button-behavior) and
+[Tap and hold timing](#tap-and-hold-timing) for the details.
+
+Run behavior applies to the **whole Pico**, across its custom button sequences.
+**Continue on error** belongs to individual actions in the action editor.
+
+#### Target the triggering Pico's assigned lights
+
+In a **Light: Turn on** action, choose **Add target**, then select
+**Pico Link placeholder** (normally `light.pico_link_placeholder`). Set brightness,
+color, Kelvin temperature, or transition in the normal action editor. The short
+instruction above the editor shows the placeholder's current name and ID.
+
+When that Pico triggers the sequence, Pico Link replaces the placeholder with
+the lights assigned under **Remote & targets**. This works in individual button
+actions and shared Stop tap, hold, and double-tap actions, including nested
+conditions and loops. You can mix it with specifically selected lights in the
+same action or use different targets in other steps; only the placeholder is
+replaced. If a Pico's light assignment changes, the action follows that change.
+
+Pico Link provides this entity itself; no helper or other custom integration is
+needed. It exposes broad light controls for editing, but the actual lights must
+support the requested features. Effect names depend on those lights. The
+placeholder is not a real lamp, should not be assigned a room or included in
+light groups, and cannot be operated directly. Save and test with the physical
+Pico: **Run action** has no triggering remote to supply the light assignment.
+
+Picos using this placeholder must have lights assigned. Four-button scene Picos
+have no assigned group and need explicit action targets. Existing `lights`
+shortcuts appear as the selectable placeholder in the editor and remain
+portable in saved settings. The other [entity placeholders](#entity-placeholders)
+remain supported through YAML; this selectable entity is for lights.
+
+#### Use shared defaults
+
+Open **Shared defaults** to set common timing, device-control settings, and run
+behavior. On an individual Pico, an empty field or **Use default** inherits the
+shared value, or the built-in value when no shared value is set. The inherited
+values appear beside the controls. Clear a local value to return to the default.
+
+![Shared timing defaults with a sample hold threshold, double-tap window, and inherited dimming interval](https://raw.githubusercontent.com/smartqasa/pico-link/v1.0.0/docs/images/ui-shared-defaults.png)
+
+Shared Stop actions work differently: each Pico must explicitly opt in for
+each gesture. For example, create a sequence under
+**Shared defaults → Button actions → Tap**, then select
+**Stop → Tap → Use shared Stop action** on each Pico that should use it.
+Repeat separately for **Hold** and **Double tap** if needed. Merely defining
+a shared Stop sequence does not activate it on every remote.
+
+Each shared gesture offers **Do nothing** (the default) or **Shared actions**.
+Choose **Shared actions** to build a sequence. If a Pico selects a shared gesture
+with no sequence, that gesture does nothing; it does not cause a configuration
+error. Individual Picos still offer **Normal / inherited behavior**, which keeps
+their built-in behavior instead of disabling it.
+
+#### Save, discard, or remove
+
+All workspace edits stay in a draft until **Save changes**. Saving validates
+the complete configuration and reloads Pico Link, which stops its running
+actions. A validation error leaves the saved configuration unchanged.
+**Discard changes** restores the last saved settings; leaving the workspace
+also discards unsaved edits. If another editor saves first, your save is
+rejected rather than overwriting its changes.
+
+To remove a Pico, select it and choose **Remove**. Confirm the removal, then
+save. This removes its Pico Link configuration, not the Lutron device itself.
+
+Home Assistant stores UI settings as JSON in its managed configuration storage,
+not in `pico_link.yaml`. Use the workspace to edit them. An explicit
+`config_method: yaml` selection keeps the workspace read-only; see
+[Importing YAML and switching methods](#importing-yaml-and-switching-methods).
+
+### Importing YAML and switching methods
+
+Import copies shared defaults, remote assignments and actions, including the
+existing `middle_button` and `buttons` formats. It resolves device names to
+stable registry IDs and validates the whole configuration before saving. If a
+remote or action is invalid, correct it before completing the import.
+
+Once saved, UI settings are authoritative unless you explicitly select YAML.
+The original file is left unchanged. Remove its unused Pico Link block or keep
+it as a backup; UI edits are **not** written back to that file.
+
+If you previously selected `config_method: yaml`, change it to `ui` and restart
+before using UI setup. An existing saved UI configuration will resume; otherwise
+add Pico Link and import your YAML. To return to YAML, restore or update the
+file, set `config_method: yaml`, and restart. Saved UI settings remain inactive
+and can be removed through Devices & services if no longer needed.
+
+### YAML setup
 
 Add this to `configuration.yaml`, replacing the device name and light entity
 with values from your system:
 
 ```yaml
 pico_link:
+  config_method: yaml
   devices:
     - name: Kitchen Pico
       lights: light.kitchen
@@ -75,8 +358,8 @@ If you prefer a separate file, put this in `configuration.yaml`:
 pico_link: !include pico_link.yaml
 ```
 
-The contents of `pico_link.yaml` then start with `devices:` (and optionally
-`defaults:`), without another `pico_link:` wrapper.
+The contents of `pico_link.yaml` then contain `config_method: yaml`, `devices:`
+and optionally `defaults:`, without another `pico_link:` wrapper.
 
 ### Pico type: automatic or explicit
 
@@ -102,8 +385,13 @@ When specifying a type, use one of these values:
 | --- | --- | --- |
 | `P2B` | Paddle Pico | `on`, `off` |
 | `2B` | Two-button Pico | `on`, `off` |
+| `2BRL` | Four-button Pico with Raise/Lower | `on`, `raise`, `lower`, `off` |
 | `3BRL` | Five-button Pico with Raise/Lower | `on`, `raise`, `stop`, `lower`, `off` |
 | `4B` | Four-button scene Pico | `button_1`, `button_2`, `button_3`, `off` |
+
+A `2BRL` behaves exactly like a `3BRL` without the Stop button: On and Off tap
+the same way, Raise and Lower step and ramp the same way, and `middle_button`
+and the `stop_*` gestures are rejected for it.
 
 **Stop and middle button refer to the same physical button** on a 3BRL Pico,
 including models with a favorite symbol. Use `stop_tap`, `stop_double_tap`, and
@@ -135,7 +423,7 @@ provided, `device_id` takes precedence.
 
 ### Assign the controlled entities
 
-P2B, 2B, and 3BRL remotes require **exactly one** of these entity groups, even
+P2B, 2B, 2BRL, and 3BRL remotes require **exactly one** of these entity groups, even
 when you override their buttons:
 
 | Setting | Entity type |
@@ -192,11 +480,14 @@ whole inherited list for that gesture.
 - **`stop_tap`, `stop_double_tap`, and `stop_hold`:** a **3BRL** opts into each
   shared list separately with, for example, `stop_tap: default` on the device.
   Shared lists are used only by devices that opt in, including the older tap
-  setting described next. P2B, 2B, and 4B remotes do not inherit these settings.
+  setting described next. P2B, 2B, 2BRL, and 4B remotes do not inherit these settings.
 - **`middle_button`:** keeps its opt-in rule with `middle_button: default`.
   It is the older name for the Stop tap action. Either tap name can use a
   shared list named `stop_tap` or `middle_button`; `defaults.stop_tap` wins
   when both shared lists exist.
+- An omitted or empty shared Stop list means **Do nothing** for Picos that
+  select `default` for that gesture. Picos that do not opt in keep their
+  existing behavior.
 - **Other gesture defaults:** their keys must be valid for every remote that
   inherits them. Prefer device-level overrides when mixing Pico models.
 
@@ -209,7 +500,7 @@ For each Stop gesture on an individual 3BRL:
 
 If a device supplies both `stop_tap` and `middle_button`, `stop_tap` wins.
 Requesting `stop_tap: default`, `stop_double_tap: default`, or `stop_hold: default`
-without a corresponding shared list is a configuration error. For tap,
+without a corresponding shared list means **Do nothing**. For tap,
 `defaults.middle_button` is also accepted as that shared list. See the
 [shared Stop example](#example-shared-stop-tap-double-tap-and-hold).
 
@@ -229,10 +520,10 @@ runs once even if the button remains down.
 | --- | --- | --- | --- |
 | P2B / 2B | On | Turn on at `light_on_pct` | Brighten |
 | P2B / 2B | Off | Turn off | Dim |
-| 3BRL | On | Turn on at `light_on_pct` | No separate action |
-| 3BRL | Off | Turn off | No separate action |
-| 3BRL | Raise | One brightness step up | Keep brightening |
-| 3BRL | Lower | One brightness step down | Keep dimming |
+| 2BRL / 3BRL | On | Turn on at `light_on_pct` | No separate action |
+| 2BRL / 3BRL | Off | Turn off | No separate action |
+| 2BRL / 3BRL | Raise | One brightness step up | Keep brightening |
+| 2BRL / 3BRL | Lower | One brightness step down | Keep dimming |
 | 3BRL | Middle / Stop | `middle_button` actions, otherwise no action | No separate action |
 
 When the light is off, the first Raise tap or upward ramp step turns it on at
@@ -254,10 +545,10 @@ transitions; custom actions can supply their own service data.
 | --- | --- | --- | --- |
 | P2B / 2B | On | Open to `cover_open_pos` | Move in the On direction |
 | P2B / 2B | Off | Close fully | Move in the Off direction |
-| 3BRL | On | Open to `cover_open_pos` | No separate action |
-| 3BRL | Off | Close fully | No separate action |
-| 3BRL | Raise | Increase position by `cover_step_pct` | Open continuously |
-| 3BRL | Lower | Decrease position by `cover_step_pct` | Close continuously |
+| 2BRL / 3BRL | On | Open to `cover_open_pos` | No separate action |
+| 2BRL / 3BRL | Off | Close fully | No separate action |
+| 2BRL / 3BRL | Raise | Increase position by `cover_step_pct` | Open continuously |
+| 2BRL / 3BRL | Lower | Decrease position by `cover_step_pct` | Close continuously |
 | 3BRL | Middle / Stop | `middle_button` actions, otherwise stop | No separate action |
 
 Releasing a continuous hold sends a stop command. Built-in On/Off presses while
@@ -275,8 +566,8 @@ this Pico, Pico Link stops that movement before running the new actions.
 | --- | --- |
 | On | Set speed to `fan_on_pct` |
 | Off | Turn off |
-| Raise (3BRL) | Increase to the next available speed |
-| Lower (3BRL) | Decrease to the previous speed |
+| Raise (2BRL / 3BRL) | Increase to the next available speed |
+| Lower (2BRL / 3BRL) | Decrease to the previous speed |
 | Middle / Stop (3BRL) | `middle_button` actions, otherwise reverse direction |
 
 Built-in fan controls run once per press and do not ramp on hold. Custom hold
@@ -291,10 +582,10 @@ the entity to report a current direction of `forward` or `reverse`.
 | --- | --- | --- | --- |
 | P2B / 2B | On | Play/pause | Raise volume |
 | P2B / 2B | Off | Next track | Lower volume |
-| 3BRL | On | Play/pause | No separate action |
-| 3BRL | Off | Next track | No separate action |
-| 3BRL | Raise | Raise volume one step | Keep raising volume |
-| 3BRL | Lower | Lower volume one step | Keep lowering volume |
+| 2BRL / 3BRL | On | Play/pause | No separate action |
+| 2BRL / 3BRL | Off | Next track | No separate action |
+| 2BRL / 3BRL | Raise | Raise volume one step | Keep raising volume |
+| 2BRL / 3BRL | Lower | Lower volume one step | Keep lowering volume |
 | 3BRL | Middle / Stop | `middle_button` actions, otherwise mute/unmute | No separate action |
 
 `media_player_vol_step` is a percentage of the full volume range. Commands are
@@ -302,9 +593,10 @@ limited to 0–100%. Releasing a volume hold stops further ramp commands.
 
 ### Switches
 
-On turns the assigned switches on; Off turns them off. On a 3BRL Pico,
-Raise/Lower do nothing by default, and Middle/Stop runs `middle_button` actions
-if configured. There is no built-in hold action, but custom holds are supported.
+On turns the assigned switches on; Off turns them off. Raise/Lower on 2BRL
+and 3BRL remotes do nothing by default. On a 3BRL, Middle/Stop runs
+`middle_button` actions if configured. There is no built-in hold action,
+but custom holds are supported.
 
 ### Four-button scene Picos
 
@@ -321,10 +613,10 @@ any entity, regardless of the remote's assigned entity group.
 
 | Physical button | Tap key | Hold key | Double-tap key | Models |
 | --- | --- | --- | --- | --- |
-| On | `on_tap` | `on_hold` | `on_double_tap` | P2B, 2B, 3BRL |
+| On | `on_tap` | `on_hold` | `on_double_tap` | P2B, 2B, 2BRL, 3BRL |
 | Off | `off_tap` | `off_hold` | `off_double_tap` | All |
-| Raise | `raise_tap` | `raise_hold` | `raise_double_tap` | 3BRL |
-| Lower | `lower_tap` | `lower_hold` | `lower_double_tap` | 3BRL |
+| Raise | `raise_tap` | `raise_hold` | `raise_double_tap` | 2BRL, 3BRL |
+| Lower | `lower_tap` | `lower_hold` | `lower_double_tap` | 2BRL, 3BRL |
 | Middle / Stop | `stop_tap` | `stop_hold` | `stop_double_tap` | 3BRL |
 | First scene button | `button_1_tap` | `button_1_hold` | `button_1_double_tap` | 4B |
 | Second scene button | `button_2_tap` | `button_2_hold` | `button_2_double_tap` | 4B |
@@ -540,7 +832,9 @@ Do not assign an entity group such as `lights` to it.
 
 ## Action format
 
-Every custom action list uses the same service-call format:
+Custom button lists run through Home Assistant's script engine. All gesture
+overrides, shared Stop actions, `middle_button`, and the existing `buttons`
+mapping accept script sequences. The simplest action is still a service call:
 
 ```yaml
 - action: light.turn_on
@@ -550,23 +844,160 @@ Every custom action list uses the same service-call format:
     brightness_pct: 80
 ```
 
-`action` is required and must be a `domain.service` string. `target` and `data`
-are optional mappings. Target selectors such as `entity_id`, `area_id`, and
-`device_id` are passed to Home Assistant.
+For service calls, `action` identifies the service, while `target` and `data`
+are optional mappings. Home Assistant's `service` spelling is also accepted.
+You can add conditions, delays, variables, templates, `choose`, `if`, repeats,
+parallel branches, waits, and stop actions using the
+[Home Assistant script syntax](https://www.home-assistant.io/docs/scripts/)
+supported by your installed Home Assistant version. Pico Link validates the
+sequence during setup and reports invalid configurations for the affected Pico.
 
-Actions in one list run in order, waiting for each service call to return
-before submitting the next. This does not guarantee that a physical device has
-finished moving or that a script launched with `script.turn_on` has finished.
-Service failures are logged, and later actions are still attempted.
+### Example: a button with conditional actions
 
-These lists support service calls, not the full Home Assistant automation
-language. For conditions, delays, templates, loops, or color cycling, put the
-logic in a Home Assistant script and call that script from the button.
+This Stop tap uses a dim setting after sunset and a brighter setting during
+the day. Its double tap runs two actions with a short delay between them.
 
-Separate button gestures can start overlapping action lists. If a long-running
-sequence needs queuing or cancellation rules, manage that behavior inside a
-Home Assistant script. Home Assistant shutdown cancels Pico Link's pending
-work; it does not undo completed commands or stop scripts launched separately.
+```yaml
+pico_link:
+  devices:
+    - name: Bedroom Pico
+      lights: light.bedroom
+      stop_tap:
+        - if:
+            - condition: state
+              entity_id: sun.sun
+              state: below_horizon
+          then:
+            - action: light.turn_on
+              target:
+                entity_id: lights
+              data:
+                brightness_pct: 15
+          else:
+            - action: light.turn_on
+              target:
+                entity_id: lights
+              data:
+                brightness_pct: 80
+      stop_double_tap:
+        - action: light.turn_on
+          target:
+            entity_id: lights
+          data:
+            brightness_pct: 100
+        - delay: 2
+        - action: scene.turn_on
+          target:
+            entity_id: scene.bedtime
+```
+
+### Overlapping sequences: mode and limits
+
+Set `mode`, `max`, and `max_exceeded` under `defaults`, on an individual device,
+or both. Each device setting overrides its shared default; omitted settings
+use the built-in values shown below.
+
+| Setting | Built-in default | Purpose |
+| --- | --- | --- |
+| `mode` | `single` | What happens when another custom sequence starts |
+| `max` | `10` | Maximum active runs in parallel mode, or running plus waiting runs in queued mode |
+| `max_exceeded` | `warning` | Log level when a new run is rejected: `debug`, `info`, `warning`, `error`, `critical`, or `silent` |
+
+| Mode | Another custom gesture on the same Pico |
+| --- | --- |
+| `single` | Ignore the new sequence while a sequence is running. This also applies to a different button, including a custom Off action. |
+| `restart` | Stop the older sequence's remaining work, then run the new sequence. |
+| `queued` | Wait for previous sequences to finish, preserving arrival order. |
+| `parallel` | Start a separate run immediately; its actions may overlap earlier runs. |
+
+The policy and limit cover **the whole Pico**, across all custom buttons and
+gestures. Different remotes have independent runs and limits. Shared Stop
+defaults supply actions; they do not create one shared execution queue.
+
+```yaml
+pico_link:
+  defaults:
+    mode: single
+    max: 10
+    max_exceeded: warning
+  devices:
+    - name: Kitchen Pico
+      lights: light.kitchen
+      mode: restart
+      on_tap:
+        - delay: 2
+        - action: light.turn_on
+          target:
+            entity_id: lights
+    - name: Bedroom Pico
+      lights: light.bedroom
+      # Inherits the shared settings.
+```
+
+In this example, Kitchen Off retains its built-in action. With `restart`, it
+cancels the pending custom On sequence before sending Off, so the old delay
+does not turn the light on afterward. Built-in controls are never queued or
+ignored because a custom sequence is busy. In other modes, built-in commands
+do not cancel a running custom sequence. Normal tap/hold/double-tap recognition
+and ramp timing are unchanged.
+
+**Upgrade note:** earlier versions allowed custom lists to overlap. Version 1.0
+defaults to `single`, matching Home Assistant. Select `parallel` explicitly
+where that old behavior is wanted. The new `max` limit still applies.
+
+`max` must be a positive integer and applies only to `queued` and `parallel`.
+Single mode always permits one run. When a limit is reached, the new sequence
+is rejected and existing runs continue. `max_exceeded: silent` suppresses only
+that log message; it does not suppress errors within actions. This setting also
+controls the rejection message in single mode.
+
+### Errors and existing action lists
+
+For compatibility, a plain list containing only `action`, optional `data`, and
+optional `target`, with no templates, keeps the original behavior: log a failed
+service call and attempt the next one. These service calls also run through
+Home Assistant's engine, with compatibility handling around each step.
+
+A list using additional script features or keys (including `alias`, `service`,
+or `continue_on_error`) uses native script semantics for the **whole list**.
+An action error normally stops that sequence. Set `continue_on_error: true`
+on a particular action when later steps should still run:
+
+```yaml
+stop_tap:
+  - action: notify.mobile_app_phone
+    continue_on_error: true
+    data:
+      message: Good night
+  - action: light.turn_off
+    target:
+      entity_id: lights
+```
+
+An explicit `continue_on_error: false` also selects native error handling.
+This option belongs on an action, not under Pico Link defaults or a device.
+It does not bypass invalid configuration or every unhandled error; see
+[Home Assistant's error rules](https://www.home-assistant.io/docs/scripts/#continuing-on-error).
+A failed condition or an explicit stop follows normal script control flow.
+One failed sequence does not disable later presses or other remotes.
+
+### Completion, cancellation, and external scripts
+
+Actions normally run in order. Parallel branches run concurrently. A service
+call returning does not guarantee that a physical light or shade has finished
+moving. Releasing a custom hold lets its sequence finish; it does not repeat
+the sequence or trigger its tap. A later command in restart mode may cancel it.
+
+Home Assistant shutdown cancels Pico Link's unfinished sequences, queued runs,
+waits, and gesture timers. They do not resume automatically after restart.
+Cancellation cannot undo commands already sent to a device.
+
+You can still call a separate Home Assistant script for reusable logic.
+Calling `script.NAME` waits for that script to return; `script.turn_on` starts
+it separately and continues without waiting. Separately launched scripts keep
+their own modes and lifecycle; cancelling Pico Link's sequence does not stop
+them. Two remotes controlling the same device can send competing commands;
+use a shared script when they need coordinated behavior.
 
 ### Entity placeholders
 
@@ -596,12 +1027,15 @@ stop_tap:
 ```
 
 Only use a placeholder for a group assigned to that device. Other target fields
-are preserved. Since 4B Picos have no assigned entity group, use explicit
+are preserved. Placeholders also work in nested action branches and loops;
+they are not substituted inside template text or arbitrary service data.
+Since 4B Picos have no assigned entity group, use explicit
 entity IDs or other Home Assistant target selectors for their actions.
 
 ## Existing middle-button and scene-button configuration
 
-Existing configurations continue to work without being rewritten.
+Existing configuration formats remain supported. Review the new default
+[execution mode](#overlapping-sequences-mode-and-limits) when upgrading.
 
 ### `middle_button` on 3BRL
 
@@ -683,21 +1117,26 @@ retaining its existing tap. An explicit `button_1_tap` replaces that tap.
 
 ## Settings reference
 
-Settings can be placed on a device or under `defaults`, except `type`, which
+`config_method` belongs at the top of the Pico Link configuration and accepts
+`ui` or `yaml`; see [Choose your configuration method](#choose-your-configuration-method).
+The remaining settings can be placed on a device or under `defaults`, except `type`, which
 is optional and only read from the individual device. Configure a unique name
 or device ID per Pico.
 
 | Setting | Default | Accepted values / purpose |
 | --- | --- | --- |
-| `type` | Auto-detected | Optional per device: `P2B`, `2B`, `3BRL`, `4B`. An explicit value takes precedence. |
+| `type` | Auto-detected | Optional per device: `P2B`, `2B`, `2BRL`, `3BRL`, `4B`. An explicit value takes precedence. |
 | `name` / `device_id` | One required | Identify the Pico |
 | `lights`, `covers`, `fans`, `media_players`, `switches` | None | Exactly one group for non-4B remotes |
 | `<button>_tap` / `<button>_hold` | Existing behavior | Action list; `[]` disables the gesture |
 | `<button>_double_tap` | Disabled | Action list; enables detection for that button. `[]` consumes double taps without an action |
 | `stop_tap`, `stop_double_tap`, `stop_hold` on a 3BRL | Existing behavior | Action list, `[]` to disable, or `default` to select the shared list for that gesture |
-| `stop_tap`, `stop_double_tap`, `stop_hold` under `defaults` | Not set | Shared lists; used only when a 3BRL explicitly selects `default` |
+| `stop_tap`, `stop_double_tap`, `stop_hold` under `defaults` | Do nothing | Shared lists; used only when a 3BRL explicitly selects `default`. An omitted or empty shared list runs no actions |
 | `middle_button` | Domain behavior | Older 3BRL tap setting, still supported; action list, or `default` to opt into the shared list |
 | `buttons` | None | 4B button-to-action mapping |
+| `mode` | `single` | `single`, `restart`, `queued`, or `parallel`; shared across custom sequences on one Pico |
+| `max` | `10` | Positive integer; active/queued run limit for queued and parallel modes |
+| `max_exceeded` | `warning` | Log severity when rejecting a new run, or `silent` |
 | `hold_time_ms` | `400` | `100–2000` ms before a hold is recognized |
 | `double_tap_time_ms` | `300` | `100–2000` ms from first release to second press; used only for buttons with a double-tap key |
 | `step_time_ms` | `650` | `100–2000` ms between built-in brightness/volume ramp commands |
@@ -712,13 +1151,23 @@ or device ID per Pico.
 | `fan_on_pct` | `100` | `1–100`, speed for built-in On presses |
 | `media_player_vol_step` | `10` | `1–20`, volume change per step in percent |
 
-Numeric values outside the accepted range are clamped. Invalid numeric values
+Invalid `mode`, `max`, or `max_exceeded` values are configuration errors.
+For the timing and device-control settings in the table, numeric values outside the
+accepted range are clamped. Invalid numeric values
 and zero use the setting's default (the transition defaults are themselves
 zero). `hold_time_ms` also applies to custom holds for fans, switches, and 4B
 remotes. `step_time_ms` does not repeat custom actions or control how fast a
 shade motor moves.
 
 ## Troubleshooting and updates
+
+### Pico Link does not appear in Add integration
+
+Confirm you installed **1.0.0 or later** with UI support, restarted
+Home Assistant, and refreshed the browser. For a manual installation, check the
+[folder layout](#manual-installation): `manifest.json` must be directly inside
+`custom_components/pico_link` under the active configuration directory. Check
+**Settings → System → Logs** for loading errors if it still does not appear.
 
 ### Buttons do nothing
 
@@ -733,7 +1182,7 @@ shade motor moves.
 
 ### A configured device was skipped
 
-Pico Link validates entries at startup and logs invalid entries without
+In YAML mode, Pico Link validates entries at startup and logs invalid entries without
 preventing other valid Picos from loading. Common causes include duplicate
 Pico IDs, an ambiguous device name, assigning more than one entity group,
 using a button key that does not exist on the chosen model, or supplying an
@@ -743,6 +1192,11 @@ If no valid devices remain, the log says
 `pico_link is configured, but no valid Pico devices were created`.
 The preceding messages identify the individual errors. Restart Home Assistant
 after correcting the configuration.
+
+In UI mode, the editor validates the whole draft before saving. A startup
+failure appears on the Pico Link integration and is retried by Home Assistant;
+correct its settings or restore the missing registry device. UI loading does
+not silently skip a remote or activate leftover YAML.
 
 If the log says it cannot detect the Pico type, check that the remote belongs
 to the Lutron Caséta integration and has a recognized model in the device
@@ -762,6 +1216,10 @@ their existing timing.
 
 ### Holds or repeated presses behave unexpectedly
 
+If a custom press is ignored while a previous sequence is running, check
+`mode`. The default is now `single`, shared across the Pico's custom
+gestures. With `queued` or `parallel`, check `max` and the rejection logs.
+
 Built-in fan and switch controls do not ramp. Custom hold lists run once;
 `step_time_ms` does not make them repeat. A held button's custom sequence is
 not canceled by release.
@@ -774,9 +1232,13 @@ control the same device simultaneously, their commands can compete.
 ### Installing an update
 
 Install the new version through HACS or your normal update method, then restart
-Home Assistant. Check the startup log for the expected controllers and test
-the configured taps and holds. Existing `middle_button` and `buttons` settings
-remain valid; new overrides are optional.
+Home Assistant. If you use the UI, refresh your browser before reopening the
+Pico Link workspace so its updated controls load. Your saved UI settings are
+retained; no reimport is needed.
+
+Check the startup log for the expected controllers and test the configured
+taps, holds, and double taps. Existing YAML installations, including
+`middle_button` and `buttons` settings, remain valid; new overrides are optional.
 
 ## Support Pico Link
 

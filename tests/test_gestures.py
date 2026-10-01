@@ -4,7 +4,7 @@ import asyncio
 
 import pytest
 
-KINDS = ["P2B", "2B", "3BRL"]
+KINDS = ["P2B", "2B", "2BRL", "3BRL"]
 
 
 @pytest.mark.parametrize("kind", KINDS)
@@ -14,7 +14,11 @@ async def test_media_hold_changes_volume_without_tap_side_effects(pico, kind, up
     assert await pico.setup(
         [{"device_id": "pico", "type": kind, "media_players": "media_player.test"}]
     )
-    button = ("raise" if up else "lower") if kind == "3BRL" else ("on" if up else "off")
+    button = (
+        ("raise" if up else "lower")
+        if kind in {"2BRL", "3BRL"}
+        else ("on" if up else "off")
+    )
     pico.fire(button, kind=kind)
     first = await pico.next_call()
     second = await pico.next_call()
@@ -34,9 +38,13 @@ async def test_cover_hold_moves_then_stops_on_release(pico, kind, up):
     assert await pico.setup(
         [{"device_id": "pico", "type": kind, "covers": "cover.test"}]
     )
-    button = ("raise" if up else "lower") if kind == "3BRL" else ("on" if up else "off")
+    button = (
+        ("raise" if up else "lower")
+        if kind in {"2BRL", "3BRL"}
+        else ("on" if up else "off")
+    )
     pico.fire(button, kind=kind)
-    if kind == "3BRL":
+    if kind in {"2BRL", "3BRL"}:
         assert (await pico.next_call())[1:] == (
             "set_cover_position",
             {
@@ -48,7 +56,7 @@ async def test_cover_hold_moves_then_stops_on_release(pico, kind, up):
     pico.fire(button, "release", kind=kind)
     await pico.drain()
     assert [service for _, service, _ in pico.calls] == (
-        (["set_cover_position"] if kind == "3BRL" else [])
+        (["set_cover_position"] if kind in {"2BRL", "3BRL"} else [])
         + ["open_cover" if up else "close_cover", "stop_cover"]
     )
 
@@ -86,7 +94,7 @@ async def test_light_downward_hold_stops_at_minimum_without_turning_off(pico, ki
             }
         ]
     )
-    button = "lower" if kind == "3BRL" else "off"
+    button = "lower" if kind in {"2BRL", "3BRL"} else "off"
     pico.fire(button, kind=kind)
     await pico.drain()  # The ramp must end naturally at its limit.
     pico.fire(button, "release", kind=kind)

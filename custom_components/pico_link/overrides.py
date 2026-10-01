@@ -82,7 +82,7 @@ class ButtonOverrides:
             {"on", "off"}
             if self.ctrl.conf.type in {"P2B", "2B"}
             else {"raise", "lower"}
-            if self.ctrl.conf.type == "3BRL"
+            if self.ctrl.conf.type in {"2BRL", "3BRL"}
             else set()
         )
 
@@ -230,7 +230,7 @@ class ButtonOverrides:
                 if press.canceled:
                     return
                 press.started = True
-                self.ctrl._behavior.handle_press(button)
+                self.ctrl.native_press(button)
                 if press.released:
                     self.ctrl._behavior.handle_release(button)
 
@@ -251,7 +251,7 @@ class ButtonOverrides:
         elif not gesture.tap_consumed:
 
             def native_tap() -> None:
-                self.ctrl._behavior.handle_press(gesture.button)
+                self.ctrl.native_press(gesture.button)
                 self.ctrl._behavior.handle_release(gesture.button)
 
             self._after_stops(native_tap)
@@ -280,6 +280,7 @@ class ButtonOverrides:
             def native_hold() -> None:
                 if self.gesture is gesture:
                     gesture.native_hold = True
+                    self.ctrl.prepare_native(gesture.button)
                     self.handler.start_hold(gesture.button)
 
             self._after_stops(native_hold)

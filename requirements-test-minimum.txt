@@ -1,0 +1,4 @@
+# Home Assistant 2026.4.0, the supported minimum.
+pytest-homeassistant-custom-component==0.13.321
+pytest-cov==7.0.0
+ruff==0.16.6

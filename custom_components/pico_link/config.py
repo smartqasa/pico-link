@@ -2,13 +2,18 @@ from __future__ import annotations
 
 import logging
 import re
+from collections.abc import Mapping
+from copy import deepcopy
 from dataclasses import dataclass, field
 from typing import Any
 
+import voluptuous as vol
 from homeassistant.core import HomeAssistant, valid_entity_id
 from homeassistant.helpers import device_registry as dr
 
 from .const import PICO_TYPE_MAP, VALID_PICO_TYPES
+from .placeholder import placeholder_entity_id
+from .script_runner import has_template, script_schema
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -26,6 +31,7 @@ ActionConfig = dict[str, Any]
 PICO_BUTTONS = {
     "P2B": frozenset({"on", "off"}),
     "2B": frozenset({"on", "off"}),
+    "2BRL": frozenset({"on", "off", "raise", "lower"}),
     "3BRL": frozenset({"on", "off", "raise", "lower", "stop"}),
     "4B": _VALID_4B_BUTTONS,
 }
@@ -60,6 +66,11 @@ class PicoConfig:
     hold_time_ms: int = 400
     double_tap_time_ms: int = 300
     step_time_ms: int = 650
+
+    # Custom sequences share one execution policy per physical remote.
+    mode: str = "single"
+    max: int = 10
+    max_exceeded: str = "warning"
 
     # Cover configuration.
     cover_open_pos: int = 100
@@ -161,6 +172,10 @@ def lookup_device_id(
 ) -> str | None:
     """Resolve a unique device by user-assigned or registry name."""
     device_registry = dr.async_get(hass)
+    devices = device_registry.devices
+    # New HA registries iterate entries directly; older releases expose a mapping.
+    # Check the container type without accessing deprecated lookup methods.
+    entries = tuple(devices.values() if isinstance(devices, Mapping) else devices)
 
     # Prefer the user-assigned name over the integration-provided name.
     for attribute in (
@@ -169,7 +184,7 @@ def lookup_device_id(
     ):
         matches = [
             device
-            for device in device_registry.devices.values()
+            for device in entries
             if getattr(device, attribute) == name
         ]
 
@@ -392,7 +407,15 @@ def _normalize_action(
     if not isinstance(value, dict):
         raise ValueError(f"{context} must be a mapping, got {type(value).__name__}.")
 
-    action = dict(value)
+    action = deepcopy(value)
+    # Preserve diagnostics for the original flat format. Structured actions
+    # use HA validation after assigned-entity placeholders are expanded.
+    if (
+        "action" not in action
+        or has_template(action)
+        or not action.keys() <= {"action", "target", "data"}
+    ):
+        return action
     action_name = action.get("action")
 
     if not isinstance(action_name, str):
@@ -505,7 +528,35 @@ def _expand_action_placeholders(
         actions,
         start=1,
     ):
-        new_action = dict(action)
+        if not isinstance(action, dict):
+            raise ValueError(f"{context} action {action_index} must be a mapping.")
+        new_action = deepcopy(action)
+        # Recurse only through script action containers. Service data,
+        # templates and variable payloads may contain identical key names.
+        for sequence_key in ("then", "else", "default", "sequence", "parallel"):
+            if isinstance(new_action.get(sequence_key), (list, dict)):
+                child = new_action[sequence_key]
+                new_action[sequence_key] = _expand_action_placeholders(
+                    child if isinstance(child, list) else [child], placeholders, context
+                )
+        if isinstance(new_action.get("repeat"), dict):
+            repeat = new_action["repeat"]
+            if isinstance(repeat.get("sequence"), (list, dict)):
+                child = repeat["sequence"]
+                repeat["sequence"] = _expand_action_placeholders(
+                    child if isinstance(child, list) else [child], placeholders, context
+                )
+        if isinstance(new_action.get("choose"), list):
+            for choice in new_action["choose"]:
+                if isinstance(choice, dict) and isinstance(
+                    choice.get("sequence"), (list, dict)
+                ):
+                    child = choice["sequence"]
+                    choice["sequence"] = _expand_action_placeholders(
+                        child if isinstance(child, list) else [child],
+                        placeholders,
+                        context,
+                    )
         target = new_action.get("target")
 
         if not isinstance(target, dict):
@@ -517,6 +568,19 @@ def _expand_action_placeholders(
         if entity_ids is None:
             rewritten.append(new_action)
             continue
+
+        # An unassigned placeholder must not become a silent, empty target.
+        for candidate in entity_ids if isinstance(entity_ids, list) else [entity_ids]:
+            if (
+                isinstance(candidate, str)
+                and candidate in placeholders
+                and not placeholders[candidate]
+            ):
+                raise ValueError(
+                    f"{context} action {action_index}: placeholder {candidate!r} "
+                    "has no assigned entities for this Pico. Use specific targets "
+                    "or assign the matching group in Remote & targets."
+                )
 
         if isinstance(entity_ids, str):
             expanded_entity_ids: str | list[str]
@@ -598,6 +662,27 @@ def parse_pico_config(
 
     if device_type is None:
         device_type = _detect_pico_type(hass, device_id)
+
+    mode = merged.get("mode", "single")
+    if mode not in ("single", "restart", "queued", "parallel"):
+        raise ValueError("mode must be single, restart, queued, or parallel.")
+    max_runs = merged.get("max", 10)
+    if isinstance(max_runs, bool) or not isinstance(max_runs, int) or max_runs < 1:
+        raise ValueError("max must be a positive integer.")
+    max_exceeded = merged.get("max_exceeded", "warning")
+    if not isinstance(max_exceeded, str) or max_exceeded.lower() not in (
+        "silent",
+        "debug",
+        "info",
+        "warning",
+        "error",
+        "critical",
+    ):
+        raise ValueError("max_exceeded must be silent or a standard log level.")
+    if "continue_on_error" in merged:
+        raise ValueError(
+            "continue_on_error belongs on an action, not defaults or a device."
+        )
 
     # ------------------------------------------------------------
     # ENTITY LISTS
@@ -802,7 +887,11 @@ def parse_pico_config(
         merged.get("buttons"),
     )
 
-    overrides = {}
+    # The legacy tap name must also honor an explicitly selected empty shared
+    # action instead of falling back to native shade, fan or media controls.
+    overrides = (
+        {"stop_tap": []} if raw_middle_button == "default" and not middle_button else {}
+    )
     valid_buttons = PICO_BUTTONS.get(device_type, frozenset())
     for key, value in merged.items():
         if not isinstance(key, str):
@@ -818,9 +907,9 @@ def parse_pico_config(
             default_key = key
             if key == "stop_tap" and key not in defaults:
                 default_key = "middle_button"
-            if default_key not in defaults:
-                raise ValueError(f"'{key}: default' requires 'defaults.{key}'.")
-            value = defaults[default_key]
+            # An unspecified shared gesture means "Do nothing". This still
+            # requires per-device opt-in; unconfigured Picos keep native behavior.
+            value = defaults.get(default_key, [])
         if not isinstance(value, list):
             raise ValueError(
                 f"'{key}' must be a list of actions; use [] to disable it."
@@ -834,6 +923,9 @@ def parse_pico_config(
     pico_config = PicoConfig(
         device_id=device_id,
         type=device_type,
+        mode=mode,
+        max=max_runs,
+        max_exceeded=max_exceeded.lower(),
         covers=covers,
         fans=fans,
         lights=lights,
@@ -864,6 +956,13 @@ def parse_pico_config(
         "media_players": pico_config.media_players,
         "switches": pico_config.switches,
     }
+    if light_placeholder := placeholder_entity_id(hass):
+        if light_placeholder in pico_config.lights:
+            raise ValueError(
+                "Assign real lights in Remote & targets. "
+                "Pico Link placeholder belongs only in action targets."
+            )
+        placeholders[light_placeholder] = pico_config.lights
 
     pico_config.middle_button = _expand_action_placeholders(
         pico_config.middle_button,
@@ -874,6 +973,20 @@ def parse_pico_config(
         key: _expand_action_placeholders(actions, placeholders, context=key)
         for key, actions in overrides.items()
     }
+
+    pico_config.buttons = {
+        key: _expand_action_placeholders(actions, placeholders, context=key)
+        for key, actions in buttons.items()
+    }
+    for key, actions in {
+        "middle_button": pico_config.middle_button,
+        **pico_config.buttons,
+        **pico_config.overrides,
+    }.items():
+        try:
+            script_schema(actions)
+        except (vol.Invalid, TypeError, ValueError) as err:
+            raise ValueError(f"Invalid {key} script: {err}") from err
 
     pico_config.validate()
 

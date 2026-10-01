@@ -21,9 +21,11 @@ from .overrides import ButtonOverrides
 # Profiles
 from .profiles.base import PicoProfile
 from .profiles.pico_2b import Pico2Button
+from .profiles.pico_2brl import Pico2ButtonRaiseLower
 from .profiles.pico_3brl import Pico3ButtonRaiseLower
 from .profiles.pico_4b import Pico4ButtonScene
 from .profiles.pico_p2b import PaddleSwitchPico
+from .script_runner import PicoScriptRunner
 from .utilities import SharedUtils
 
 _LOGGER = logging.getLogger(__name__)
@@ -34,6 +36,7 @@ _T = TypeVar("_T")
 BEHAVIOR_CLASSES = {
     "P2B": PaddleSwitchPico,
     "2B": Pico2Button,
+    "2BRL": Pico2ButtonRaiseLower,
     "3BRL": Pico3ButtonRaiseLower,
     "4B": Pico4ButtonScene,
 }
@@ -61,6 +64,7 @@ class PicoController:
 
         # Shared non-domain helpers.
         self.utils = SharedUtils(self)
+        self.script_runner = PicoScriptRunner(self)
 
         # All asynchronous work created for this Pico.
         self._tasks: set[asyncio.Future[Any]] = set()
@@ -149,6 +153,7 @@ class PicoController:
 
     async def async_start(self) -> None:
         """Reset domain handlers and subscribe to Pico events."""
+        await self.script_runner.async_prepare()
         for action_handler in self.actions.values():
             reset = getattr(
                 action_handler,
@@ -181,7 +186,7 @@ class PicoController:
                 if self._overrides and self._overrides.handle(button, action):
                     return
                 if action == "press":
-                    self._behavior.handle_press(button)
+                    self.native_press(button)
                 else:
                     self._behavior.handle_release(button)
 
@@ -205,6 +210,21 @@ class PicoController:
             PICO_EVENT_TYPE,
             self.conf.type,
         )
+
+    def native_press(self, button: str) -> None:
+        """Keep native controls immediate; restart mode retires older scripts."""
+        self.prepare_native(button)
+        self._behavior.handle_press(button)
+
+    def prepare_native(self, button: str) -> None:
+        domain = self.utils.entity_domain()
+        if self.conf.type == "4B" or (button == "stop" and self.conf.middle_button):
+            return
+        if domain == "switch" and button not in {"on", "off"}:
+            return
+        if domain == "light" and button == "stop":
+            return
+        self.script_runner.interrupt()
 
     # =============================================================
     # HARDWARE-TYPE VERIFICATION
@@ -285,6 +305,7 @@ class PicoController:
 
     async def async_stop(self) -> None:
         """Unsubscribe, cancel all Pico work, and await completion."""
+        self.script_runner.stop_accepting()
         # Prevent new Pico events before canceling current work.
         if self._unsub_event is not None:
             self._unsub_event()
@@ -308,7 +329,7 @@ class PicoController:
         tasks = tuple(self._tasks)
 
         for task in tasks:
-            task.cancel()
+            self.script_runner.cancel_task(task)
 
         if tasks:
             await asyncio.gather(
@@ -317,6 +338,7 @@ class PicoController:
             )
 
         self._tasks.clear()
+        await self.script_runner.async_close()
 
     # =============================================================
     # EVENT NORMALIZATION

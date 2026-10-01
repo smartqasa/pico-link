@@ -39,16 +39,20 @@ python -m pytest -q tests/test_gestures.py
 
 | File | Behavior checked |
 | --- | --- |
+| `test_config_flow.py` | Native setup and options flows, explicit configuration method, YAML import/cancellation, stored action round trips, inherited settings, exclusive controller ownership, options reload, and shutdown cleanup |
+| `test_light_placeholder.py` | Registered light capabilities, startup identity reuse, name collisions and renames, per-Pico expansion of shared and custom targets, mixed/nested sequences, invalid assignments, reloads, and direct-use errors |
 | `test_light_brightness.py` | Minimum brightness from off, rapid taps with delayed state feedback, upward holds, normal On brightness, and brightness limits |
 | `test_configuration.py` | Timing defaults and overrides, normalization, invalid configurations, device-name precedence and ambiguity, entity deduplication, and action placeholders |
+| `test_2brl.py` | Four-button Raise/Lower profile, native light commands, ignored Stop events, and rejected Stop configuration |
 | `test_type_detection.py` | Supported registry model formats, unknown/missing/non-Lutron models, explicit-type precedence, name/ID resolution, unchanged event checks, isolation of invalid remotes, and metadata changes between setups |
 | `test_setup_and_events.py` | Full HA setup, invalid and duplicate entries, event filtering, independent remotes, multiple targets, and shutdown cancellation |
-| `test_device_controls.py` | On/Off behavior for all three domain-controlling Pico models; shade position/direction, fan speeds/direction, volume limits/mute, and switches |
+| `test_device_controls.py` | On/Off behavior for all four domain-controlling Pico models; shade position/direction, fan speeds/direction, volume limits/mute, and switches |
 | `test_gestures.py` | Tap/hold distinctions, release and direction changes, shade stop ordering, natural ramp limits, and concurrent remotes |
+| `test_script_engine.py` | Real HA script syntax, cross-button modes, per-Pico limits, error compatibility, native Off interruption, cancellation, reuse, and cleanup |
 | `test_custom_actions.py` | All four scene buttons, middle-button overrides, ordered completion, target/data preservation, service errors, and interrupted sequences |
 | `test_button_overrides.py` | Tap/hold overrides on every supported button, native fallback, legacy precedence, empty lists, release timing, cover stop ordering, shutdown, and five concurrent remotes |
 | `test_double_tap.py` | Every model/button, single-tap delay and fallback, native/custom holds, timing inheritance, slow/repeated taps, cross-button ordering, duplicate events, shutdown, cover stops, and concurrent remotes |
-| `test_stop_defaults.py` | Explicit Stop default opt-ins across mixed models, per-device replacement and disabling, per-remote placeholders, interchangeable legacy tap defaults, name precedence, and missing/invalid default validation |
+| `test_stop_defaults.py` | Explicit Stop default opt-ins across mixed models, per-device replacement and disabling, per-remote placeholders, interchangeable legacy tap defaults, name precedence, empty shared gestures and invalid default validation |
 
 The new integration tests enter through Home Assistant's setup interface and
 send Pico events through its event bus. Assertions check outgoing service
@@ -114,10 +118,25 @@ Otherwise draining waits for the active ramp to reach its endpoint.
 
 ## Limits
 
-The pinned baseline is Home Assistant 2026.9.1 on Python 3.14. Passing this suite
-does not establish compatibility with older HA releases, and does not change
-the integration's declared minimum supported version. Add separate version
-checks when changing Home Assistant API usage.
+The suite runs on Home Assistant 2026.9.1 and the supported minimum, 2026.4.0,
+using Python 3.14. To test the minimum locally, create a separate environment
+and install `requirements-test-minimum.txt` instead of `requirements-test.txt`.
+GitHub runs both environments. Passing these two versions does not prove every
+intermediate version; keep checking API changes and physical-device behavior.
+
+The minimum was reviewed for the 1.0 UI beta. Script modes and branching are
+older features (HA 0.113, July 2020), and per-action `continue_on_error` arrived
+in May 2022. The newer concrete dependency is Paddle Pico support:
+`pylutron-caseta` 0.27.0 added `PaddleSwitchPico` button devices, and Home
+Assistant 2026.4.0 includes that version. HA 2026.3.1 still includes 0.26.0.
+The real setup, options, registry, script validation/execution, and controller
+tests are run against April's release rather than inferring compatibility
+from the former untested 2023.1.0 declaration.
+
+Sources: [script modes](https://www.home-assistant.io/blog/2020/07/22/release-113/),
+[action error handling](https://www.home-assistant.io/blog/2022/05/04/release-20225/),
+[Lutron library change](https://github.com/gurumitts/pylutron-caseta/compare/v0.26.0...v0.27.0),
+and [HA April Lutron manifest](https://github.com/home-assistant/core/blob/2026.4.0/homeassistant/components/lutron_caseta/manifest.json).
 
 Automated checks do not measure Lutron radio reliability, physical light or
 shade response, network latency, or whether dimming feels right. Before release,

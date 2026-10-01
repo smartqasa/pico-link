@@ -2,7 +2,7 @@
 
 import pytest
 
-KINDS = ["P2B", "2B", "3BRL"]
+KINDS = ["P2B", "2B", "2BRL", "3BRL"]
 
 
 @pytest.mark.parametrize("kind", KINDS)
@@ -80,12 +80,13 @@ async def test_inverted_cover_taps(pico, kind, button, service):
         ("lower", 0, None),
     ],
 )
-async def test_cover_steps_respect_endpoints(pico, button, position, expected):
+@pytest.mark.parametrize("kind", ["2BRL", "3BRL"])
+async def test_cover_steps_respect_endpoints(pico, kind, button, position, expected):
     pico.hass.states.async_set("cover.test", "open", {"current_position": position})
     assert await pico.setup(
-        [{"device_id": "pico", "type": "3BRL", "covers": "cover.test"}]
+        [{"device_id": "pico", "type": kind, "covers": "cover.test"}]
     )
-    pico.tap(button)
+    pico.tap(button, kind=kind)
     await pico.drain()
     assert pico.calls == (
         []
@@ -100,13 +101,14 @@ async def test_cover_steps_respect_endpoints(pico, button, position, expected):
     )
 
 
-async def test_rapid_cover_steps_accumulate_without_state_feedback(pico):
+@pytest.mark.parametrize("kind", ["2BRL", "3BRL"])
+async def test_rapid_cover_steps_accumulate_without_state_feedback(pico, kind):
     pico.hass.states.async_set("cover.test", "open", {"current_position": 20})
     assert await pico.setup(
-        [{"device_id": "pico", "type": "3BRL", "covers": "cover.test"}]
+        [{"device_id": "pico", "type": kind, "covers": "cover.test"}]
     )
     for _ in range(3):
-        pico.tap("raise")
+        pico.tap("raise", kind=kind)
     await pico.drain()
     assert [data["position"] for _, _, data in pico.calls] == [30, 40, 50]
     assert pico.hass.states.get("cover.test").attributes["current_position"] == 20
@@ -136,12 +138,13 @@ async def test_cover_on_while_moving_stops(pico, kind):
         ("off", 0, 0, "raise", 100),
     ],
 )
-async def test_fan_speed_steps(pico, state, speed, step, button, expected):
+@pytest.mark.parametrize("kind", ["2BRL", "3BRL"])
+async def test_fan_speed_steps(pico, kind, state, speed, step, button, expected):
     pico.hass.states.async_set(
         "fan.test", state, {"percentage": speed, "percentage_step": step}
     )
-    assert await pico.setup([{"device_id": "pico", "type": "3BRL", "fans": "fan.test"}])
-    pico.tap(button)
+    assert await pico.setup([{"device_id": "pico", "type": kind, "fans": "fan.test"}])
+    pico.tap(button, kind=kind)
     await pico.drain()
     assert pico.calls == (
         []
@@ -183,14 +186,15 @@ async def test_fan_middle_button_reverses_known_direction(pico, direction, expec
         ("raise", None, None),
     ],
 )
+@pytest.mark.parametrize("kind", ["2BRL", "3BRL"])
 async def test_volume_steps_respect_limits_and_missing_volume(
-    pico, button, volume, expected
+    pico, kind, button, volume, expected
 ):
     pico.hass.states.async_set("media_player.test", "playing", {"volume_level": volume})
     assert await pico.setup(
-        [{"device_id": "pico", "type": "3BRL", "media_players": "media_player.test"}]
+        [{"device_id": "pico", "type": kind, "media_players": "media_player.test"}]
     )
-    pico.tap(button)
+    pico.tap(button, kind=kind)
     await pico.drain()
     assert pico.calls == (
         []
@@ -228,10 +232,11 @@ async def test_media_middle_button_toggles_mute(pico, muted):
 
 
 @pytest.mark.parametrize("button", ["raise", "lower", "stop"])
-async def test_switch_ignores_unsupported_buttons(pico, button):
+@pytest.mark.parametrize("kind", ["2BRL", "3BRL"])
+async def test_switch_ignores_unsupported_buttons(pico, kind, button):
     assert await pico.setup(
-        [{"device_id": "pico", "type": "3BRL", "switches": "switch.test"}]
+        [{"device_id": "pico", "type": kind, "switches": "switch.test"}]
     )
-    pico.tap(button)
+    pico.tap(button, kind=kind)
     await pico.drain()
     assert pico.calls == []
