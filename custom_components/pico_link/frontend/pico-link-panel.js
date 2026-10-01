@@ -416,9 +416,8 @@ class PicoLinkPanel extends HTMLElement {
     const value = gestureValue(target, key);
     const choices = this.shared
       ? {
-          normal: "Not configured",
-          custom: "Shared actions",
           disabled: "Do nothing",
+          custom: "Shared actions",
         }
       : {
           normal: "Normal / inherited behavior",
@@ -428,7 +427,7 @@ class PicoLinkPanel extends HTMLElement {
             ? { shared: "Use shared Stop action" }
             : {}),
         };
-    const selected = behavior(value);
+    const selected = behavior(value, this.shared);
     const behaviorBox = body.querySelector("#behavior");
     behaviorBox.innerHTML = `<label class="field">Behavior<select id="behavior-select">${Object.entries(
       choices,
@@ -499,14 +498,14 @@ class PicoLinkPanel extends HTMLElement {
         const actions = gestureValue(this._draft.defaults, key);
         text = actions?.length
           ? `Uses the shared ${LABELS[this._gesture].toLowerCase()} sequence (${actions.length} ${actions.length === 1 ? "action" : "actions"}). Edit it in Shared defaults.`
-          : "No shared sequence is configured for this gesture. Add one in Shared defaults before saving.";
+          : "The shared action is set to Do nothing. This gesture does nothing on this Pico. Change it in Shared defaults to use an action sequence.";
       } else if (selected === "disabled")
-        text =
-          "This gesture does nothing. Other gestures keep their own behavior.";
-      else
         text = this.shared
-          ? "No shared sequence is set. Picos must explicitly select a shared Stop action to use it."
-          : "Uses the normal behavior or an applicable shared default. No local action override is set.";
+          ? "Picos that select this shared Stop action do nothing for this gesture. Picos using normal behavior are unchanged."
+          : "This gesture does nothing. Other gestures keep their own behavior.";
+      else
+        text =
+          "Uses the normal behavior or an applicable shared default. No local action override is set.";
       host.innerHTML = `<div class="behavior-note">${esc(text)}</div>`;
     }
   }

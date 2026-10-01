@@ -57,9 +57,11 @@ export function setGesture(raw, key, value) {
   clearGesture(raw, key);
   if (value !== undefined) raw[key] = clone(value);
 }
-export function behavior(value) {
+export function behavior(value, shared = false) {
   return value === undefined
-    ? "normal"
+    ? shared
+      ? "disabled"
+      : "normal"
     : value === "default"
       ? "shared"
       : value.length

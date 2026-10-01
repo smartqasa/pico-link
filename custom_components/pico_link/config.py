@@ -886,7 +886,11 @@ def parse_pico_config(
         merged.get("buttons"),
     )
 
-    overrides = {}
+    # The legacy tap name must also honor an explicitly selected empty shared
+    # action instead of falling back to native shade, fan or media controls.
+    overrides = (
+        {"stop_tap": []} if raw_middle_button == "default" and not middle_button else {}
+    )
     valid_buttons = PICO_BUTTONS.get(device_type, frozenset())
     for key, value in merged.items():
         if not isinstance(key, str):
@@ -902,9 +906,9 @@ def parse_pico_config(
             default_key = key
             if key == "stop_tap" and key not in defaults:
                 default_key = "middle_button"
-            if default_key not in defaults:
-                raise ValueError(f"'{key}: default' requires 'defaults.{key}'.")
-            value = defaults[default_key]
+            # An unspecified shared gesture means "Do nothing". This still
+            # requires per-device opt-in; unconfigured Picos keep native behavior.
+            value = defaults.get(default_key, [])
         if not isinstance(value, list):
             raise ValueError(
                 f"'{key}' must be a list of actions; use [] to disable it."

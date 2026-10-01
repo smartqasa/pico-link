@@ -293,6 +293,12 @@ each gesture. For example, create a sequence under
 Repeat separately for **Hold** and **Double tap** if needed. Merely defining
 a shared Stop sequence does not activate it on every remote.
 
+Each shared gesture offers **Do nothing** (the default) or **Shared actions**.
+Choose **Shared actions** to build a sequence. If a Pico selects a shared gesture
+with no sequence, that gesture does nothing; it does not cause a configuration
+error. Individual Picos still offer **Normal / inherited behavior**, which keeps
+their built-in behavior instead of disabling it.
+
 #### Save, discard, or remove
 
 All workspace edits stay in a draft until **Save changes**. Saving validates
@@ -475,6 +481,9 @@ whole inherited list for that gesture.
   It is the older name for the Stop tap action. Either tap name can use a
   shared list named `stop_tap` or `middle_button`; `defaults.stop_tap` wins
   when both shared lists exist.
+- An omitted or empty shared Stop list means **Do nothing** for Picos that
+  select `default` for that gesture. Picos that do not opt in keep their
+  existing behavior.
 - **Other gesture defaults:** their keys must be valid for every remote that
   inherits them. Prefer device-level overrides when mixing Pico models.
 

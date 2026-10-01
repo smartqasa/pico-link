@@ -40,6 +40,22 @@ test("explicit empty Stop tap wins over the legacy alias", () => {
     [],
   );
 });
+test("shared gestures default to Do nothing while individual gestures stay normal", () => {
+  for (const key of ["stop_tap", "stop_hold", "stop_double_tap"]) {
+    assert.equal(behavior(gestureValue({}, key), true), "disabled");
+    assert.equal(behavior(gestureValue({}, key)), "normal");
+    assert.equal(behavior(gestureValue({ [key]: [] }, key), true), "disabled");
+    assert.equal(
+      behavior(gestureValue({ [key]: [{ delay: 1 }] }, key), true),
+      "custom",
+    );
+    assert.equal(behavior(gestureValue({ [key]: "default" }, key)), "shared");
+  }
+  assert.equal(
+    behavior(gestureValue({ middle_button: [{ delay: 1 }] }, "stop_tap"), true),
+    "custom",
+  );
+});
 test("switching domains masks shared assignments without modifying defaults", () => {
   const defaults = { lights: ["light.a"] };
   const raw = { on_hold: [{ delay: 4 }] };
