@@ -43,15 +43,16 @@ python -m pytest -q tests/test_gestures.py
 | `test_light_placeholder.py` | Registered light capabilities, startup identity reuse, name collisions and renames, per-Pico expansion of shared and custom targets, mixed/nested sequences, invalid assignments, reloads, and direct-use errors |
 | `test_light_brightness.py` | Minimum brightness from off, rapid taps with delayed state feedback, upward holds, normal On brightness, and brightness limits |
 | `test_configuration.py` | Timing defaults and overrides, normalization, invalid configurations, device-name precedence and ambiguity, entity deduplication, and action placeholders |
+| `test_2brl.py` | Four-button Raise/Lower profile, native light commands, ignored Stop events, and rejected Stop configuration |
 | `test_type_detection.py` | Supported registry model formats, unknown/missing/non-Lutron models, explicit-type precedence, name/ID resolution, unchanged event checks, isolation of invalid remotes, and metadata changes between setups |
 | `test_setup_and_events.py` | Full HA setup, invalid and duplicate entries, event filtering, independent remotes, multiple targets, and shutdown cancellation |
-| `test_device_controls.py` | On/Off behavior for all three domain-controlling Pico models; shade position/direction, fan speeds/direction, volume limits/mute, and switches |
+| `test_device_controls.py` | On/Off behavior for all four domain-controlling Pico models; shade position/direction, fan speeds/direction, volume limits/mute, and switches |
 | `test_gestures.py` | Tap/hold distinctions, release and direction changes, shade stop ordering, natural ramp limits, and concurrent remotes |
 | `test_script_engine.py` | Real HA script syntax, cross-button modes, per-Pico limits, error compatibility, native Off interruption, cancellation, reuse, and cleanup |
 | `test_custom_actions.py` | All four scene buttons, middle-button overrides, ordered completion, target/data preservation, service errors, and interrupted sequences |
 | `test_button_overrides.py` | Tap/hold overrides on every supported button, native fallback, legacy precedence, empty lists, release timing, cover stop ordering, shutdown, and five concurrent remotes |
 | `test_double_tap.py` | Every model/button, single-tap delay and fallback, native/custom holds, timing inheritance, slow/repeated taps, cross-button ordering, duplicate events, shutdown, cover stops, and concurrent remotes |
-| `test_stop_defaults.py` | Explicit Stop default opt-ins across mixed models, per-device replacement and disabling, per-remote placeholders, interchangeable legacy tap defaults, name precedence, and missing/invalid default validation |
+| `test_stop_defaults.py` | Explicit Stop default opt-ins across mixed models, per-device replacement and disabling, per-remote placeholders, interchangeable legacy tap defaults, name precedence, empty shared gestures and invalid default validation |
 
 The new integration tests enter through Home Assistant's setup interface and
 send Pico events through its event bus. Assertions check outgoing service

@@ -1,6 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  BUTTONS,
+  TYPES,
+  deviceMeta,
   gestureValue,
   setGesture,
   behavior,
@@ -14,6 +17,24 @@ import {
   actionEditorValue,
   actionTargetRows,
 } from "../custom_components/pico_link/frontend/action-targets.js";
+
+test("2BRL uses its detected layout and keeps explicit layout precedence", () => {
+  const catalog = [{ id: "dimmer", name: "Hall Pico", type: "2BRL" }];
+  const raw = { device_id: "dimmer" };
+  assert.equal(deviceMeta(raw, catalog).type, "2BRL");
+  assert.deepEqual(BUTTONS[deviceMeta(raw, catalog).type], [
+    "on",
+    "raise",
+    "lower",
+    "off",
+  ]);
+  assert.equal(TYPES["2BRL"], "Four-button Raise/Lower Pico");
+  assert.equal(deviceMeta({ ...raw, type: "3BRL" }, catalog).type, "3BRL");
+  assert.equal(
+    listRows({ devices: [raw] }, catalog, "2brl")[0].name,
+    "Hall Pico",
+  );
+});
 
 test("legacy Stop alias is preserved until that gesture changes", () => {
   const raw = { middle_button: "default", stop_hold: [{ delay: 3 }] };

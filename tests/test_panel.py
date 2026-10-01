@@ -35,22 +35,38 @@ async def panel(hass, registry_pico, register_pico, hass_ws_client):
     return client, entry, device
 
 
-async def test_read_does_not_modify_or_reload(hass, panel):
+@pytest.mark.parametrize(
+    "model,kind",
+    [
+        ("Pico3ButtonRaiseLower", "3BRL"),
+        ("Pico2ButtonRaiseLower", "2BRL"),
+    ],
+)
+async def test_read_does_not_modify_or_reload(hass, panel, model, kind):
     client, entry, device = panel
+    dr.async_get(hass).async_update_device(device.id, model=f"Test ({model})")
     old = hass.data[DOMAIN]["controllers"][0]
     result = await request(client, {"id": 1, "type": "pico_link/config"})
     assert result["success"]
     state = result["result"]
     assert state["document"] == entry_config(entry)
     assert state["catalog"][0]["id"] == device.id
-    assert state["catalog"][0]["type"] == "3BRL"
+    assert state["catalog"][0]["type"] == kind
     assert old is hass.data[DOMAIN]["controllers"][0]
 
 
+@pytest.mark.parametrize(
+    "model,kind",
+    [
+        ("Pico3ButtonRaiseLower", "3BRL"),
+        ("Pico2ButtonRaiseLower", "2BRL"),
+    ],
+)
 async def test_save_reloads_once_and_preserves_other_actions(
-    hass, panel, registry_pico
+    hass, panel, registry_pico, model, kind
 ):
     client, entry, device = panel
+    dr.async_get(hass).async_update_device(device.id, model=f"Test ({model})")
     state = panel_state(hass)
     document = deepcopy(state["document"])
     document["devices"][0]["on_tap"] = [
@@ -76,7 +92,7 @@ async def test_save_reloads_once_and_preserves_other_actions(
     assert old._unsub_event is None
     assert len(hass.data[DOMAIN]["controllers"]) == 1
     assert entry_config(entry)["devices"] == document["devices"]
-    registry_pico.tap("on", device=device.id)
+    registry_pico.tap("on", kind=kind, device=device.id)
     await registry_pico.drain()
     assert len(registry_pico.calls) == 1
     assert registry_pico.calls[0][2]["brightness_pct"] == 42

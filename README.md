@@ -481,7 +481,7 @@ whole inherited list for that gesture.
 - **`stop_tap`, `stop_double_tap`, and `stop_hold`:** a **3BRL** opts into each
   shared list separately with, for example, `stop_tap: default` on the device.
   Shared lists are used only by devices that opt in, including the older tap
-  setting described next. P2B, 2B, and 4B remotes do not inherit these settings.
+  setting described next. P2B, 2B, 2BRL, and 4B remotes do not inherit these settings.
 - **`middle_button`:** keeps its opt-in rule with `middle_button: default`.
   It is the older name for the Stop tap action. Either tap name can use a
   shared list named `stop_tap` or `middle_button`; `defaults.stop_tap` wins
@@ -521,10 +521,10 @@ runs once even if the button remains down.
 | --- | --- | --- | --- |
 | P2B / 2B | On | Turn on at `light_on_pct` | Brighten |
 | P2B / 2B | Off | Turn off | Dim |
-| 3BRL | On | Turn on at `light_on_pct` | No separate action |
-| 3BRL | Off | Turn off | No separate action |
-| 3BRL | Raise | One brightness step up | Keep brightening |
-| 3BRL | Lower | One brightness step down | Keep dimming |
+| 2BRL / 3BRL | On | Turn on at `light_on_pct` | No separate action |
+| 2BRL / 3BRL | Off | Turn off | No separate action |
+| 2BRL / 3BRL | Raise | One brightness step up | Keep brightening |
+| 2BRL / 3BRL | Lower | One brightness step down | Keep dimming |
 | 3BRL | Middle / Stop | `middle_button` actions, otherwise no action | No separate action |
 
 When the light is off, the first Raise tap or upward ramp step turns it on at
@@ -546,10 +546,10 @@ transitions; custom actions can supply their own service data.
 | --- | --- | --- | --- |
 | P2B / 2B | On | Open to `cover_open_pos` | Move in the On direction |
 | P2B / 2B | Off | Close fully | Move in the Off direction |
-| 3BRL | On | Open to `cover_open_pos` | No separate action |
-| 3BRL | Off | Close fully | No separate action |
-| 3BRL | Raise | Increase position by `cover_step_pct` | Open continuously |
-| 3BRL | Lower | Decrease position by `cover_step_pct` | Close continuously |
+| 2BRL / 3BRL | On | Open to `cover_open_pos` | No separate action |
+| 2BRL / 3BRL | Off | Close fully | No separate action |
+| 2BRL / 3BRL | Raise | Increase position by `cover_step_pct` | Open continuously |
+| 2BRL / 3BRL | Lower | Decrease position by `cover_step_pct` | Close continuously |
 | 3BRL | Middle / Stop | `middle_button` actions, otherwise stop | No separate action |
 
 Releasing a continuous hold sends a stop command. Built-in On/Off presses while
@@ -567,8 +567,8 @@ this Pico, Pico Link stops that movement before running the new actions.
 | --- | --- |
 | On | Set speed to `fan_on_pct` |
 | Off | Turn off |
-| Raise (3BRL) | Increase to the next available speed |
-| Lower (3BRL) | Decrease to the previous speed |
+| Raise (2BRL / 3BRL) | Increase to the next available speed |
+| Lower (2BRL / 3BRL) | Decrease to the previous speed |
 | Middle / Stop (3BRL) | `middle_button` actions, otherwise reverse direction |
 
 Built-in fan controls run once per press and do not ramp on hold. Custom hold
@@ -583,10 +583,10 @@ the entity to report a current direction of `forward` or `reverse`.
 | --- | --- | --- | --- |
 | P2B / 2B | On | Play/pause | Raise volume |
 | P2B / 2B | Off | Next track | Lower volume |
-| 3BRL | On | Play/pause | No separate action |
-| 3BRL | Off | Next track | No separate action |
-| 3BRL | Raise | Raise volume one step | Keep raising volume |
-| 3BRL | Lower | Lower volume one step | Keep lowering volume |
+| 2BRL / 3BRL | On | Play/pause | No separate action |
+| 2BRL / 3BRL | Off | Next track | No separate action |
+| 2BRL / 3BRL | Raise | Raise volume one step | Keep raising volume |
+| 2BRL / 3BRL | Lower | Lower volume one step | Keep lowering volume |
 | 3BRL | Middle / Stop | `middle_button` actions, otherwise mute/unmute | No separate action |
 
 `media_player_vol_step` is a percentage of the full volume range. Commands are
@@ -594,9 +594,10 @@ limited to 0–100%. Releasing a volume hold stops further ramp commands.
 
 ### Switches
 
-On turns the assigned switches on; Off turns them off. On a 3BRL Pico,
-Raise/Lower do nothing by default, and Middle/Stop runs `middle_button` actions
-if configured. There is no built-in hold action, but custom holds are supported.
+On turns the assigned switches on; Off turns them off. Raise/Lower on 2BRL
+and 3BRL remotes do nothing by default. On a 3BRL, Middle/Stop runs
+`middle_button` actions if configured. There is no built-in hold action,
+but custom holds are supported.
 
 ### Four-button scene Picos
 
@@ -1131,7 +1132,7 @@ or device ID per Pico.
 | `<button>_tap` / `<button>_hold` | Existing behavior | Action list; `[]` disables the gesture |
 | `<button>_double_tap` | Disabled | Action list; enables detection for that button. `[]` consumes double taps without an action |
 | `stop_tap`, `stop_double_tap`, `stop_hold` on a 3BRL | Existing behavior | Action list, `[]` to disable, or `default` to select the shared list for that gesture |
-| `stop_tap`, `stop_double_tap`, `stop_hold` under `defaults` | Not set | Shared lists; used only when a 3BRL explicitly selects `default` |
+| `stop_tap`, `stop_double_tap`, `stop_hold` under `defaults` | Do nothing | Shared lists; used only when a 3BRL explicitly selects `default`. An omitted or empty shared list runs no actions |
 | `middle_button` | Domain behavior | Older 3BRL tap setting, still supported; action list, or `default` to opt into the shared list |
 | `buttons` | None | 4B button-to-action mapping |
 | `mode` | `single` | `single`, `restart`, `queued`, or `parallel`; shared across custom sequences on one Pico |

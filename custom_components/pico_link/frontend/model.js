@@ -10,6 +10,7 @@ export const FIELDS = {
 export const BUTTONS = {
   P2B: ["on", "off"],
   "2B": ["on", "off"],
+  "2BRL": ["on", "raise", "lower", "off"],
   "3BRL": ["on", "raise", "stop", "lower", "off"],
   "4B": ["button_1", "button_2", "button_3", "off"],
 };
@@ -34,6 +35,7 @@ export const LABELS = {
 export const TYPES = {
   P2B: "Paddle Pico",
   "2B": "Two-button Pico",
+  "2BRL": "Four-button Raise/Lower Pico",
   "3BRL": "Five-button Pico",
   "4B": "Scene Pico",
 };

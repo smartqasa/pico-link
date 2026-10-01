@@ -71,7 +71,7 @@ async def test_double_only_retains_normal_single_action(pico, kind, button):
 
 
 @pytest.mark.parametrize("domain", ["light", "cover", "media_player"])
-@pytest.mark.parametrize("kind", ["P2B", "2B", "3BRL"])
+@pytest.mark.parametrize("kind", ["P2B", "2B", "2BRL", "3BRL"])
 @pytest.mark.parametrize("second_press", [False, True])
 async def test_native_hold_is_not_delayed_by_double_window(
     pico, domain, kind, second_press
@@ -81,7 +81,7 @@ async def test_native_hold_is_not_delayed_by_double_window(
     pico.hass.states.async_set(
         entity, "on", {"brightness": 128, "current_position": 50, "volume_level": 0.5}
     )
-    button = "raise" if kind == "3BRL" else "on"
+    button = "raise" if kind in {"2BRL", "3BRL"} else "on"
     assert await pico.setup(
         [
             {
@@ -459,7 +459,7 @@ async def test_cover_stop_orders_pending_tap_or_double_and_newer_command(
     assert scenes(pico) == ["scene.double" if recognized else "scene.single"]
 
 
-@pytest.mark.parametrize("kind", ["P2B", "2B", "3BRL"])
+@pytest.mark.parametrize("kind", ["P2B", "2B", "2BRL", "3BRL"])
 async def test_cover_on_still_stops_movement_without_double_tap_delay(pico, kind):
     pico.hass.states.async_set("cover.test", "opening", {"current_position": 50})
     assert await pico.setup(
@@ -597,7 +597,7 @@ async def test_waiting_single_tap_does_not_delay_another_remote(pico):
 
 
 @pytest.mark.parametrize(
-    "kind,button", [("P2B", "on"), ("2B", "on"), ("3BRL", "raise")]
+    "kind,button", [("P2B", "on"), ("2B", "on"), ("2BRL", "raise"), ("3BRL", "raise")]
 )
 async def test_double_override_retains_minimum_brightness_on_hold(pico, kind, button):
     pico.hass.states.async_set("light.test", "off")

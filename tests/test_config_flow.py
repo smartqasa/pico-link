@@ -44,10 +44,16 @@ def doc(device, **extra):
 
 
 @pytest.mark.parametrize(
-    "kind", ["Pico2Button", "PaddleSwitchPico", "Pico3ButtonRaiseLower"]
+    "kind,event_kind",
+    [
+        ("Pico2Button", "2B"),
+        ("PaddleSwitchPico", "P2B"),
+        ("Pico2ButtonRaiseLower", "2BRL"),
+        ("Pico3ButtonRaiseLower", "3BRL"),
+    ],
 )
 async def test_create_entry_controls_once_and_survives_reload(
-    hass, registry_pico, register_pico, kind
+    hass, registry_pico, register_pico, kind, event_kind
 ):
     device = remote(register_pico, kind)
     result = await begin(hass)
@@ -70,11 +76,7 @@ async def test_create_entry_controls_once_and_survives_reload(
         registry_pico.tap(
             "on",
             device=device.id,
-            kind="3BRL"
-            if kind.endswith("RaiseLower")
-            else "P2B"
-            if kind == "PaddleSwitchPico"
-            else "2B",
+            kind=event_kind,
         )
         await registry_pico.drain()
         assert registry_pico.calls[-1][:2] == ("light", "turn_on")

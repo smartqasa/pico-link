@@ -47,6 +47,7 @@ def select(options):
         "automatic": "Automatic",
         "P2B": "Paddle Pico (P2B)",
         "2B": "Two-button Pico (2B)",
+        "2BRL": "Four-button Raise/Lower Pico (2BRL)",
         "3BRL": "Five-button Pico (3BRL)",
         "4B": "Four-button scene Pico (4B)",
         "normal": "Normal / inherited behavior",
@@ -173,7 +174,7 @@ class Editor:
                     {"integration": "lutron_caseta"}
                 ),
                 vol.Required("type", default="automatic"): select(
-                    ["automatic", "P2B", "2B", "3BRL", "4B"]
+                    ["automatic", "P2B", "2B", "2BRL", "3BRL", "4B"]
                 ),
             },
             errors,
@@ -278,7 +279,7 @@ class Editor:
                 ): selector.DeviceSelector({"integration": "lutron_caseta"}),
                 vol.Required(
                     "type", default=self._remote.get("type", "automatic")
-                ): select(["automatic", "P2B", "2B", "3BRL", "4B"]),
+                ): select(["automatic", "P2B", "2B", "2BRL", "3BRL", "4B"]),
             },
             errors,
         )

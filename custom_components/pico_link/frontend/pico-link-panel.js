@@ -58,6 +58,8 @@ const paddlePicoButtons =
 const miniPicoButtons = {
   P2B: paddlePicoButtons,
   "2B": paddlePicoButtons,
+  "2BRL":
+    '<rect x="5" y="5" width="10" height="6" rx="1"/><path d="M5 13h9.1L5 20.2zm10 .8V21H5.9z"/><rect x="5" y="23" width="10" height="6" rx="1"/>',
   "3BRL":
     '<rect x="5" y="5" width="10" height="6" rx="1"/><path d="M5 13h9.1l-2.9 2.3a2.1 2.1 0 0 0-3 2.4L5 20.2zm10 .8V21H5.9l2.9-2.3a2.1 2.1 0 0 0 3-2.4z"/><circle cx="10" cy="17" r="1.1"/><rect x="5" y="23" width="10" height="6" rx="1"/>',
   "4B": '<rect x="5" y="5" width="10" height="4.5" rx="1"/><rect x="5" y="11.5" width="10" height="4.5" rx="1"/><rect x="5" y="18" width="10" height="4.5" rx="1"/><rect x="5" y="24.5" width="10" height="4.5" rx="1"/>',
@@ -391,9 +393,12 @@ class PicoLinkPanel extends HTMLElement {
     if (!buttons.includes(this._button)) this._button = buttons[0];
     const physicalButton = (button) =>
       `<button class="physical-button button-${button} ${button === this._button ? "active" : ""} ${button === "stop" ? "middle" : ""}" data-button="${button}" aria-label="Configure ${LABELS[button]}" aria-pressed="${button === this._button}"><span>${button === "raise" ? "△" : button === "lower" ? "▽" : button === "stop" ? "●" : LABELS[button]}</span></button>`;
-    const dimmer = type === "3BRL" && !this.shared;
+    const dimmer = ["2BRL", "3BRL"].includes(type) && !this.shared;
     const face = dimmer
-      ? `${physicalButton("on")}<div class="dimmer-pad">${["raise", "stop", "lower"].map(physicalButton).join("")}</div>${physicalButton("off")}`
+      ? `${physicalButton("on")}<div class="dimmer-pad">${buttons
+          .filter((button) => ["raise", "stop", "lower"].includes(button))
+          .map(physicalButton)
+          .join("")}</div>${physicalButton("off")}`
       : type === "P2B" && !this.shared
         ? `<div class="paddle-rocker">${buttons.map(physicalButton).join("")}</div>`
         : buttons.map(physicalButton).join("");

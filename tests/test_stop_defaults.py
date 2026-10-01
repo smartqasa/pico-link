@@ -11,7 +11,7 @@ from custom_components.pico_link.config import parse_pico_config
 STOP_KEYS = ("stop_tap", "stop_double_tap", "stop_hold")
 
 
-@pytest.mark.parametrize("kind", ["P2B", "2B", "3BRL", "4B"])
+@pytest.mark.parametrize("kind", ["P2B", "2B", "2BRL", "3BRL", "4B"])
 async def test_shared_stop_gestures_are_inactive_without_opt_in(hass, kind):
     raw = config(kind, off_tap=actions("off"))
     defaults = {key: actions(key) for key in STOP_KEYS}
@@ -19,7 +19,7 @@ async def test_shared_stop_gestures_are_inactive_without_opt_in(hass, kind):
     assert parsed.overrides == {"off_tap": actions("off")}
 
 
-@pytest.mark.parametrize("kind", ["P2B", "2B", "4B"])
+@pytest.mark.parametrize("kind", ["P2B", "2B", "2BRL", "4B"])
 @pytest.mark.parametrize("key", STOP_KEYS)
 async def test_stop_opt_in_on_unsupported_model_still_rejected(hass, kind, key):
     with pytest.raises(ValueError, match="not a supported button override"):

@@ -10,6 +10,7 @@ from custom_components.pico_link.config import parse_pico_config
 BUTTONS = {
     "P2B": ["on", "off"],
     "2B": ["on", "off"],
+    "2BRL": ["on", "off", "raise", "lower"],
     "3BRL": ["on", "off", "raise", "lower", "stop"],
     "4B": ["button_1", "button_2", "button_3", "off"],
 }
@@ -55,13 +56,17 @@ async def test_every_button_can_replace_tap_and_hold(pico, kind, button, hold):
 
 
 @pytest.mark.parametrize("domain", ["light", "cover", "media_player"])
-@pytest.mark.parametrize("kind", ["P2B", "2B", "3BRL"])
+@pytest.mark.parametrize("kind", ["P2B", "2B", "2BRL", "3BRL"])
 @pytest.mark.parametrize("up", [True, False])
 async def test_tap_override_preserves_native_hold(pico, domain, kind, up):
     entity = f"{domain}.test"
     attrs = {"brightness": 128, "current_position": 50, "volume_level": 0.5}
     pico.hass.states.async_set(entity, "on", attrs)
-    button = ("raise" if up else "lower") if kind == "3BRL" else ("on" if up else "off")
+    button = (
+        ("raise" if up else "lower")
+        if kind in {"2BRL", "3BRL"}
+        else ("on" if up else "off")
+    )
     field = "media_players" if domain == "media_player" else f"{domain}s"
     assert await pico.setup(
         [
@@ -420,7 +425,7 @@ async def test_cover_released_during_pending_stop_does_not_start_late_hold(pico)
     ]
 
 
-@pytest.mark.parametrize("kind", ["P2B", "2B", "3BRL"])
+@pytest.mark.parametrize("kind", ["P2B", "2B", "2BRL", "3BRL"])
 async def test_hold_override_keeps_cover_on_tap_stop_while_moving(pico, kind):
     pico.hass.states.async_set("cover.test", "opening", {"current_position": 50})
     assert await pico.setup(
@@ -458,7 +463,7 @@ async def test_native_hold_keeps_cover_inversion(pico):
 
 
 @pytest.mark.parametrize(
-    "kind,button", [("P2B", "on"), ("2B", "on"), ("3BRL", "raise")]
+    "kind,button", [("P2B", "on"), ("2B", "on"), ("2BRL", "raise"), ("3BRL", "raise")]
 )
 async def test_native_hold_retains_minimum_brightness_fix(pico, kind, button):
     pico.hass.states.async_set("light.test", "off")
