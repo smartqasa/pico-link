@@ -102,6 +102,110 @@ async def test_save_native_cycle_preserves_actions_and_options_on_press(
     assert panel_state(hass)["default_color_palette"]
 
 
+@pytest.mark.parametrize("scope", ["shared", "custom"])
+@pytest.mark.parametrize("count", [26, 32])
+async def test_legacy_palette_survives_reload_and_unrelated_save(
+    hass, panel, scope, count
+):
+    client, entry, _ = panel
+    original = entry_config(entry)
+    target = original["defaults"] if scope == "shared" else original["devices"][0]
+    target["color_palette"] = [{"rgb_color": [i, 0, 0]} for i in range(count)]
+    original["devices"][0]["stop_tap"] = "color_cycle"
+    # Simulate the document already saved by the previous beta.
+    hass.config_entries.async_update_entry(entry, options=original)
+    await hass.async_block_till_done()
+    assert len(hass.data[DOMAIN]["controllers"][0].conf.color_palette) == count
+    assert panel_state(hass)["max_palette_colors"] == 25
+
+    document = deepcopy(original)
+    document["devices"][0]["hold_time_ms"] = 500
+    for number, mutation, success in [
+        (1, "unrelated", True),
+        (2, "edit", False),
+        (3, "reduce", True),
+    ]:
+        target = document["defaults"] if scope == "shared" else document["devices"][0]
+        if mutation == "edit":
+            target["color_palette"][0] = {"color_temp_kelvin": 3000}
+        if mutation == "reduce":
+            target["color_palette"] = target["color_palette"][:25]
+        state = panel_state(hass)
+        old_controller = hass.data[DOMAIN]["controllers"][0]
+        result = await request(
+            client,
+            {
+                "id": number,
+                "type": "pico_link/save",
+                "revision": state["revision"],
+                "document": document,
+            },
+        )
+        assert result["success"] is success
+        await hass.async_block_till_done()
+        if success:
+            assert entry_config(entry)["devices"] == document["devices"]
+            assert entry_config(entry)["defaults"] == document["defaults"]
+        else:
+            assert "between 1 and 25" in result["error"]["message"]
+            assert hass.data[DOMAIN]["controllers"][0] is old_controller
+            assert entry_config(entry) == state["document"]
+    assert len(hass.data[DOMAIN]["controllers"][0].conf.color_palette) == 25
+
+
+@pytest.mark.parametrize("scope", ["shared", "custom"])
+async def test_new_oversized_palette_cannot_be_saved(hass, panel, scope):
+    client, entry, _ = panel
+    state = panel_state(hass)
+    document = deepcopy(state["document"])
+    target = document["defaults"] if scope == "shared" else document["devices"][0]
+    target["color_palette"] = [{"rgb_color": [255, 0, 0]}] * 26
+    result = await request(
+        client,
+        {
+            "id": 1,
+            "type": "pico_link/save",
+            "revision": state["revision"],
+            "document": document,
+        },
+    )
+    assert not result["success"]
+    assert "between 1 and 25" in result["error"]["message"]
+    assert entry_config(entry) == state["document"]
+
+
+async def test_legacy_yaml_palettes_import_without_losing_colors(
+    hass, registry_pico, register_pico, hass_ws_client
+):
+    device = register_pico(model="Test (Pico3ButtonRaiseLower)")
+    shared = [{"rgb_color": [i, 0, 0]} for i in range(32)]
+    custom = [{"rgb_color": [0, i, 0]} for i in range(26)]
+    await registry_pico.setup(
+        [{"name": device.name, "lights": "light.desk", "color_palette": custom}],
+        {"color_palette": shared},
+    )
+    client = await hass_ws_client(hass)
+    imported = await request(client, {"id": 1, "type": "pico_link/import"})
+    assert imported["success"]
+    document = imported["result"]["document"]
+    result = await request(
+        client,
+        {
+            "id": 2,
+            "type": "pico_link/save",
+            "revision": panel_state(hass)["revision"],
+            "document": document,
+        },
+    )
+    assert result["success"]
+    await hass.async_block_till_done()
+    entry = hass.config_entries.async_entries(DOMAIN)[0]
+    saved = entry_config(entry)
+    assert saved["defaults"]["color_palette"] == shared
+    assert saved["devices"][0]["color_palette"] == custom
+    assert hass.data[DOMAIN]["controllers"][0].conf.color_palette == custom
+
+
 @pytest.mark.parametrize(
     "model,kind",
     [

@@ -13,6 +13,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady, HomeAssistantError
 from homeassistant.helpers.typing import ConfigType
 
+from .color_cycle import LEGACY_MAX_PALETTE_COLORS
 from .config import PicoConfig, parse_pico_config
 from .const import DOMAIN
 from .controller import PicoController
@@ -120,6 +121,9 @@ async def async_setup(
                 hass,
                 defaults,
                 device_raw,
+                # YAML has no saved revision to distinguish an older palette.
+                # Keep the former read limit; editor writes use the new limit.
+                palette_limit=LEGACY_MAX_PALETTE_COLORS,
             )
         except ValueError as err:
             device_identifier = (
@@ -222,7 +226,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         raise HomeAssistantError("Only one Pico Link configuration is supported")
     controllers = []
     try:
-        configs = await validate_document(hass, entry_config(entry))
+        document = entry_config(entry)
+        configs = await validate_document(hass, document, existing=document)
         # Validation precedes retiring YAML. Never subscribe new controllers
         # until the previous ones have finished stopping.
         for conf in configs:

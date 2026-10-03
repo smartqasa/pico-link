@@ -543,17 +543,30 @@ class PicoLinkPanel extends HTMLElement {
   }
   _palette(host, target, shared) {
     const starter = this._state.default_color_palette;
+    const limit = this._state.max_palette_colors ?? 25;
     const palette = colorPalette(target, this._draft.defaults, starter);
     const custom = Array.isArray(target.color_palette);
     const editable = shared || custom;
     const rgbHex = (rgb) =>
       `#${rgb.map((v) => v.toString(16).padStart(2, "0")).join("")}`;
-    host.innerHTML = `<section class="section palette"><h3>${shared ? "Shared color palette" : "Color palette"}</h3><p class="hint">Colors run in this order. Existing button actions are unchanged until you choose Cycle light colors. After an edit, cycling continues after the last chosen color if it is still present; otherwise it starts at the first color.</p>${shared ? "" : `<label class="field">Palette<select class="palette-source"><option value="default" ${!custom ? "selected" : ""}>Use shared palette</option><option value="custom" ${custom ? "selected" : ""}>Use custom palette</option></select><small>${custom ? "This copy can be edited independently." : "Follows changes in Shared defaults. Choose custom to copy these colors."}</small></label>`}<div class="palette-colors">${palette.map((color, index) => `<div class="palette-row" data-color="${index}"><span class="palette-number">${index + 1}</span><label class="field"><span class="sr-only">Color ${index + 1} type</span><select class="color-type" aria-label="Color ${index + 1} type" ${!editable ? "disabled" : ""}><option value="rgb" ${color.rgb_color ? "selected" : ""}>Color</option><option value="white" ${color.color_temp_kelvin ? "selected" : ""}>White temperature</option></select></label>${color.rgb_color ? `<input class="color-value" aria-label="Color ${index + 1}" type="color" value="${rgbHex(color.rgb_color)}" ${!editable ? "disabled" : ""}>` : `<label class="field"><span class="sr-only">Temperature ${index + 1}</span><input class="color-value" aria-label="Temperature ${index + 1} in Kelvin" type="number" min="1000" max="10000" step="1" value="${color.color_temp_kelvin}" ${!editable ? "disabled" : ""}><small>Kelvin</small></label>`}${editable ? `<div class="palette-tools"><button data-move="-1" aria-label="Move color ${index + 1} up" ${index === 0 ? "disabled" : ""}>↑</button><button data-move="1" aria-label="Move color ${index + 1} down" ${index === palette.length - 1 ? "disabled" : ""}>↓</button><button class="danger" data-delete aria-label="Remove color ${index + 1}" ${palette.length === 1 ? "disabled" : ""}>×</button></div>` : ""}</div>`).join("")}</div>${editable ? `<button class="add-color" ${palette.length >= 32 ? "disabled" : ""}>＋ Add color</button>` : ""}<p class="hint">Real lights must support the chosen colors or white temperatures. Up to 32 entries.</p></section>`;
+    host.innerHTML = `<section class="section palette"><h3>${shared ? "Shared color palette" : "Color palette"}</h3><p class="hint">Colors run in this order. Existing button actions are unchanged until you choose Cycle light colors. After an edit, cycling continues after the last chosen color if it is still present; otherwise it starts at the first color.</p>${shared ? "" : `<label class="field">Palette<select class="palette-source"><option value="default" ${!custom ? "selected" : ""}>Use shared palette</option><option value="custom" ${custom ? "selected" : ""}>Use custom palette</option></select><small>${custom ? "This copy can be edited independently." : "Follows changes in Shared defaults. Choose custom to copy these colors."}</small></label>`}<div class="palette-colors">${palette.map((color, index) => `<div class="palette-row" data-color="${index}"><span class="palette-number">${index + 1}</span><label class="field"><span class="sr-only">Color ${index + 1} type</span><select class="color-type" aria-label="Color ${index + 1} type" ${!editable ? "disabled" : ""}><option value="rgb" ${color.rgb_color ? "selected" : ""}>Color</option><option value="white" ${color.color_temp_kelvin ? "selected" : ""}>White temperature</option></select></label>${color.rgb_color ? `<input class="color-value" aria-label="Color ${index + 1}" type="color" value="${rgbHex(color.rgb_color)}" ${!editable ? "disabled" : ""}>` : `<label class="field"><span class="sr-only">Temperature ${index + 1}</span><input class="color-value" aria-label="Temperature ${index + 1} in Kelvin" type="number" min="1000" max="10000" step="1" value="${color.color_temp_kelvin}" ${!editable ? "disabled" : ""}><small>Kelvin</small></label>`}${editable ? `<div class="palette-tools"><button data-move="-1" aria-label="Move color ${index + 1} up" ${index === 0 ? "disabled" : ""}>↑</button><button data-move="1" aria-label="Move color ${index + 1} down" ${index === palette.length - 1 ? "disabled" : ""}>↓</button><button class="danger" data-delete aria-label="Remove color ${index + 1}" ${palette.length === 1 ? "disabled" : ""}>×</button></div>` : ""}</div>`).join("")}</div>${editable ? `<button class="add-color" ${palette.length >= limit ? "disabled" : ""}>＋ Add color</button>` : ""}<p class="hint">Real lights must support the chosen colors or white temperatures. Up to ${limit} entries.${palette.length > limit ? ` This older palette has ${palette.length} entries. Leave it unchanged to keep it, or reduce it to ${limit} or fewer before saving edits.` : ""}</p></section>`;
     const changed = (next) => {
       target.color_palette = next;
       this._changed();
       this._palette(host, target, shared);
     };
+    if (editable) {
+      const heading = host.querySelector("h3");
+      const header = document.createElement("div");
+      header.className = "section-heading palette-heading";
+      heading.replaceWith(header);
+      const restore = document.createElement("button");
+      restore.textContent = "Restore default colors";
+      restore.title =
+        "Restore the built-in colors and order in this palette. Applies when you save.";
+      restore.addEventListener("click", () => changed(clone(starter)));
+      header.append(heading, restore);
+    }
     host
       .querySelector(".palette-source")
       ?.addEventListener("change", (event) => {

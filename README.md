@@ -313,7 +313,7 @@ keep their current behavior until you explicitly select it.
 1. Open **Shared defaults → Color palette**. The starter order is warm white
    (2800 K), cool white (4000 K), red, magenta, blue, cyan, and green.
 2. Change colors with the color picker, or choose **White temperature** and enter
-   Kelvin. Add, remove, or move entries up/down to set the order (1–32 entries).
+   Kelvin. Add, remove, or move entries up/down to set the order (1–25 entries).
 3. Under **Shared defaults → Button actions**, choose **Tap**, **Hold**, or
    **Double tap**, then **Cycle light colors**. On each participating Pico,
    choose **Stop → that gesture → Use shared Stop action**.
@@ -324,6 +324,20 @@ keep their current behavior until you explicitly select it.
    any cycling gestures on that Pico.
 5. **Save changes**, then test with the physical Pico. Selecting colors in the
    editor does not operate lights.
+
+**Restore default colors** restores the built-in palette and order in the editor
+you are using: the shared palette under Shared defaults, or just the selected
+Pico's custom palette. When a Pico uses the shared palette, select **Use custom
+palette** to make an independent copy before restoring it locally. Restoring
+colors stays in the draft until **Save changes**; **Discard changes** restores
+the saved settings. Button assignments and other settings are unaffected, and
+the normal palette-edit rules below still determine the next color.
+
+Older saved palettes with 26–32 entries keep working without losing colors.
+You can save unrelated settings while leaving those palettes unchanged. To save
+an edited or newly copied palette, reduce it to 25 entries or fewer, or use
+**Restore default colors**. Existing YAML palettes remain readable up to the
+former 32-entry limit for compatibility; the editor uses the new 25-entry limit.
 
 Each recognized gesture sends the next color to **all lights assigned to that
 Pico**, in one call. The first gesture selects the first color; after the last,
@@ -1213,7 +1227,7 @@ or device ID per Pico.
 | `<button>_double_tap` | Disabled | Action list; enables detection for that button. `[]` consumes double taps without an action |
 | `stop_tap`, `stop_double_tap`, `stop_hold` on a 3BRL | Existing behavior | Action list, `[]` to disable, `default` for the shared action, or `color_cycle` with assigned lights |
 | `stop_tap`, `stop_double_tap`, `stop_hold` under `defaults` | Do nothing | Shared lists or `color_cycle`; used only when a 3BRL explicitly selects `default`. An omitted or empty shared list runs no actions |
-| `color_palette` | Shared palette, or the seven starter colors | Ordered list of 1–32 entries: `rgb_color: [r, g, b]` (0–255) or `color_temp_kelvin` (1000–10000). A device list overrides the shared palette |
+| `color_palette` | Shared palette, or the seven starter colors | Ordered list of 1–25 entries: `rgb_color: [r, g, b]` (0–255) or `color_temp_kelvin` (1000–10000). A device list overrides the shared palette. Older 26–32-entry palettes remain readable as described above |
 | `middle_button` | Domain behavior | Older 3BRL tap setting, still supported; action list, or `default` to opt into the shared list |
 | `buttons` | None | 4B button-to-action mapping |
 | `mode` | `single` | `single`, `restart`, `queued`, or `parallel`; shared across custom sequences on one Pico |

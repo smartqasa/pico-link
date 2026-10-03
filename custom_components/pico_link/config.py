@@ -11,7 +11,12 @@ import voluptuous as vol
 from homeassistant.core import HomeAssistant, valid_entity_id
 from homeassistant.helpers import device_registry as dr
 
-from .color_cycle import CYCLE_ACTION, DEFAULT_PALETTE, normalize_palette
+from .color_cycle import (
+    CYCLE_ACTION,
+    DEFAULT_PALETTE,
+    MAX_PALETTE_COLORS,
+    normalize_palette,
+)
 from .const import PICO_TYPE_MAP, VALID_PICO_TYPES
 from .placeholder import placeholder_entity_id
 from .script_runner import has_template, script_schema
@@ -640,6 +645,8 @@ def parse_pico_config(
     hass: HomeAssistant,
     defaults: dict[str, Any],
     device_raw: dict[str, Any],
+    *,
+    palette_limit: int = MAX_PALETTE_COLORS,
 ) -> PicoConfig:
     """Normalize and validate one Pico Link device configuration."""
     # An explicit type keeps its existing authority and validation. Only an
@@ -858,10 +865,14 @@ def parse_pico_config(
 
     raw_middle_button = device_raw.get("middle_button")
     cycle_gestures: set[str] = set()
-    shared_palette = normalize_palette(defaults.get("color_palette", DEFAULT_PALETTE))
+    shared_palette = normalize_palette(
+        defaults.get("color_palette", DEFAULT_PALETTE), max_colors=palette_limit
+    )
     raw_palette = device_raw.get("color_palette", "default")
     palette = (
-        shared_palette if raw_palette == "default" else normalize_palette(raw_palette)
+        shared_palette
+        if raw_palette == "default"
+        else normalize_palette(raw_palette, max_colors=palette_limit)
     )
     # Resolve the legacy alias to the same opt-in as stop_tap. Explicit stop_tap
     # still wins, including when it disables or replaces legacy cycling.

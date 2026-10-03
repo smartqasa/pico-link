@@ -150,16 +150,47 @@ async def test_cycle_aliases_and_shared_selection(hass, key, shared):
         [{"color_temp_kelvin": 10001}],
         [{"color_temp_kelvin": 2800.5}],
         [{**RED, "brightness": 30}],
+        [RED] * 26,
         [RED] * 33,
     ],
 )
-async def test_invalid_palettes_rejected_in_yaml_and_empty_ui_document(hass, value):
+async def test_invalid_new_palettes_rejected_in_parser_and_empty_ui_document(
+    hass, value
+):
     with pytest.raises(ValueError, match="color_palette"):
         parse_pico_config(hass, {"color_palette": value}, config())
     with pytest.raises(ValueError, match="color_palette"):
         await validate_document(
             hass, {"defaults": {"color_palette": value}, "devices": []}
         )
+
+
+@pytest.mark.parametrize("scope", ["shared", "custom"])
+async def test_new_palette_limit_is_25(hass, scope):
+    for count in (25, 26):
+        root = {"defaults": {}, "devices": [config()]}
+        target = root["defaults"] if scope == "shared" else root["devices"][0]
+        target["color_palette"] = [RED] * count
+        if count == 25:
+            configs = await validate_document(hass, root)
+            assert len(configs[0].color_palette) == count
+        else:
+            with pytest.raises(ValueError, match="between 1 and 25"):
+                await validate_document(hass, root)
+
+
+@pytest.mark.parametrize("scope", ["shared", "custom"])
+async def test_legacy_yaml_palette_loads_all_colors_without_truncation(pico, scope):
+    palette = [{"rgb_color": [i, 0, 0]} for i in range(32)]
+    defaults, device = {}, config()
+    target = defaults if scope == "shared" else device
+    target["color_palette"] = palette
+    assert await pico.setup([device], defaults)
+    assert pico.hass.data["pico_link"]["controllers"][0].conf.color_palette == palette
+    for color in [*palette, palette[0]]:
+        pico.tap("stop")
+        assert (await pico.next_call())[2]["rgb_color"] == color["rgb_color"]
+        await pico.drain()
 
 
 @pytest.mark.parametrize("kind", ["2B", "P2B", "2BRL", "4B"])

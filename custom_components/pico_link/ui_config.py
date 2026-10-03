@@ -9,14 +9,19 @@ from typing import Any
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.script import async_validate_actions_config
 
-from .color_cycle import CYCLE_ACTION, normalize_palette
+from .color_cycle import (
+    CYCLE_ACTION,
+    LEGACY_MAX_PALETTE_COLORS,
+    MAX_PALETTE_COLORS,
+    normalize_palette,
+)
 from .config import (
     PicoConfig,
     _detect_pico_type,
     _expand_action_placeholders,
     parse_pico_config,
 )
-from .const import DOMAIN_ENTITY_FIELDS, VALID_PICO_TYPES
+from .const import DOMAIN, DOMAIN_ENTITY_FIELDS, VALID_PICO_TYPES
 from .placeholder import placeholder_entity_id
 from .script_runner import script_schema
 
@@ -90,7 +95,20 @@ async def validate_actions(hass, actions, placeholders=None) -> None:
     await async_validate_actions_config(hass, script_schema(expanded))
 
 
-async def validate_document(hass, root) -> list[PicoConfig]:
+def _validate_palette_update(raw, previous) -> None:
+    """Keep an unchanged older palette; new or edited palettes use today's cap."""
+    if "color_palette" not in raw or raw["color_palette"] == "default":
+        return
+    palette = raw["color_palette"]
+    limit = (
+        LEGACY_MAX_PALETTE_COLORS
+        if palette == previous.get("color_palette")
+        else MAX_PALETTE_COLORS
+    )
+    normalize_palette(palette, max_colors=limit)
+
+
+async def validate_document(hass, root, *, existing=None) -> list[PicoConfig]:
     """Validate every remote before allowing a UI save or import."""
     # Reject YAML-only objects before handing a document to HA's JSON storage.
     json.dumps(root, allow_nan=False)
@@ -101,6 +119,20 @@ async def validate_document(hass, root) -> list[PicoConfig]:
         defaults = {}
     if not isinstance(defaults, dict):
         raise ValueError("Shared defaults must be a mapping.")
+    if existing is None:
+        entries = hass.config_entries.async_entries(DOMAIN)
+        existing = (
+            entry_config(entries[0])
+            if entries
+            else hass.data.get(DOMAIN, {}).get("yaml_config") or {}
+        )
+    existing = existing if isinstance(existing, dict) else {}
+    previous_defaults = existing.get("defaults") or {}
+    if not isinstance(previous_defaults, dict):
+        previous_defaults = {}
+    previous_devices = existing.get("devices") or []
+    if not isinstance(previous_devices, list):
+        previous_devices = []
     if defaults.get("mode", "single") not in MODES:
         raise ValueError("Choose a supported run mode in shared defaults.")
     limit = defaults.get("max", 10)
@@ -115,13 +147,39 @@ async def validate_document(hass, root) -> list[PicoConfig]:
         if key in defaults and defaults[key] != CYCLE_ACTION:
             await validate_actions(hass, defaults[key])
     if "color_palette" in defaults:
-        normalize_palette(defaults["color_palette"])
+        _validate_palette_update(defaults, previous_defaults)
+        # Shared defaults must contain a list, never the per-Pico alias.
+        normalize_palette(
+            defaults["color_palette"], max_colors=LEGACY_MAX_PALETTE_COLORS
+        )
     configs = []
     seen = set()
     for raw in root["devices"]:
         if not isinstance(raw, dict):
             raise ValueError("Each Pico must be a mapping.")
-        conf = parse_pico_config(hass, defaults, raw)
+        previous = next(
+            (
+                device
+                for device in previous_devices
+                if isinstance(device, dict)
+                and (
+                    (
+                        raw.get("device_id")
+                        and raw.get("device_id") == device.get("device_id")
+                    )
+                    or (
+                        not device.get("device_id")
+                        and raw.get("name")
+                        and raw.get("name") == device.get("name")
+                    )
+                )
+            ),
+            {},
+        )
+        _validate_palette_update(raw, previous)
+        conf = parse_pico_config(
+            hass, defaults, raw, palette_limit=LEGACY_MAX_PALETTE_COLORS
+        )
         if conf.device_id in seen:
             raise ValueError("The same Pico cannot be added more than once.")
         seen.add(conf.device_id)
@@ -138,7 +196,7 @@ async def validate_document(hass, root) -> list[PicoConfig]:
 async def import_document(hass, root) -> dict[str, Any]:
     """Copy YAML only after validating all remotes; pin names to registry IDs."""
     copied = deepcopy(root)
-    configs = await validate_document(hass, copied)
+    configs = await validate_document(hass, copied, existing=root)
     for raw, conf in zip(copied["devices"], configs, strict=True):
         raw["device_id"] = conf.device_id
         if "type" in raw:
