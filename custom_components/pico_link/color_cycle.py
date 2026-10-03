@@ -76,13 +76,15 @@ def palette_choices(raw: dict) -> dict[str, Any]:
 
 
 def resolve_palettes(defaults: dict, raw: dict) -> dict[str, list[dict[str, Any]]]:
-    """A Pico gesture inherits only the matching shared gesture's palette."""
+    """The gesture's behavior is the only choice of shared versus local colors."""
     shared = palette_choices(defaults)
     local = palette_choices(raw)
     return {
         key: deepcopy(
             local[key]
             if local[key] != "default"
+            and raw.get(key, raw.get("middle_button") if key == "stop_tap" else None)
+            != "default"
             else shared[key]
             if shared[key] != "default"
             else DEFAULT_PALETTE
@@ -92,7 +94,7 @@ def resolve_palettes(defaults: dict, raw: dict) -> dict[str, list[dict[str, Any]
 
 
 def migrate_palette_document(root: Any) -> Any:
-    """Copy old common lists to independent choices; never edit saved data in place."""
+    """Retain old colors and freeze local cycles without editing saved data in place."""
     copied = deepcopy(root)
     if not isinstance(copied, dict):
         return copied
@@ -112,6 +114,29 @@ def migrate_palette_document(root: Any) -> Any:
         for key in PALETTE_GESTURES:
             choices.setdefault(key, deepcopy(common))
         del raw["color_palette"]
+    defaults = copied.get("defaults") or {}
+    if isinstance(devices, list) and isinstance(defaults, dict):
+        shared = defaults.get("color_palettes", {})
+        if not isinstance(shared, dict):
+            return copied  # Normal validation reports malformed settings.
+        for raw in devices:
+            if not isinstance(raw, dict):
+                continue
+            for key in PALETTE_GESTURES:
+                value = raw.get(
+                    key, raw.get("middle_button") if key == "stop_tap" else None
+                )
+                if value != CYCLE_ACTION:
+                    continue
+                choices = raw.setdefault("color_palettes", {})
+                if (
+                    isinstance(choices, dict)
+                    and choices.get(key, "default") == "default"
+                ):
+                    colors = shared.get(key, "default")
+                    choices[key] = deepcopy(
+                        DEFAULT_PALETTE if colors == "default" else colors
+                    )
     return copied
 
 

@@ -19,7 +19,7 @@ const {
   listRows,
   colorPalette,
   setPalette,
-  selectPalette,
+  prepareCyclePalette,
   movePaletteColor,
 } = await import(asset("./model.js"));
 const {
@@ -476,6 +476,13 @@ class PicoLinkPanel extends HTMLElement {
       "change",
       (e) => {
         const newValue = e.target.value;
+        if (newValue === "color_cycle")
+          prepareCyclePalette(
+            target,
+            this._draft.defaults,
+            this._state.default_color_palette,
+            key,
+          );
         setGesture(
           target,
           key,
@@ -544,14 +551,7 @@ class PicoLinkPanel extends HTMLElement {
       if (selected === "shared") {
         const actions = gestureValue(this._draft.defaults, key);
         if (actions === "color_cycle") {
-          host.innerHTML =
-            '<div class="behavior-note">The shared Stop action cycles the lights assigned to this Pico. Tap, Hold, and Double tap each keep their own palette choice and position.</div><div class="cycle-palette"></div>';
-          this._palette(
-            host.querySelector(".cycle-palette"),
-            target,
-            false,
-            key,
-          );
+          host.innerHTML = `<div class="behavior-note">Uses the shared ${LABELS[this._gesture].toLowerCase()} color cycle and palette. Edit its colors in Shared defaults. Choose Cycle light colors here to use an editable local palette. Any previous local colors are kept for that choice.</div>`;
           return;
         }
         text = actions?.length
@@ -571,15 +571,10 @@ class PicoLinkPanel extends HTMLElement {
     const starter = this._state.default_color_palette;
     const limit = this._state.max_palette_colors ?? 25;
     const palette = colorPalette(target, this._draft.defaults, starter, key);
-    const custom = Array.isArray(target.color_palettes?.[key]);
-    const editable = custom;
     const gestureName = LABELS[key.slice(5)];
-    const inheritedLabel = shared
-      ? "Use built-in colors"
-      : `Use shared ${gestureName.toLowerCase()} palette`;
     const rgbHex = (rgb) =>
       `#${rgb.map((v) => v.toString(16).padStart(2, "0")).join("")}`;
-    host.innerHTML = `<section class="section palette"><h3>${shared ? "Shared " : ""}${gestureName} color palette</h3><p class="hint">Colors run in this order for ${gestureName.toLowerCase()} only. Other gestures keep their own palettes. Existing button actions are unchanged until you choose Cycle light colors. After an edit, cycling continues after the last chosen color if it is still present; otherwise it starts at the first color.</p><label class="field">Palette<select class="palette-source"><option value="default" ${!custom ? "selected" : ""}>${inheritedLabel}</option><option value="custom" ${custom ? "selected" : ""}>Use custom palette</option></select><small>${custom ? "Only this gesture uses this custom palette." : shared ? "Uses built-in colors. Choose custom to edit this gesture." : `Follows the shared ${gestureName.toLowerCase()} palette. Choose custom to make an independent copy.`}</small></label><div class="palette-colors">${palette.map((color, index) => `<div class="palette-row" data-color="${index}"><span class="palette-number">${index + 1}</span><label class="field"><span class="sr-only">Color ${index + 1} type</span><select class="color-type" aria-label="Color ${index + 1} type" ${!editable ? "disabled" : ""}><option value="rgb" ${color.rgb_color ? "selected" : ""}>Color</option><option value="white" ${color.color_temp_kelvin ? "selected" : ""}>White temperature</option></select></label>${color.rgb_color ? `<input class="color-value" aria-label="Color ${index + 1}" type="color" value="${rgbHex(color.rgb_color)}" ${!editable ? "disabled" : ""}>` : `<label class="field"><span class="sr-only">Temperature ${index + 1}</span><input class="color-value" aria-label="Temperature ${index + 1} in Kelvin" type="number" min="1000" max="10000" step="1" value="${color.color_temp_kelvin}" ${!editable ? "disabled" : ""}><small>Kelvin</small></label>`}${editable ? `<div class="palette-tools"><button data-move="-1" aria-label="Move color ${index + 1} up" ${index === 0 ? "disabled" : ""}>↑</button><button data-move="1" aria-label="Move color ${index + 1} down" ${index === palette.length - 1 ? "disabled" : ""}>↓</button><button class="danger" data-delete aria-label="Remove color ${index + 1}" ${palette.length === 1 ? "disabled" : ""}>×</button></div>` : ""}</div>`).join("")}</div>${editable ? `<button class="add-color" ${palette.length >= limit ? "disabled" : ""}>＋ Add color</button>` : ""}<p class="hint">Real lights must support the chosen colors or white temperatures. Up to ${limit} entries.</p></section>`;
+    host.innerHTML = `<section class="section palette"><h3>${shared ? "Shared " : ""}${gestureName} color palette</h3><p class="hint">Colors run in this order for ${gestureName.toLowerCase()} only. Other gestures keep their own palettes. Existing button actions are unchanged until you choose Cycle light colors. After an edit, cycling continues after the last chosen color if it is still present; otherwise it starts at the first color.</p><div class="palette-colors">${palette.map((color, index) => `<div class="palette-row" data-color="${index}"><span class="palette-number">${index + 1}</span><label class="field"><span class="sr-only">Color ${index + 1} type</span><select class="color-type" aria-label="Color ${index + 1} type"><option value="rgb" ${color.rgb_color ? "selected" : ""}>Color</option><option value="white" ${color.color_temp_kelvin ? "selected" : ""}>White temperature</option></select></label>${color.rgb_color ? `<input class="color-value" aria-label="Color ${index + 1}" type="color" value="${rgbHex(color.rgb_color)}">` : `<label class="field"><span class="sr-only">Temperature ${index + 1}</span><input class="color-value" aria-label="Temperature ${index + 1} in Kelvin" type="number" min="1000" max="10000" step="1" value="${color.color_temp_kelvin}"><small>Kelvin</small></label>`}<div class="palette-tools"><button data-move="-1" aria-label="Move color ${index + 1} up" ${index === 0 ? "disabled" : ""}>↑</button><button data-move="1" aria-label="Move color ${index + 1} down" ${index === palette.length - 1 ? "disabled" : ""}>↓</button><button class="danger" data-delete aria-label="Remove color ${index + 1}" ${palette.length === 1 ? "disabled" : ""}>×</button></div></div>`).join("")}</div><button class="add-color" ${palette.length >= limit ? "disabled" : ""}>＋ Add color</button><p class="hint">Real lights must support the chosen colors or white temperatures. Up to ${limit} entries.</p></section>`;
     const changed = (next) => {
       setPalette(target, key, next);
       this._changed();
@@ -597,19 +592,6 @@ class PicoLinkPanel extends HTMLElement {
       restore.addEventListener("click", () => changed(clone(starter)));
       header.append(heading, restore);
     }
-    host
-      .querySelector(".palette-source")
-      ?.addEventListener("change", (event) => {
-        selectPalette(
-          target,
-          event.target.value === "custom",
-          this._draft.defaults,
-          starter,
-          key,
-        );
-        this._changed();
-        this._palette(host, target, shared, key);
-      });
     host
       .querySelector(".add-color")
       ?.addEventListener("click", () =>

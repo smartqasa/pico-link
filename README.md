@@ -316,28 +316,34 @@ keep their current behavior until you explicitly select it.
 1. Open **Shared defaults → Color palette** and choose **Tap**, **Hold**, or
    **Double tap**. Each gesture starts with its own built-in palette: warm white
    (2800 K), cool white (4000 K), red, magenta, purple, blue, cyan, green, and amber.
-2. Choose **Use custom palette** to change that gesture's colors with the color
-   picker, or choose **White temperature** and enter
+2. Change that gesture's colors with the color picker, or choose **White temperature** and enter
    Kelvin. Add, remove, or move entries up/down to set the order (1–25 entries).
 3. Under **Shared defaults → Button actions**, choose **Tap**, **Hold**, or
    **Double tap**, then **Cycle light colors**. On each participating Pico,
    choose **Stop → that gesture → Use shared Stop action**.
    Alternatively, select **Cycle light colors** directly on one Pico.
-4. Each Pico gesture inherits the **matching shared gesture's palette** by
-   default: Tap follows shared Tap, Hold follows shared Hold, and Double tap
-   follows shared Double tap. Choosing **Use custom palette** copies just that
-   gesture's shared colors. You can then edit it independently of the shared
-   palette and the other two gestures.
+4. **Behavior** is the only inheritance choice. **Use shared Stop action**
+   inherits both the matching shared gesture's action and its palette: Tap
+   follows shared Tap, Hold follows shared Hold, and Double tap follows shared
+   Double tap. Edit these inherited settings under **Shared defaults**; the
+   individual Pico does not show a palette editor for them.
+   **Cycle light colors** opens an editable local palette immediately. The first
+   time it needs local colors, Pico Link copies the matching shared palette.
+   Subsequent shared edits do not change that copy. There is no separate palette
+   source selector.
 5. **Save changes**, then test with the physical Pico. Selecting colors in the
    editor does not operate lights.
 
 **Restore default colors** restores the built-in palette and order in the editor
-you are using, for **only the selected gesture**. On a Pico that inherits its
-palette, restoring creates a custom palette for that gesture. Other gestures,
+you are editing, for **only the selected gesture**. Other gestures,
 other Picos, and shared settings remain unchanged. Restoring colors stays in
 the draft until **Save changes**; **Discard changes** restores
 the saved settings. Button assignments and other settings are unaffected, and
-the normal palette-edit rules below still determine the next color.
+the normal palette-edit rules below still determine the next color. Switching
+a Pico to **Use shared Stop action** keeps any local palette saved but inactive.
+Switching back to **Cycle light colors** restores those local colors, including
+after saving and reopening the editor. This also applies to palettes saved in
+earlier betas: a local palette is inactive while the gesture uses a shared action.
 
 Each recognized gesture sends the next color to **all lights assigned to that
 Pico**, in one call. The first gesture selects the first color; after the last,

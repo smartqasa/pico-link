@@ -84,12 +84,10 @@ export function setPalette(raw, key, palette) {
   if (palette === undefined) delete raw.color_palettes[key];
   else raw.color_palettes[key] = clone(palette);
 }
-export function selectPalette(raw, custom, defaults, starter, key) {
-  setPalette(
-    raw,
-    key,
-    custom ? colorPalette(raw, defaults, starter, key) : undefined,
-  );
+export function prepareCyclePalette(raw, defaults, starter, key) {
+  // Retain a previous local choice when returning from shared/normal behavior.
+  if (!Array.isArray(raw.color_palettes?.[key]))
+    setPalette(raw, key, colorPalette(raw, defaults, starter, key));
 }
 export function movePaletteColor(palette, index, direction) {
   const next = clone(palette);

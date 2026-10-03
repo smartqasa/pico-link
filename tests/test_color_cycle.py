@@ -527,3 +527,39 @@ async def test_previous_common_position_resumes_independently(pico, hass_storage
         await store.async_cycle("pico", key, ["light.a"], PALETTE)
         assert (await pico.next_call())[2] == {**WHITE, "entity_id": ["light.a"]}
     assert all(position["index"] == 1 for position in store.positions["pico"].values())
+
+
+@pytest.mark.parametrize("key", [*PALETTE_GESTURES, "middle_button"])
+async def test_shared_behavior_ignores_but_preserves_dormant_local_palette(hass, key):
+    gesture = "stop_tap" if key == "middle_button" else key
+    shared = {gesture: "color_cycle", "color_palettes": {gesture: [RED, WHITE]}}
+    raw = config(color_palettes={gesture: [BLUE]})
+    del raw["stop_tap"]
+    raw[key] = "default"
+    original = deepcopy(raw)
+    conf = parse_pico_config(hass, shared, raw, from_ui=True)
+    assert conf.color_cycle_gestures == {gesture}
+    assert conf.color_palettes[gesture] == [RED, WHITE]
+    assert raw == original
+    raw[key] = "color_cycle"
+    assert parse_pico_config(hass, shared, raw, from_ui=True).color_palettes[
+        gesture
+    ] == [BLUE]
+
+
+async def test_existing_local_cycle_copies_shared_palette_once(hass):
+    raw = config(stop_hold="default", color_palettes={"stop_double_tap": [BLUE]})
+    root = {
+        "defaults": {"color_palettes": {"stop_tap": [RED], "stop_hold": [WHITE]}},
+        "devices": [raw],
+    }
+    canonical = migrate_palette_document(root)
+    assert "stop_tap" not in raw["color_palettes"]
+    assert canonical["devices"][0]["color_palettes"] == {
+        "stop_tap": [RED],
+        "stop_double_tap": [BLUE],
+    }
+    canonical["defaults"]["color_palettes"]["stop_tap"] = [BLUE]
+    saved = migrate_palette_document(canonical)
+    assert saved["devices"][0]["color_palettes"]["stop_tap"] == [RED]
+    assert (await validate_document(hass, saved))[0].color_palettes["stop_tap"] == [RED]
