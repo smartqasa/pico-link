@@ -14,6 +14,7 @@ from .actions.fan import FanActions
 from .actions.light import LightActions
 from .actions.media_player import MediaPlayerActions
 from .actions.switch import SwitchActions
+from .color_cycle import get_cycle_store
 from .config import PicoConfig
 from .const import DOMAIN, PICO_EVENT_TYPE, PICO_TYPE_MAP, SUPPORTED_BUTTONS
 from .overrides import ButtonOverrides
@@ -153,6 +154,10 @@ class PicoController:
 
     async def async_start(self) -> None:
         """Reset domain handlers and subscribe to Pico events."""
+        if self.conf.color_cycle_gestures:
+            cycles = get_cycle_store(self.hass)
+            await cycles.async_load()
+            cycles.reconcile(self.conf.device_id, self.conf.color_palette)
         await self.script_runner.async_prepare()
         for action_handler in self.actions.values():
             reset = getattr(

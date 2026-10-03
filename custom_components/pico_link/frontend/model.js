@@ -60,6 +60,7 @@ export function setGesture(raw, key, value) {
   if (value !== undefined) raw[key] = clone(value);
 }
 export function behavior(value, shared = false) {
+  if (value === "color_cycle") return "color_cycle";
   return value === undefined
     ? shared
       ? "disabled"
@@ -69,6 +70,25 @@ export function behavior(value, shared = false) {
       : value.length
         ? "custom"
         : "disabled";
+}
+
+export function colorPalette(raw, defaults, starter) {
+  return clone(
+    Array.isArray(raw.color_palette)
+      ? raw.color_palette
+      : (defaults.color_palette ?? starter),
+  );
+}
+export function selectPalette(raw, custom, defaults, starter) {
+  if (custom) raw.color_palette = colorPalette(raw, defaults, starter);
+  else delete raw.color_palette;
+}
+export function movePaletteColor(palette, index, direction) {
+  const next = clone(palette);
+  const to = index + direction;
+  if (index >= 0 && index < next.length && to >= 0 && to < next.length)
+    [next[index], next[to]] = [next[to], next[index]];
+  return next;
 }
 export function assignment(raw, defaults = {}) {
   const merged = { ...defaults, ...raw };

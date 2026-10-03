@@ -17,6 +17,9 @@ const {
   assignEntities,
   deviceMeta,
   listRows,
+  colorPalette,
+  selectPalette,
+  movePaletteColor,
 } = await import(asset("./model.js"));
 const {
   actionEditorResult,
@@ -321,10 +324,11 @@ class PicoLinkPanel extends HTMLElement {
         }
       : deviceMeta(this.remote, this._state.catalog);
     const tabs = this.shared
-      ? ["buttons", "timing", "device", "run"]
+      ? ["buttons", "palette", "timing", "device", "run"]
       : ["buttons", "assignment", "timing", "device", "run"];
     const tabNames = {
       buttons: "Button actions",
+      palette: "Color palette",
       assignment: "Remote & targets",
       timing: "Timing",
       device: "Device settings",
@@ -354,6 +358,8 @@ class PicoLinkPanel extends HTMLElement {
       detail.querySelector("#remove").disabled = this._state.read_only;
     const body = detail.querySelector("#tab-content");
     if (this._tab === "buttons") this._buttons(body, meta.type);
+    if (this._tab === "palette")
+      this._palette(body, this._draft.defaults, true);
     if (this._tab === "assignment") this._assignment(body);
     if (this._tab === "timing")
       this._numbers(
@@ -433,6 +439,13 @@ class PicoLinkPanel extends HTMLElement {
             : {}),
         };
     const selected = behavior(value, this.shared);
+    if (
+      this._button === "stop" &&
+      (this.shared ||
+        assignment(target, this._draft.defaults) === "light" ||
+        selected === "color_cycle")
+    )
+      choices.color_cycle = "Cycle light colors";
     const behaviorBox = body.querySelector("#behavior");
     behaviorBox.innerHTML = `<label class="field">Behavior<select id="behavior-select">${Object.entries(
       choices,
@@ -454,7 +467,9 @@ class PicoLinkPanel extends HTMLElement {
             ? undefined
             : newValue === "shared"
               ? "default"
-              : [],
+              : newValue === "color_cycle"
+                ? "color_cycle"
+                : [],
         );
         this._changed();
         this._renderActions(
@@ -471,6 +486,12 @@ class PicoLinkPanel extends HTMLElement {
   }
   _renderActions(host, target, key, selected) {
     const value = gestureValue(target, key);
+    if (selected === "color_cycle") {
+      host.innerHTML =
+        '<div class="behavior-note">Each gesture advances one color for all lights assigned to the triggering Pico. The position belongs to that Pico and survives restarts. Brightness is left to the lights; this action turns them on if needed.</div><div class="cycle-palette"></div>';
+      this._palette(host.querySelector(".cycle-palette"), target, this.shared);
+      return;
+    }
     if (selected === "custom") {
       const placeholder = this._state.light_placeholder;
       const placeholderState = this.hass.states[placeholder?.entity_id];
@@ -501,6 +522,12 @@ class PicoLinkPanel extends HTMLElement {
       let text;
       if (selected === "shared") {
         const actions = gestureValue(this._draft.defaults, key);
+        if (actions === "color_cycle") {
+          host.innerHTML =
+            '<div class="behavior-note">The shared Stop action cycles the lights assigned to this Pico. Each Pico keeps its own position.</div><div class="cycle-palette"></div>';
+          this._palette(host.querySelector(".cycle-palette"), target, false);
+          return;
+        }
         text = actions?.length
           ? `Uses the shared ${LABELS[this._gesture].toLowerCase()} sequence (${actions.length} ${actions.length === 1 ? "action" : "actions"}). Edit it in Shared defaults.`
           : "The shared action is set to Do nothing. This gesture does nothing on this Pico. Change it in Shared defaults to use an action sequence.";
@@ -513,6 +540,80 @@ class PicoLinkPanel extends HTMLElement {
           "Uses the normal behavior or an applicable shared default. No local action override is set.";
       host.innerHTML = `<div class="behavior-note">${esc(text)}</div>`;
     }
+  }
+  _palette(host, target, shared) {
+    const starter = this._state.default_color_palette;
+    const palette = colorPalette(target, this._draft.defaults, starter);
+    const custom = Array.isArray(target.color_palette);
+    const editable = shared || custom;
+    const rgbHex = (rgb) =>
+      `#${rgb.map((v) => v.toString(16).padStart(2, "0")).join("")}`;
+    host.innerHTML = `<section class="section palette"><h3>${shared ? "Shared color palette" : "Color palette"}</h3><p class="hint">Colors run in this order. Existing button actions are unchanged until you choose Cycle light colors. After an edit, cycling continues after the last chosen color if it is still present; otherwise it starts at the first color.</p>${shared ? "" : `<label class="field">Palette<select class="palette-source"><option value="default" ${!custom ? "selected" : ""}>Use shared palette</option><option value="custom" ${custom ? "selected" : ""}>Use custom palette</option></select><small>${custom ? "This copy can be edited independently." : "Follows changes in Shared defaults. Choose custom to copy these colors."}</small></label>`}<div class="palette-colors">${palette.map((color, index) => `<div class="palette-row" data-color="${index}"><span class="palette-number">${index + 1}</span><label class="field"><span class="sr-only">Color ${index + 1} type</span><select class="color-type" aria-label="Color ${index + 1} type" ${!editable ? "disabled" : ""}><option value="rgb" ${color.rgb_color ? "selected" : ""}>Color</option><option value="white" ${color.color_temp_kelvin ? "selected" : ""}>White temperature</option></select></label>${color.rgb_color ? `<input class="color-value" aria-label="Color ${index + 1}" type="color" value="${rgbHex(color.rgb_color)}" ${!editable ? "disabled" : ""}>` : `<label class="field"><span class="sr-only">Temperature ${index + 1}</span><input class="color-value" aria-label="Temperature ${index + 1} in Kelvin" type="number" min="1000" max="10000" step="1" value="${color.color_temp_kelvin}" ${!editable ? "disabled" : ""}><small>Kelvin</small></label>`}${editable ? `<div class="palette-tools"><button data-move="-1" aria-label="Move color ${index + 1} up" ${index === 0 ? "disabled" : ""}>↑</button><button data-move="1" aria-label="Move color ${index + 1} down" ${index === palette.length - 1 ? "disabled" : ""}>↓</button><button class="danger" data-delete aria-label="Remove color ${index + 1}" ${palette.length === 1 ? "disabled" : ""}>×</button></div>` : ""}</div>`).join("")}</div>${editable ? `<button class="add-color" ${palette.length >= 32 ? "disabled" : ""}>＋ Add color</button>` : ""}<p class="hint">Real lights must support the chosen colors or white temperatures. Up to 32 entries.</p></section>`;
+    const changed = (next) => {
+      target.color_palette = next;
+      this._changed();
+      this._palette(host, target, shared);
+    };
+    host
+      .querySelector(".palette-source")
+      ?.addEventListener("change", (event) => {
+        selectPalette(
+          target,
+          event.target.value === "custom",
+          this._draft.defaults,
+          starter,
+        );
+        this._changed();
+        this._palette(host, target, shared);
+      });
+    host
+      .querySelector(".add-color")
+      ?.addEventListener("click", () =>
+        changed([...palette, { rgb_color: [255, 255, 255] }]),
+      );
+    host.querySelectorAll("[data-color]").forEach((row) => {
+      const index = Number(row.dataset.color);
+      row.querySelector(".color-type").addEventListener("change", (event) => {
+        palette[index] =
+          event.target.value === "white"
+            ? { color_temp_kelvin: 2800 }
+            : { rgb_color: [255, 0, 0] };
+        changed(palette);
+      });
+      row.querySelector(".color-value").addEventListener("input", (event) => {
+        palette[index] =
+          event.target.type === "color"
+            ? {
+                rgb_color: event.target.value
+                  .slice(1)
+                  .match(/../g)
+                  .map((v) => parseInt(v, 16)),
+              }
+            : { color_temp_kelvin: Number(event.target.value) };
+        // Commit typing to the draft immediately without replacing the focused
+        // input. Save validates its range; blur is not required to capture it.
+        target.color_palette = clone(palette);
+        this._changed();
+      });
+      row
+        .querySelectorAll("[data-move]")
+        .forEach((button) =>
+          button.addEventListener("click", () =>
+            changed(
+              movePaletteColor(palette, index, Number(button.dataset.move)),
+            ),
+          ),
+        );
+      row
+        .querySelector("[data-delete]")
+        ?.addEventListener("click", () =>
+          changed(palette.filter((_, i) => i !== index)),
+        );
+    });
+    if (this._state.read_only)
+      host
+        .querySelectorAll("input,select,button")
+        .forEach((element) => (element.disabled = true));
   }
   _editorActions(sequence) {
     return actionEditorValue(

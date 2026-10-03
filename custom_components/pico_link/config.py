@@ -11,6 +11,7 @@ import voluptuous as vol
 from homeassistant.core import HomeAssistant, valid_entity_id
 from homeassistant.helpers import device_registry as dr
 
+from .color_cycle import CYCLE_ACTION, DEFAULT_PALETTE, normalize_palette
 from .const import PICO_TYPE_MAP, VALID_PICO_TYPES
 from .placeholder import placeholder_entity_id
 from .script_runner import has_template, script_schema
@@ -98,6 +99,10 @@ class PicoConfig:
 
     # Explicit gesture overrides; absence and an empty list are distinct.
     overrides: dict[str, list[ActionConfig]] = field(default_factory=dict)
+
+    # Native cycles share gesture recognition, but are not script sequences.
+    color_cycle_gestures: set[str] = field(default_factory=set)
+    color_palette: list[dict[str, Any]] = field(default_factory=list)
 
     def validate(self) -> None:
         """Validate the normalized Pico configuration."""
@@ -852,6 +857,21 @@ def parse_pico_config(
     # ------------------------------------------------------------
 
     raw_middle_button = device_raw.get("middle_button")
+    cycle_gestures: set[str] = set()
+    shared_palette = normalize_palette(defaults.get("color_palette", DEFAULT_PALETTE))
+    raw_palette = device_raw.get("color_palette", "default")
+    palette = (
+        shared_palette if raw_palette == "default" else normalize_palette(raw_palette)
+    )
+    # Resolve the legacy alias to the same opt-in as stop_tap. Explicit stop_tap
+    # still wins, including when it disables or replaces legacy cycling.
+    middle_value = raw_middle_button
+    if middle_value == "default":
+        middle_value = defaults.get("stop_tap", defaults.get("middle_button", []))
+    if middle_value == CYCLE_ACTION:
+        raw_middle_button = None
+        if "stop_tap" not in device_raw:
+            merged["stop_tap"] = CYCLE_ACTION
 
     if device_type == "3BRL":
         if raw_middle_button == "default":
@@ -910,6 +930,14 @@ def parse_pico_config(
             # An unspecified shared gesture means "Do nothing". This still
             # requires per-device opt-in; unconfigured Picos keep native behavior.
             value = defaults.get(default_key, [])
+        if value == CYCLE_ACTION:
+            if key not in STOP_GESTURES or device_type != "3BRL" or not lights:
+                raise ValueError(
+                    "color_cycle requires a 3BRL Stop gesture with assigned lights."
+                )
+            cycle_gestures.add(key)
+            overrides[key] = []
+            continue
         if not isinstance(value, list):
             raise ValueError(
                 f"'{key}' must be a list of actions; use [] to disable it."
@@ -947,6 +975,8 @@ def parse_pico_config(
         middle_button=middle_button,
         buttons=buttons,
         overrides=overrides,
+        color_cycle_gestures=cycle_gestures,
+        color_palette=palette,
     )
 
     placeholders = {

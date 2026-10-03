@@ -17,6 +17,7 @@ from homeassistant.helpers import area_registry as ar
 from homeassistant.helpers import device_registry as dr
 from homeassistant.loader import async_get_integration
 
+from .color_cycle import DEFAULT_PALETTE
 from .const import DOMAIN
 from .placeholder import placeholder_info
 from .ui_config import (
@@ -84,6 +85,7 @@ def panel_state(hass) -> dict:
         "numbers": NUMBERS,
         "device_settings": DEVICE_SETTINGS,
         "light_placeholder": placeholder_info(hass),
+        "default_color_palette": deepcopy(DEFAULT_PALETTE),
     }
 
 

@@ -11,12 +11,62 @@ import {
   assignEntities,
   listRows,
   clone,
+  colorPalette,
+  selectPalette,
+  movePaletteColor,
 } from "../custom_components/pico_link/frontend/model.js";
 import {
   actionEditorResult,
   actionEditorValue,
   actionTargetRows,
 } from "../custom_components/pico_link/frontend/action-targets.js";
+
+test("cycling is explicit and does not change old gesture meanings", () => {
+  assert.equal(behavior("color_cycle"), "color_cycle");
+  assert.equal(behavior("color_cycle", true), "color_cycle");
+  assert.equal(behavior(undefined), "normal");
+  assert.equal(behavior("default"), "shared");
+  const raw = { middle_button: "default", stop_hold: [{ delay: 4 }] };
+  setGesture(raw, "stop_tap", "color_cycle");
+  assert.deepEqual(raw, { stop_tap: "color_cycle", stop_hold: [{ delay: 4 }] });
+});
+
+test("shared palettes follow edits while custom copies remain independent", () => {
+  const starter = [{ color_temp_kelvin: 2800 }];
+  const defaults = {};
+  const shared = {};
+  const custom = {};
+  selectPalette(custom, true, defaults, starter);
+  custom.color_palette.push({ rgb_color: [0, 0, 255] });
+  defaults.color_palette = [{ rgb_color: [255, 0, 0] }];
+  assert.deepEqual(
+    colorPalette(shared, defaults, starter),
+    defaults.color_palette,
+  );
+  assert.deepEqual(colorPalette(custom, defaults, starter), [
+    starter[0],
+    { rgb_color: [0, 0, 255] },
+  ]);
+  assert.equal(starter.length, 1);
+  selectPalette(custom, false, defaults, starter);
+  assert.equal(custom.color_palette, undefined);
+  assert.deepEqual(
+    colorPalette(custom, defaults, starter),
+    defaults.color_palette,
+  );
+});
+
+test("palette reordering preserves colors without mutating shared definitions", () => {
+  const original = [{ color_temp_kelvin: 2800 }, { rgb_color: [255, 0, 0] }];
+  assert.deepEqual(movePaletteColor(original, 0, 1), [
+    original[1],
+    original[0],
+  ]);
+  assert.deepEqual(movePaletteColor(original, 0, -1), original);
+  const copy = colorPalette({}, {}, original);
+  copy[1].rgb_color[0] = 1;
+  assert.equal(original[1].rgb_color[0], 255);
+});
 
 test("2BRL uses its detected layout and keeps explicit layout precedence", () => {
   const catalog = [{ id: "dimmer", name: "Hall Pico", type: "2BRL" }];

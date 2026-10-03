@@ -21,6 +21,10 @@ custom gesture on the same Pico is ignored until the current sequence finishes.
 Choose `parallel` for overlapping sequences or `restart` when the newest
 command should take over. Built-in device controls retain their normal timing.
 
+**On the beta branch:** opt-in [native color cycling](#cycle-light-colors)
+for the Stop/middle button, with editable palettes and a separate saved position
+for each Pico. This addition is not part of the published 1.0.0 release.
+
 [![HACS Custom](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://hacs.xyz)
 ![GitHub release](https://img.shields.io/github/v/release/smartqasa/pico-link)
 ![GitHub License](https://img.shields.io/github/license/smartqasa/pico-link)
@@ -232,6 +236,7 @@ Select the button and gesture, then choose a behavior:
 | **Custom actions** | Opens Home Assistant's action editor for service calls, scripts, conditions, delays, loops, and waits. |
 | **Do nothing** | Disables this gesture while leaving the other gestures unchanged. |
 | **Use shared Stop action** | Available for the Stop/middle button; uses the shared sequence for the selected gesture. |
+| **Cycle light colors** | On a 3BRL controlling lights, advances one step in its palette. Also available as a shared Stop action. |
 
 ![An On double-tap sequence in Home Assistant's action editor, with Add action and Save changes controls](https://raw.githubusercontent.com/smartqasa/pico-link/v1.0.0/docs/images/ui-button-actions.png)
 
@@ -292,11 +297,87 @@ each gesture. For example, create a sequence under
 Repeat separately for **Hold** and **Double tap** if needed. Merely defining
 a shared Stop sequence does not activate it on every remote.
 
-Each shared gesture offers **Do nothing** (the default) or **Shared actions**.
+Each shared gesture offers **Do nothing** (the default), **Shared actions**, or
+**Cycle light colors**.
 Choose **Shared actions** to build a sequence. If a Pico selects a shared gesture
 with no sequence, that gesture does nothing; it does not cause a configuration
 error. Individual Picos still offer **Normal / inherited behavior**, which keeps
 their built-in behavior instead of disabling it.
+
+#### Cycle light colors
+
+Color cycling is optional and applies to the **3BRL Stop/middle button** when
+the Pico has lights assigned. Existing settings, scripts, and button actions
+keep their current behavior until you explicitly select it.
+
+1. Open **Shared defaults → Color palette**. The starter order is warm white
+   (2800 K), cool white (4000 K), red, magenta, blue, cyan, and green.
+2. Change colors with the color picker, or choose **White temperature** and enter
+   Kelvin. Add, remove, or move entries up/down to set the order (1–32 entries).
+3. Under **Shared defaults → Button actions**, choose **Tap**, **Hold**, or
+   **Double tap**, then **Cycle light colors**. On each participating Pico,
+   choose **Stop → that gesture → Use shared Stop action**.
+   Alternatively, select **Cycle light colors** directly on one Pico.
+4. The Pico uses **Use shared palette** by default and follows shared palette
+   edits. Choosing **Use custom palette** first copies the shared colors;
+   subsequent edits to that copy are independent. The palette is shared across
+   any cycling gestures on that Pico.
+5. **Save changes**, then test with the physical Pico. Selecting colors in the
+   editor does not operate lights.
+
+Each recognized gesture sends the next color to **all lights assigned to that
+Pico**, in one call. The first gesture selects the first color; after the last,
+it wraps to the first. A hold advances once, and the usual double-tap timing
+rules still apply. The Pico's **Run behavior** also applies: `single` can ignore
+a new gesture while another action is running; `queued` preserves admitted
+presses in order, and `restart` cancels unfinished work. Parallel color cycles
+are serialized within that Pico so they cannot select the same position at once.
+
+The position belongs to the **Pico's Home Assistant device ID**, not its target
+lights. Picos advance independently even when they control overlapping lights;
+external color changes do not move their positions. Renaming a remote or changing
+its targets keeps its position. Selecting a different physical remote uses that
+remote's own position. After a palette edit, the next gesture follows the last
+selected color if it still exists; otherwise it starts at the first entry.
+For duplicate colors, the old index is kept if it still matches, otherwise the
+first matching entry is used.
+
+Pico Link saves positions separately in Home Assistant's managed storage
+(`.storage/pico_link.color_cycles`). No helper entity, Essentials script, or
+configuration rewrite is needed per press. Writes are combined over one second
+and flushed during a normal Home Assistant shutdown. Abrupt power loss can lose
+the latest unsaved step. A failed or cancelled service call does not advance the
+saved position, although a device may already have received part of that call.
+
+Cycling sends only a color or white temperature; brightness is left to the
+lights. Lights that are off turn on. The actual lights must support the
+requested color or temperature; the integration does not add those capabilities.
+Two Picos controlling the same lights can still send competing commands.
+
+For YAML, `color_palette` accepts RGB or Kelvin entries under `defaults` or an
+individual device. Omit a device palette (or set `color_palette: default`) to use
+the shared list. Existing action lists and `middle_button` remain supported:
+
+```yaml
+pico_link:
+  config_method: yaml
+  defaults:
+    color_palette:
+      - color_temp_kelvin: 2800
+      - rgb_color: [255, 0, 0]
+      - rgb_color: [0, 0, 255]
+    stop_tap: color_cycle
+  devices:
+    - name: Kitchen Pico
+      lights: [light.kitchen, light.island]
+      stop_tap: default
+    - name: Office Pico
+      lights: light.office
+      stop_tap: color_cycle
+      color_palette:
+        - rgb_color: [0, 255, 0]
+        - color_temp_kelvin: 4000
+```
 
 #### Save, discard, or remove
 
@@ -1130,8 +1211,9 @@ or device ID per Pico.
 | `lights`, `covers`, `fans`, `media_players`, `switches` | None | Exactly one group for non-4B remotes |
 | `<button>_tap` / `<button>_hold` | Existing behavior | Action list; `[]` disables the gesture |
 | `<button>_double_tap` | Disabled | Action list; enables detection for that button. `[]` consumes double taps without an action |
-| `stop_tap`, `stop_double_tap`, `stop_hold` on a 3BRL | Existing behavior | Action list, `[]` to disable, or `default` to select the shared list for that gesture |
-| `stop_tap`, `stop_double_tap`, `stop_hold` under `defaults` | Do nothing | Shared lists; used only when a 3BRL explicitly selects `default`. An omitted or empty shared list runs no actions |
+| `stop_tap`, `stop_double_tap`, `stop_hold` on a 3BRL | Existing behavior | Action list, `[]` to disable, `default` for the shared action, or `color_cycle` with assigned lights |
+| `stop_tap`, `stop_double_tap`, `stop_hold` under `defaults` | Do nothing | Shared lists or `color_cycle`; used only when a 3BRL explicitly selects `default`. An omitted or empty shared list runs no actions |
+| `color_palette` | Shared palette, or the seven starter colors | Ordered list of 1–32 entries: `rgb_color: [r, g, b]` (0–255) or `color_temp_kelvin` (1000–10000). A device list overrides the shared palette |
 | `middle_button` | Domain behavior | Older 3BRL tap setting, still supported; action list, or `default` to opt into the shared list |
 | `buttons` | None | 4B button-to-action mapping |
 | `mode` | `single` | `single`, `restart`, `queued`, or `parallel`; shared across custom sequences on one Pico |

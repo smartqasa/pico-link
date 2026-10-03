@@ -9,6 +9,7 @@ from typing import Any
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.script import async_validate_actions_config
 
+from .color_cycle import CYCLE_ACTION, normalize_palette
 from .config import (
     PicoConfig,
     _detect_pico_type,
@@ -111,8 +112,10 @@ async def validate_document(hass, root) -> list[PicoConfig]:
     if "continue_on_error" in defaults:
         raise ValueError("Continue on error belongs to an action, not shared defaults.")
     for key in ("stop_tap", "stop_hold", "stop_double_tap", "middle_button"):
-        if key in defaults:
+        if key in defaults and defaults[key] != CYCLE_ACTION:
             await validate_actions(hass, defaults[key])
+    if "color_palette" in defaults:
+        normalize_palette(defaults["color_palette"])
     configs = []
     seen = set()
     for raw in root["devices"]:

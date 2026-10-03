@@ -55,6 +55,53 @@ async def test_read_does_not_modify_or_reload(hass, panel, model, kind):
     assert old is hass.data[DOMAIN]["controllers"][0]
 
 
+async def test_save_native_cycle_preserves_actions_and_options_on_press(
+    hass, panel, registry_pico
+):
+    client, entry, device = panel
+    state = panel_state(hass)
+    document = deepcopy(state["document"])
+    document["defaults"] = {
+        "stop_tap": "color_cycle",
+        "color_palette": [{"rgb_color": [255, 0, 0]}, {"color_temp_kelvin": 2800}],
+    }
+    document["devices"][0].update(
+        {
+            "stop_tap": "default",
+            "stop_hold": [
+                {"action": "light.turn_off", "target": {"entity_id": "lights"}}
+            ],
+        }
+    )
+    result = await request(
+        client,
+        {
+            "id": 1,
+            "type": "pico_link/save",
+            "revision": state["revision"],
+            "document": document,
+        },
+    )
+    assert result["success"]
+    await hass.async_block_till_done()
+    saved = deepcopy(dict(entry.options))
+    controller = hass.data[DOMAIN]["controllers"][0]
+    assert controller.conf.color_cycle_gestures == {"stop_tap"}
+    assert controller.conf.overrides["stop_hold"][0]["target"]["entity_id"] == [
+        "light.desk"
+    ]
+    with patch.object(hass.config_entries, "async_update_entry") as update:
+        registry_pico.tap("stop", device=device.id)
+        assert (await registry_pico.next_call())[2] == {
+            "rgb_color": [255, 0, 0],
+            "entity_id": ["light.desk"],
+        }
+        await registry_pico.drain()
+        update.assert_not_called()
+    assert dict(entry.options) == saved
+    assert panel_state(hass)["default_color_palette"]
+
+
 @pytest.mark.parametrize(
     "model,kind",
     [
