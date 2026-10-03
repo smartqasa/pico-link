@@ -18,6 +18,7 @@ const {
   deviceMeta,
   listRows,
   colorPalette,
+  setPalette,
   selectPalette,
   movePaletteColor,
 } = await import(asset("./model.js"));
@@ -326,6 +327,8 @@ class PicoLinkPanel extends HTMLElement {
     const tabs = this.shared
       ? ["buttons", "palette", "timing", "device", "run"]
       : ["buttons", "assignment", "timing", "device", "run"];
+    // Discard can return from shared palettes to the first saved Pico.
+    if (!tabs.includes(this._tab)) this._tab = "buttons";
     const tabNames = {
       buttons: "Button actions",
       palette: "Color palette",
@@ -358,8 +361,21 @@ class PicoLinkPanel extends HTMLElement {
       detail.querySelector("#remove").disabled = this._state.read_only;
     const body = detail.querySelector("#tab-content");
     if (this._tab === "buttons") this._buttons(body, meta.type);
-    if (this._tab === "palette")
-      this._palette(body, this._draft.defaults, true);
+    if (this._tab === "palette") {
+      body.innerHTML = `<div class="section"><h3>Shared Stop palettes</h3><div class="gestures" role="tablist" aria-label="Palette gesture">${["tap", "hold", "double_tap"].map((gesture) => `<button role="tab" aria-selected="${gesture === this._gesture}" data-palette-gesture="${gesture}">${LABELS[gesture]}</button>`).join("")}</div><div class="gesture-palette"></div></div>`;
+      body.querySelectorAll("[data-palette-gesture]").forEach((button) =>
+        button.addEventListener("click", () => {
+          this._gesture = button.dataset.paletteGesture;
+          this._renderDetail();
+        }),
+      );
+      this._palette(
+        body.querySelector(".gesture-palette"),
+        this._draft.defaults,
+        true,
+        `stop_${this._gesture}`,
+      );
+    }
     if (this._tab === "assignment") this._assignment(body);
     if (this._tab === "timing")
       this._numbers(
@@ -488,8 +504,13 @@ class PicoLinkPanel extends HTMLElement {
     const value = gestureValue(target, key);
     if (selected === "color_cycle") {
       host.innerHTML =
-        '<div class="behavior-note">Each gesture advances one color for all lights assigned to the triggering Pico. The position belongs to that Pico and survives restarts. Brightness is left to the lights; this action turns them on if needed.</div><div class="cycle-palette"></div>';
-      this._palette(host.querySelector(".cycle-palette"), target, this.shared);
+        '<div class="behavior-note">This gesture advances one color for all lights assigned to the triggering Pico. Each Pico and gesture keeps its own position across restarts. Brightness is left to the lights; this action turns them on if needed.</div><div class="cycle-palette"></div>';
+      this._palette(
+        host.querySelector(".cycle-palette"),
+        target,
+        this.shared,
+        key,
+      );
       return;
     }
     if (selected === "custom") {
@@ -524,8 +545,13 @@ class PicoLinkPanel extends HTMLElement {
         const actions = gestureValue(this._draft.defaults, key);
         if (actions === "color_cycle") {
           host.innerHTML =
-            '<div class="behavior-note">The shared Stop action cycles the lights assigned to this Pico. Each Pico keeps its own position.</div><div class="cycle-palette"></div>';
-          this._palette(host.querySelector(".cycle-palette"), target, false);
+            '<div class="behavior-note">The shared Stop action cycles the lights assigned to this Pico. Tap, Hold, and Double tap each keep their own palette choice and position.</div><div class="cycle-palette"></div>';
+          this._palette(
+            host.querySelector(".cycle-palette"),
+            target,
+            false,
+            key,
+          );
           return;
         }
         text = actions?.length
@@ -541,21 +567,25 @@ class PicoLinkPanel extends HTMLElement {
       host.innerHTML = `<div class="behavior-note">${esc(text)}</div>`;
     }
   }
-  _palette(host, target, shared) {
+  _palette(host, target, shared, key) {
     const starter = this._state.default_color_palette;
     const limit = this._state.max_palette_colors ?? 25;
-    const palette = colorPalette(target, this._draft.defaults, starter);
-    const custom = Array.isArray(target.color_palette);
-    const editable = shared || custom;
+    const palette = colorPalette(target, this._draft.defaults, starter, key);
+    const custom = Array.isArray(target.color_palettes?.[key]);
+    const editable = custom;
+    const gestureName = LABELS[key.slice(5)];
+    const inheritedLabel = shared
+      ? "Use built-in colors"
+      : `Use shared ${gestureName.toLowerCase()} palette`;
     const rgbHex = (rgb) =>
       `#${rgb.map((v) => v.toString(16).padStart(2, "0")).join("")}`;
-    host.innerHTML = `<section class="section palette"><h3>${shared ? "Shared color palette" : "Color palette"}</h3><p class="hint">Colors run in this order. Existing button actions are unchanged until you choose Cycle light colors. After an edit, cycling continues after the last chosen color if it is still present; otherwise it starts at the first color.</p>${shared ? "" : `<label class="field">Palette<select class="palette-source"><option value="default" ${!custom ? "selected" : ""}>Use shared palette</option><option value="custom" ${custom ? "selected" : ""}>Use custom palette</option></select><small>${custom ? "This copy can be edited independently." : "Follows changes in Shared defaults. Choose custom to copy these colors."}</small></label>`}<div class="palette-colors">${palette.map((color, index) => `<div class="palette-row" data-color="${index}"><span class="palette-number">${index + 1}</span><label class="field"><span class="sr-only">Color ${index + 1} type</span><select class="color-type" aria-label="Color ${index + 1} type" ${!editable ? "disabled" : ""}><option value="rgb" ${color.rgb_color ? "selected" : ""}>Color</option><option value="white" ${color.color_temp_kelvin ? "selected" : ""}>White temperature</option></select></label>${color.rgb_color ? `<input class="color-value" aria-label="Color ${index + 1}" type="color" value="${rgbHex(color.rgb_color)}" ${!editable ? "disabled" : ""}>` : `<label class="field"><span class="sr-only">Temperature ${index + 1}</span><input class="color-value" aria-label="Temperature ${index + 1} in Kelvin" type="number" min="1000" max="10000" step="1" value="${color.color_temp_kelvin}" ${!editable ? "disabled" : ""}><small>Kelvin</small></label>`}${editable ? `<div class="palette-tools"><button data-move="-1" aria-label="Move color ${index + 1} up" ${index === 0 ? "disabled" : ""}>↑</button><button data-move="1" aria-label="Move color ${index + 1} down" ${index === palette.length - 1 ? "disabled" : ""}>↓</button><button class="danger" data-delete aria-label="Remove color ${index + 1}" ${palette.length === 1 ? "disabled" : ""}>×</button></div>` : ""}</div>`).join("")}</div>${editable ? `<button class="add-color" ${palette.length >= limit ? "disabled" : ""}>＋ Add color</button>` : ""}<p class="hint">Real lights must support the chosen colors or white temperatures. Up to ${limit} entries.</p></section>`;
+    host.innerHTML = `<section class="section palette"><h3>${shared ? "Shared " : ""}${gestureName} color palette</h3><p class="hint">Colors run in this order for ${gestureName.toLowerCase()} only. Other gestures keep their own palettes. Existing button actions are unchanged until you choose Cycle light colors. After an edit, cycling continues after the last chosen color if it is still present; otherwise it starts at the first color.</p><label class="field">Palette<select class="palette-source"><option value="default" ${!custom ? "selected" : ""}>${inheritedLabel}</option><option value="custom" ${custom ? "selected" : ""}>Use custom palette</option></select><small>${custom ? "Only this gesture uses this custom palette." : shared ? "Uses built-in colors. Choose custom to edit this gesture." : `Follows the shared ${gestureName.toLowerCase()} palette. Choose custom to make an independent copy.`}</small></label><div class="palette-colors">${palette.map((color, index) => `<div class="palette-row" data-color="${index}"><span class="palette-number">${index + 1}</span><label class="field"><span class="sr-only">Color ${index + 1} type</span><select class="color-type" aria-label="Color ${index + 1} type" ${!editable ? "disabled" : ""}><option value="rgb" ${color.rgb_color ? "selected" : ""}>Color</option><option value="white" ${color.color_temp_kelvin ? "selected" : ""}>White temperature</option></select></label>${color.rgb_color ? `<input class="color-value" aria-label="Color ${index + 1}" type="color" value="${rgbHex(color.rgb_color)}" ${!editable ? "disabled" : ""}>` : `<label class="field"><span class="sr-only">Temperature ${index + 1}</span><input class="color-value" aria-label="Temperature ${index + 1} in Kelvin" type="number" min="1000" max="10000" step="1" value="${color.color_temp_kelvin}" ${!editable ? "disabled" : ""}><small>Kelvin</small></label>`}${editable ? `<div class="palette-tools"><button data-move="-1" aria-label="Move color ${index + 1} up" ${index === 0 ? "disabled" : ""}>↑</button><button data-move="1" aria-label="Move color ${index + 1} down" ${index === palette.length - 1 ? "disabled" : ""}>↓</button><button class="danger" data-delete aria-label="Remove color ${index + 1}" ${palette.length === 1 ? "disabled" : ""}>×</button></div>` : ""}</div>`).join("")}</div>${editable ? `<button class="add-color" ${palette.length >= limit ? "disabled" : ""}>＋ Add color</button>` : ""}<p class="hint">Real lights must support the chosen colors or white temperatures. Up to ${limit} entries.</p></section>`;
     const changed = (next) => {
-      target.color_palette = next;
+      setPalette(target, key, next);
       this._changed();
-      this._palette(host, target, shared);
+      this._palette(host, target, shared, key);
     };
-    if (editable) {
+    {
       const heading = host.querySelector("h3");
       const header = document.createElement("div");
       header.className = "section-heading palette-heading";
@@ -575,9 +605,10 @@ class PicoLinkPanel extends HTMLElement {
           event.target.value === "custom",
           this._draft.defaults,
           starter,
+          key,
         );
         this._changed();
-        this._palette(host, target, shared);
+        this._palette(host, target, shared, key);
       });
     host
       .querySelector(".add-color")
@@ -605,7 +636,7 @@ class PicoLinkPanel extends HTMLElement {
             : { color_temp_kelvin: Number(event.target.value) };
         // Commit typing to the draft immediately without replacing the focused
         // input. Save validates its range; blur is not required to capture it.
-        target.color_palette = clone(palette);
+        setPalette(target, key, palette);
         this._changed();
       });
       row

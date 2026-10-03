@@ -1,4 +1,4 @@
-"""Opt-in light palettes and restart-persistent positions, one per Pico."""
+"""Opt-in light palettes and persistent positions, one per Pico and gesture."""
 
 from __future__ import annotations
 
@@ -14,6 +14,7 @@ from .const import DOMAIN
 CYCLE_ACTION = "color_cycle"
 STORAGE_KEY = f"{DOMAIN}.color_cycles"
 MAX_PALETTE_COLORS = 25
+PALETTE_GESTURES = ("stop_tap", "stop_hold", "stop_double_tap")
 DEFAULT_PALETTE = [
     {"color_temp_kelvin": 2800},
     {"color_temp_kelvin": 4000},
@@ -56,13 +57,83 @@ def normalize_palette(value: Any) -> list[dict[str, Any]]:
     return deepcopy(value)
 
 
+def palette_choices(raw: dict) -> dict[str, Any]:
+    """Validate independent gesture choices, retaining early beta custom colors."""
+    choices = raw.get("color_palettes", {})
+    if not isinstance(choices, dict) or set(choices) - set(PALETTE_GESTURES):
+        raise ValueError(
+            "color_palettes must map Stop tap, hold, or double tap to palettes."
+        )
+    common = raw.get("color_palette", "default")
+    if common != "default":
+        common = normalize_palette(common)
+    return {
+        key: "default"
+        if (value := choices.get(key, common)) == "default"
+        else normalize_palette(value)
+        for key in PALETTE_GESTURES
+    }
+
+
+def resolve_palettes(defaults: dict, raw: dict) -> dict[str, list[dict[str, Any]]]:
+    """A Pico gesture inherits only the matching shared gesture's palette."""
+    shared = palette_choices(defaults)
+    local = palette_choices(raw)
+    return {
+        key: deepcopy(
+            local[key]
+            if local[key] != "default"
+            else shared[key]
+            if shared[key] != "default"
+            else DEFAULT_PALETTE
+        )
+        for key in PALETTE_GESTURES
+    }
+
+
+def migrate_palette_document(root: Any) -> Any:
+    """Copy old common lists to independent choices; never edit saved data in place."""
+    copied = deepcopy(root)
+    if not isinstance(copied, dict):
+        return copied
+    devices = copied.get("devices", [])
+    for raw in [
+        copied.get("defaults"),
+        *(devices if isinstance(devices, list) else []),
+    ]:
+        if not isinstance(raw, dict) or "color_palette" not in raw:
+            continue
+        common = raw["color_palette"]
+        if not (isinstance(common, list) or common == "default"):
+            continue  # Leave invalid values visible to normal validation.
+        choices = raw.setdefault("color_palettes", {})
+        if not isinstance(choices, dict):
+            continue
+        for key in PALETTE_GESTURES:
+            choices.setdefault(key, deepcopy(common))
+        del raw["color_palette"]
+    return copied
+
+
+class _PositionStore(Store):
+    async def _async_migrate_func(self, old_major_version, old_minor_version, old_data):
+        if old_major_version != 1:
+            raise NotImplementedError
+        if not isinstance(old_data, dict):
+            return {}
+        return {
+            device_id: {key: deepcopy(position) for key in PALETTE_GESTURES}
+            for device_id, position in old_data.items()
+        }
+
+
 class ColorCycleStore:
     """Keep runtime positions out of settings and serialize only each Pico's calls."""
 
     def __init__(self, hass: HomeAssistant) -> None:
         self.hass = hass
-        self.store = Store(hass, 1, STORAGE_KEY)
-        self.positions: dict[str, dict[str, Any]] = {}
+        self.store = _PositionStore(hass, 2, STORAGE_KEY)
+        self.positions: dict[str, dict[str, dict[str, Any]]] = {}
         self._load_lock = asyncio.Lock()
         self._loaded = False
         self._locks: dict[str, asyncio.Lock] = {}
@@ -73,16 +144,23 @@ class ColorCycleStore:
                 return
             saved = await self.store.async_load()
             if isinstance(saved, dict):
-                for device_id, position in saved.items():
-                    if not isinstance(position, dict):
+                for device_id, gestures in saved.items():
+                    if not isinstance(device_id, str) or not isinstance(gestures, dict):
                         continue
-                    index = position.get("index")
-                    try:
-                        color = normalize_palette([position.get("color")])[0]
-                    except ValueError:
-                        continue
-                    if isinstance(device_id, str) and type(index) is int and index >= 0:
-                        self.positions[device_id] = {"index": index, "color": color}
+                    for key in PALETTE_GESTURES:
+                        position = gestures.get(key)
+                        if not isinstance(position, dict):
+                            continue
+                        index = position.get("index")
+                        try:
+                            color = normalize_palette([position.get("color")])[0]
+                        except ValueError:
+                            continue
+                        if type(index) is int and index >= 0:
+                            self.positions.setdefault(device_id, {})[key] = {
+                                "index": index,
+                                "color": color,
+                            }
             self._loaded = True
 
     def _save(self) -> None:
@@ -91,27 +169,38 @@ class ColorCycleStore:
         snapshot = deepcopy(self.positions)
         self.store.async_delay_save(lambda: snapshot, 1)
 
-    def reconcile(self, device_id: str, palette: list[dict[str, Any]]) -> None:
+    def reconcile(
+        self, device_id: str, gesture: str, palette: list[dict[str, Any]]
+    ) -> None:
         """Preserve the last selected color across edits, or reset to the start."""
-        previous = self.positions.get(device_id)
+        previous = self.positions.get(device_id, {}).get(gesture)
         if previous is None:
             return
         index, color = previous["index"], previous["color"]
         if index < len(palette) and palette[index] == color:
             return
         if color in palette:
-            self.positions[device_id] = {"index": palette.index(color), "color": color}
+            self.positions[device_id][gesture] = {
+                "index": palette.index(color),
+                "color": color,
+            }
         else:
-            del self.positions[device_id]
+            del self.positions[device_id][gesture]
+            if not self.positions[device_id]:
+                del self.positions[device_id]
         self._save()
 
     async def async_cycle(
-        self, device_id: str, lights: list[str], palette: list[dict[str, Any]]
+        self,
+        device_id: str,
+        gesture: str,
+        lights: list[str],
+        palette: list[dict[str, Any]],
     ) -> None:
         """Choose from our own position, never from the lights' current state."""
         async with self._locks.setdefault(device_id, asyncio.Lock()):
-            self.reconcile(device_id, palette)
-            previous = self.positions.get(device_id)
+            self.reconcile(device_id, gesture, palette)
+            previous = self.positions.get(device_id, {}).get(gesture)
             index = (previous["index"] + 1) % len(palette) if previous else 0
             color = palette[index]
             await self.hass.services.async_call(
@@ -122,7 +211,10 @@ class ColorCycleStore:
                 context=Context(),
             )
             # Failed or cancelled calls do not consume a color.
-            self.positions[device_id] = {"index": index, "color": deepcopy(color)}
+            self.positions.setdefault(device_id, {})[gesture] = {
+                "index": index,
+                "color": deepcopy(color),
+            }
             self._save()
 
 

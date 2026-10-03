@@ -72,16 +72,24 @@ export function behavior(value, shared = false) {
         : "disabled";
 }
 
-export function colorPalette(raw, defaults, starter) {
+export function colorPalette(raw, defaults, starter, key) {
+  const own = raw.color_palettes?.[key];
+  const shared = defaults.color_palettes?.[key];
   return clone(
-    Array.isArray(raw.color_palette)
-      ? raw.color_palette
-      : (defaults.color_palette ?? starter),
+    Array.isArray(own) ? own : Array.isArray(shared) ? shared : starter,
   );
 }
-export function selectPalette(raw, custom, defaults, starter) {
-  if (custom) raw.color_palette = colorPalette(raw, defaults, starter);
-  else delete raw.color_palette;
+export function setPalette(raw, key, palette) {
+  raw.color_palettes ||= {};
+  if (palette === undefined) delete raw.color_palettes[key];
+  else raw.color_palettes[key] = clone(palette);
+}
+export function selectPalette(raw, custom, defaults, starter, key) {
+  setPalette(
+    raw,
+    key,
+    custom ? colorPalette(raw, defaults, starter, key) : undefined,
+  );
 }
 export function movePaletteColor(palette, index, direction) {
   const next = clone(palette);

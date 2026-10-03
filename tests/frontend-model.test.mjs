@@ -13,6 +13,7 @@ import {
   clone,
   colorPalette,
   selectPalette,
+  setPalette,
   movePaletteColor,
 } from "../custom_components/pico_link/frontend/model.js";
 import {
@@ -32,27 +33,28 @@ test("cycling is explicit and does not change old gesture meanings", () => {
 });
 
 test("shared palettes follow edits while custom copies remain independent", () => {
+  const key = "stop_tap";
   const starter = [{ color_temp_kelvin: 2800 }];
   const defaults = {};
   const shared = {};
   const custom = {};
-  selectPalette(custom, true, defaults, starter);
-  custom.color_palette.push({ rgb_color: [0, 0, 255] });
-  defaults.color_palette = [{ rgb_color: [255, 0, 0] }];
+  selectPalette(custom, true, defaults, starter, key);
+  custom.color_palettes[key].push({ rgb_color: [0, 0, 255] });
+  setPalette(defaults, key, [{ rgb_color: [255, 0, 0] }]);
   assert.deepEqual(
-    colorPalette(shared, defaults, starter),
-    defaults.color_palette,
+    colorPalette(shared, defaults, starter, key),
+    defaults.color_palettes[key],
   );
-  assert.deepEqual(colorPalette(custom, defaults, starter), [
+  assert.deepEqual(colorPalette(custom, defaults, starter, key), [
     starter[0],
     { rgb_color: [0, 0, 255] },
   ]);
   assert.equal(starter.length, 1);
-  selectPalette(custom, false, defaults, starter);
-  assert.equal(custom.color_palette, undefined);
+  selectPalette(custom, false, defaults, starter, key);
+  assert.equal(custom.color_palettes[key], undefined);
   assert.deepEqual(
-    colorPalette(custom, defaults, starter),
-    defaults.color_palette,
+    colorPalette(custom, defaults, starter, key),
+    defaults.color_palettes[key],
   );
 });
 
@@ -63,9 +65,66 @@ test("palette reordering preserves colors without mutating shared definitions", 
     original[0],
   ]);
   assert.deepEqual(movePaletteColor(original, 0, -1), original);
-  const copy = colorPalette({}, {}, original);
+  const copy = colorPalette({}, {}, original, "stop_tap");
   copy[1].rgb_color[0] = 1;
   assert.equal(original[1].rgb_color[0], 255);
+});
+
+test("gesture edits, restore, and inheritance do not change sibling palettes", () => {
+  const keys = ["stop_tap", "stop_hold", "stop_double_tap"];
+  const starter = [{ color_temp_kelvin: 2800 }];
+  const saved = { defaults: {}, devices: [{}] };
+  for (const [i, key] of keys.entries()) {
+    setPalette(saved.defaults, key, [{ color_temp_kelvin: 3000 + i * 1000 }]);
+  }
+  const draft = clone(saved);
+  const pico = draft.devices[0];
+  for (const [i, key] of keys.entries()) {
+    assert.deepEqual(colorPalette(pico, draft.defaults, starter, key), [
+      { color_temp_kelvin: 3000 + i * 1000 },
+    ]);
+    selectPalette(pico, true, draft.defaults, starter, key);
+  }
+  setPalette(pico, "stop_tap", [{ color_temp_kelvin: 3200 }]);
+  assert.deepEqual(pico.color_palettes.stop_hold, [
+    { color_temp_kelvin: 4000 },
+  ]);
+  assert.deepEqual(pico.color_palettes.stop_double_tap, [
+    { color_temp_kelvin: 5000 },
+  ]);
+  // Restore touches only the selected gesture and only the draft.
+  setPalette(pico, "stop_hold", starter);
+  assert.deepEqual(pico.color_palettes.stop_tap, [{ color_temp_kelvin: 3200 }]);
+  assert.deepEqual(pico.color_palettes.stop_double_tap, [
+    { color_temp_kelvin: 5000 },
+  ]);
+  assert.deepEqual(saved.devices, [{}]);
+  assert.deepEqual(starter, [{ color_temp_kelvin: 2800 }]);
+  // Returning Tap to shared follows Tap alone; custom siblings stay fixed.
+  selectPalette(pico, false, draft.defaults, starter, "stop_tap");
+  setPalette(draft.defaults, "stop_tap", [{ color_temp_kelvin: 3500 }]);
+  assert.deepEqual(colorPalette(pico, draft.defaults, starter, "stop_tap"), [
+    { color_temp_kelvin: 3500 },
+  ]);
+  assert.deepEqual(
+    colorPalette(pico, draft.defaults, starter, "stop_hold"),
+    starter,
+  );
+  assert.deepEqual(
+    colorPalette(pico, draft.defaults, starter, "stop_double_tap"),
+    [{ color_temp_kelvin: 5000 }],
+  );
+  // Restoring a shared gesture leaves its siblings and Pico custom lists alone.
+  setPalette(draft.defaults, "stop_hold", starter);
+  assert.deepEqual(draft.defaults.color_palettes.stop_tap, [
+    { color_temp_kelvin: 3500 },
+  ]);
+  assert.deepEqual(draft.defaults.color_palettes.stop_double_tap, [
+    { color_temp_kelvin: 5000 },
+  ]);
+  assert.deepEqual(saved.defaults.color_palettes.stop_hold, [
+    { color_temp_kelvin: 4000 },
+  ]);
 });
 
 test("2BRL uses its detected layout and keeps explicit layout precedence", () => {

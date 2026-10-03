@@ -17,7 +17,7 @@ from homeassistant.helpers import area_registry as ar
 from homeassistant.helpers import device_registry as dr
 from homeassistant.loader import async_get_integration
 
-from .color_cycle import DEFAULT_PALETTE, MAX_PALETTE_COLORS
+from .color_cycle import DEFAULT_PALETTE, MAX_PALETTE_COLORS, migrate_palette_document
 from .const import DOMAIN
 from .placeholder import placeholder_info
 from .ui_config import (
@@ -170,7 +170,7 @@ async def ws_save(hass, connection, msg):
             )
             return
         try:
-            document = deepcopy(msg["document"])
+            document = migrate_palette_document(msg["document"])
             document["config_method"] = "ui"
             await validate_document(hass, document)
         except ERRORS as err:

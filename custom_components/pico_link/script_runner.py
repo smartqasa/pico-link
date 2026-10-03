@@ -190,17 +190,19 @@ class PicoScriptRunner:
         prepared = self.sequences[id(actions)]
         await self._async_run(lambda: self._execute(prepared))
 
-    async def async_run_color_cycle(self) -> None:
+    async def async_run_color_cycle(self, gesture: str) -> None:
         """Apply the same per-Pico run policy to the opt-in native gesture."""
         conf = self.ctrl.conf
 
         async def execute() -> None:
             try:
                 await get_cycle_store(self.ctrl.hass).async_cycle(
-                    conf.device_id, conf.lights, conf.color_palette
+                    conf.device_id, gesture, conf.lights, conf.color_palettes[gesture]
                 )
             except Exception:
-                _LOGGER.exception("Pico %s: color cycle failed", conf.device_id)
+                _LOGGER.exception(
+                    "Pico %s (%s): color cycle failed", conf.device_id, gesture
+                )
 
         await self._async_run(execute)
 

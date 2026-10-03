@@ -8,6 +8,7 @@ from homeassistant.config_entries import ConfigEntryDisabler
 from homeassistant.helpers import device_registry as dr
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
+from custom_components.pico_link.color_cycle import DEFAULT_PALETTE, PALETTE_GESTURES
 from custom_components.pico_link.const import DOMAIN
 from custom_components.pico_link.panel import async_setup_panel, panel_state
 from custom_components.pico_link.ui_config import entry_config
@@ -121,6 +122,113 @@ async def test_new_oversized_palette_cannot_be_saved(hass, panel, scope):
     assert not result["success"]
     assert "between 1 and 25" in result["error"]["message"]
     assert entry_config(entry) == state["document"]
+
+
+async def test_palette_gestures_save_reopen_and_restore_independently(hass, panel):
+    client, entry, _ = panel
+    state = panel_state(hass)
+    document = deepcopy(state["document"])
+    document["config_method"] = "ui"
+    shared = {
+        key: [{"color_temp_kelvin": 3000 + 1000 * i}]
+        for i, key in enumerate(PALETTE_GESTURES)
+    }
+    custom = {
+        key: [{"color_temp_kelvin": 3100 + 1000 * i}]
+        for i, key in enumerate(PALETTE_GESTURES)
+    }
+    document["defaults"]["color_palettes"] = deepcopy(shared)
+    document["devices"][0]["color_palettes"] = deepcopy(custom)
+    result = await request(
+        client,
+        {
+            "id": 1,
+            "type": "pico_link/save",
+            "revision": state["revision"],
+            "document": document,
+        },
+    )
+    assert result["success"]
+    await hass.async_block_till_done()
+    reopened = (await request(client, {"id": 2, "type": "pico_link/config"}))["result"]
+    assert reopened["document"] == document
+    draft = deepcopy(reopened["document"])
+    # Restore shared Hold and profile Tap without touching their siblings.
+    draft["defaults"]["color_palettes"]["stop_hold"] = deepcopy(DEFAULT_PALETTE)
+    draft["devices"][0]["color_palettes"]["stop_tap"] = deepcopy(DEFAULT_PALETTE)
+    # The browser draft (or discarding it) cannot change stored settings.
+    assert panel_state(hass)["document"] == document
+    assert hass.data[DOMAIN]["controllers"][0].conf.color_palettes == custom
+    result = await request(
+        client,
+        {
+            "id": 3,
+            "type": "pico_link/save",
+            "revision": reopened["revision"],
+            "document": draft,
+        },
+    )
+    assert result["success"]
+    await hass.async_block_till_done()
+    reopened = (await request(client, {"id": 4, "type": "pico_link/config"}))["result"]
+    assert reopened["document"] == draft
+    assert (
+        reopened["document"]["defaults"]["color_palettes"]["stop_tap"]
+        == shared["stop_tap"]
+    )
+    assert (
+        reopened["document"]["defaults"]["color_palettes"]["stop_double_tap"]
+        == shared["stop_double_tap"]
+    )
+    assert hass.data[DOMAIN]["controllers"][0].conf.color_palettes == {
+        **custom,
+        "stop_tap": DEFAULT_PALETTE,
+    }
+    # Return only profile Hold to inheritance; it must use shared Hold.
+    del draft["devices"][0]["color_palettes"]["stop_hold"]
+    result = await request(
+        client,
+        {
+            "id": 5,
+            "type": "pico_link/save",
+            "revision": reopened["revision"],
+            "document": draft,
+        },
+    )
+    assert result["success"]
+    await hass.async_block_till_done()
+    assert hass.data[DOMAIN]["controllers"][0].conf.color_palettes == {
+        "stop_tap": DEFAULT_PALETTE,
+        "stop_hold": DEFAULT_PALETTE,
+        "stop_double_tap": custom["stop_double_tap"],
+    }
+    assert entry_config(entry) == draft
+
+
+async def test_common_palette_conversion_does_not_write_until_save(hass, panel):
+    client, entry, _ = panel
+    document = entry_config(entry)
+    colors = [{"color_temp_kelvin": 3200}, {"rgb_color": [13, 42, 84]}]
+    document["defaults"]["color_palette"] = colors
+    document["devices"][0]["color_palette"] = colors
+    hass.config_entries.async_update_entry(entry, options=document)
+    original = deepcopy(dict(entry.options))
+    state = (await request(client, {"id": 1, "type": "pico_link/config"}))["result"]
+    for raw in (state["document"]["defaults"], state["document"]["devices"][0]):
+        assert "color_palette" not in raw
+        assert raw["color_palettes"] == {key: colors for key in PALETTE_GESTURES}
+    assert dict(entry.options) == original
+    result = await request(
+        client,
+        {
+            "id": 2,
+            "type": "pico_link/save",
+            "revision": state["revision"],
+            "document": state["document"],
+        },
+    )
+    assert result["success"]
+    assert dict(entry.options) == {**state["document"], "config_method": "ui"}
 
 
 @pytest.mark.parametrize(

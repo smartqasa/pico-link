@@ -157,7 +157,10 @@ class PicoController:
         if self.conf.color_cycle_gestures:
             cycles = get_cycle_store(self.hass)
             await cycles.async_load()
-            cycles.reconcile(self.conf.device_id, self.conf.color_palette)
+            for key in self.conf.color_cycle_gestures:
+                cycles.reconcile(
+                    self.conf.device_id, key, self.conf.color_palettes[key]
+                )
         await self.script_runner.async_prepare()
         for action_handler in self.actions.values():
             reset = getattr(

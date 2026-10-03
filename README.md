@@ -313,26 +313,29 @@ Color cycling is optional and applies to the **3BRL Stop/middle button** when
 the Pico has lights assigned. Existing settings, scripts, and button actions
 keep their current behavior until you explicitly select it.
 
-1. Open **Shared defaults → Color palette**. The starter order is warm white
+1. Open **Shared defaults → Color palette** and choose **Tap**, **Hold**, or
+   **Double tap**. Each gesture starts with its own built-in palette: warm white
    (2800 K), cool white (4000 K), red, magenta, purple, blue, cyan, green, and amber.
-2. Change colors with the color picker, or choose **White temperature** and enter
+2. Choose **Use custom palette** to change that gesture's colors with the color
+   picker, or choose **White temperature** and enter
    Kelvin. Add, remove, or move entries up/down to set the order (1–25 entries).
 3. Under **Shared defaults → Button actions**, choose **Tap**, **Hold**, or
    **Double tap**, then **Cycle light colors**. On each participating Pico,
    choose **Stop → that gesture → Use shared Stop action**.
    Alternatively, select **Cycle light colors** directly on one Pico.
-4. The Pico uses **Use shared palette** by default and follows shared palette
-   edits. Choosing **Use custom palette** first copies the shared colors;
-   subsequent edits to that copy are independent. The palette is shared across
-   any cycling gestures on that Pico.
+4. Each Pico gesture inherits the **matching shared gesture's palette** by
+   default: Tap follows shared Tap, Hold follows shared Hold, and Double tap
+   follows shared Double tap. Choosing **Use custom palette** copies just that
+   gesture's shared colors. You can then edit it independently of the shared
+   palette and the other two gestures.
 5. **Save changes**, then test with the physical Pico. Selecting colors in the
    editor does not operate lights.
 
 **Restore default colors** restores the built-in palette and order in the editor
-you are using: the shared palette under Shared defaults, or just the selected
-Pico's custom palette. When a Pico uses the shared palette, select **Use custom
-palette** to make an independent copy before restoring it locally. Restoring
-colors stays in the draft until **Save changes**; **Discard changes** restores
+you are using, for **only the selected gesture**. On a Pico that inherits its
+palette, restoring creates a custom palette for that gesture. Other gestures,
+other Picos, and shared settings remain unchanged. Restoring colors stays in
+the draft until **Save changes**; **Discard changes** restores
 the saved settings. Button assignments and other settings are unaffected, and
 the normal palette-edit rules below still determine the next color.
 
@@ -344,14 +347,22 @@ a new gesture while another action is running; `queued` preserves admitted
 presses in order, and `restart` cancels unfinished work. Parallel color cycles
 are serialized within that Pico so they cannot select the same position at once.
 
-The position belongs to the **Pico's Home Assistant device ID**, not its target
-lights. Picos advance independently even when they control overlapping lights;
+Each position belongs to the **Pico's Home Assistant device ID and gesture**,
+not its target lights. Tap, Hold, and Double tap advance independently, even
+when their palettes contain the same colors. Picos also advance independently
+when they control overlapping lights;
 external color changes do not move their positions. Renaming a remote or changing
 its targets keeps its position. Selecting a different physical remote uses that
 remote's own position. After a palette edit, the next gesture follows the last
 selected color if it still exists; otherwise it starts at the first entry.
 For duplicate colors, the old index is kept if it still matches, otherwise the
-first matching entry is used.
+first matching entry is used. Editing or restoring one palette affects only
+that gesture's position.
+
+When upgrading from a beta that stored one common palette, Pico Link copies
+those saved colors into three independent gesture palettes. The existing
+position is also copied to each gesture, preserving the next color rather
+than discarding your settings.
 
 Pico Link saves positions separately in Home Assistant's managed storage
 (`.storage/pico_link.color_cycles`). No helper entity, Essentials script, or
