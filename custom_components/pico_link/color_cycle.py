@@ -14,25 +14,24 @@ from .const import DOMAIN
 CYCLE_ACTION = "color_cycle"
 STORAGE_KEY = f"{DOMAIN}.color_cycles"
 MAX_PALETTE_COLORS = 25
-LEGACY_MAX_PALETTE_COLORS = 32
 DEFAULT_PALETTE = [
     {"color_temp_kelvin": 2800},
     {"color_temp_kelvin": 4000},
     {"rgb_color": [255, 0, 0]},
     {"rgb_color": [255, 0, 255]},
+    {"rgb_color": [128, 0, 255]},
     {"rgb_color": [0, 0, 255]},
     {"rgb_color": [0, 255, 255]},
     {"rgb_color": [0, 255, 0]},
+    {"rgb_color": [255, 191, 0]},
 ]
 
 
-def normalize_palette(
-    value: Any, *, max_colors: int = MAX_PALETTE_COLORS
-) -> list[dict[str, Any]]:
+def normalize_palette(value: Any) -> list[dict[str, Any]]:
     """Accept an ordered list of RGB colors or white temperatures."""
-    if not isinstance(value, list) or not 1 <= len(value) <= max_colors:
+    if not isinstance(value, list) or not 1 <= len(value) <= MAX_PALETTE_COLORS:
         raise ValueError(
-            f"color_palette must contain between 1 and {max_colors} colors."
+            f"color_palette must contain between 1 and {MAX_PALETTE_COLORS} colors."
         )
     for color in value:
         if not isinstance(color, dict):

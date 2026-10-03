@@ -42,7 +42,7 @@ async def test_cycle_gestures_once_and_wrap_without_reading_light_state(pico, ge
         if gesture != "tap"
         else config()
     )
-    assert await pico.setup(
+    assert await pico.setup_ui(
         [raw], {"color_palette": PALETTE, "double_tap_time_ms": 100}
     )
     # These lights can differ, be off or unavailable; they are never our cursor.
@@ -72,7 +72,7 @@ async def test_shared_cycle_is_opt_in_and_custom_palette_is_independent(pico):
         config(device_id="normal", stop_tap=[]),
     ]
     original = deepcopy((defaults, devices))
-    assert await pico.setup(devices, defaults)
+    assert await pico.setup_ui(devices, defaults)
     for device, color in [
         ("shared", RED),
         ("custom", BLUE),
@@ -101,7 +101,7 @@ async def test_unconfigured_stop_and_existing_custom_actions_unchanged(pico):
             "data": {"brightness_pct": 42},
         }
     ]
-    assert await pico.setup([raw], {"stop_tap": "color_cycle"})
+    assert await pico.setup_ui([raw], {"stop_tap": "color_cycle"})
     pico.tap("stop")
     await pico.drain()
     assert pico.calls == []
@@ -121,7 +121,7 @@ async def test_unconfigured_stop_and_existing_custom_actions_unchanged(pico):
     ],
 )
 async def test_explicit_stop_tap_wins_over_legacy_cycle(hass, raw):
-    conf = parse_pico_config(hass, {"middle_button": "color_cycle"}, raw)
+    conf = parse_pico_config(hass, {"middle_button": "color_cycle"}, raw, from_ui=True)
     assert conf.color_cycle_gestures == set()
 
 
@@ -131,7 +131,7 @@ async def test_cycle_aliases_and_shared_selection(hass, key, shared):
     raw = config()
     del raw["stop_tap"]
     raw[key] = "default" if shared else "color_cycle"
-    conf = parse_pico_config(hass, {"stop_tap": "color_cycle"}, raw)
+    conf = parse_pico_config(hass, {"stop_tap": "color_cycle"}, raw, from_ui=True)
     assert conf.color_cycle_gestures == {"stop_tap"}
     assert conf.color_palette == DEFAULT_PALETTE
 
@@ -158,7 +158,7 @@ async def test_invalid_new_palettes_rejected_in_parser_and_empty_ui_document(
     hass, value
 ):
     with pytest.raises(ValueError, match="color_palette"):
-        parse_pico_config(hass, {"color_palette": value}, config())
+        parse_pico_config(hass, {"color_palette": value}, config(), from_ui=True)
     with pytest.raises(ValueError, match="color_palette"):
         await validate_document(
             hass, {"defaults": {"color_palette": value}, "devices": []}
@@ -180,33 +180,58 @@ async def test_new_palette_limit_is_25(hass, scope):
 
 
 @pytest.mark.parametrize("scope", ["shared", "custom"])
-async def test_legacy_yaml_palette_loads_all_colors_without_truncation(pico, scope):
-    palette = [{"rgb_color": [i, 0, 0]} for i in range(32)]
-    defaults, device = {}, config()
+@pytest.mark.parametrize(
+    "setting",
+    [
+        {"color_palette": PALETTE},
+        {"stop_tap": "color_cycle"},
+        {"stop_hold": "color_cycle"},
+        {"stop_double_tap": "color_cycle"},
+        {"middle_button": "color_cycle"},
+    ],
+)
+async def test_native_color_settings_require_ui(pico, scope, setting, caplog):
+    defaults, device = {}, config(stop_tap=[])
     target = defaults if scope == "shared" else device
-    target["color_palette"] = palette
+    target.update(setting)
     assert await pico.setup([device], defaults)
-    assert pico.hass.data["pico_link"]["controllers"][0].conf.color_palette == palette
-    for color in [*palette, palette[0]]:
-        pico.tap("stop")
-        assert (await pico.next_call())[2]["rgb_color"] == color["rgb_color"]
-        await pico.drain()
+    assert not pico.hass.data["pico_link"].get("controllers")
+    assert (
+        "Configure native color cycling and palettes in the Pico Link UI" in caplog.text
+    )
+
+
+async def test_yaml_other_remotes_and_color_actions_remain_supported(pico):
+    custom = config(
+        device_id="custom",
+        stop_tap=[
+            {
+                "action": "light.turn_on",
+                "target": {"entity_id": "lights"},
+                "data": {"rgb_color": [128, 0, 255]},
+            }
+        ],
+    )
+    assert await pico.setup([config(), custom])
+    assert len(pico.hass.data["pico_link"]["controllers"]) == 1
+    pico.tap("stop", device="custom")
+    assert (await pico.next_call())[2]["rgb_color"] == [128, 0, 255]
 
 
 @pytest.mark.parametrize("kind", ["2B", "P2B", "2BRL", "4B"])
 async def test_other_models_cannot_enable_stop_cycling(hass, kind):
     with pytest.raises(ValueError):
-        parse_pico_config(hass, {}, config(type=kind))
+        parse_pico_config(hass, {}, config(type=kind), from_ui=True)
 
 
 async def test_cycling_requires_assigned_lights_and_stop(hass):
     for raw in [config(lights=[], fans=["fan.a"]), config(on_tap="color_cycle")]:
         with pytest.raises(ValueError, match="requires a 3BRL Stop gesture"):
-            parse_pico_config(hass, {}, raw)
+            parse_pico_config(hass, {}, raw, from_ui=True)
 
 
 async def test_shutdown_flush_and_fresh_store_resume_by_identity(pico, hass_storage):
-    assert await pico.setup([config()], {"color_palette": PALETTE})
+    assert await pico.setup_ui([config()], {"color_palette": PALETTE})
     pico.tap("stop")
     await pico.next_call()
     await pico.drain()
@@ -223,7 +248,7 @@ async def test_shutdown_flush_and_fresh_store_resume_by_identity(pico, hass_stor
 
 
 async def test_palette_reload_preserves_color_or_starts_first(pico):
-    assert await pico.setup([config()], {"color_palette": PALETTE})
+    assert await pico.setup_ui([config()], {"color_palette": PALETTE})
     ctrl = pico.hass.data["pico_link"]["controllers"][0]
     pico.tap("stop")
     await pico.next_call()
@@ -234,6 +259,7 @@ async def test_palette_reload_preserves_color_or_starts_first(pico):
         pico.hass,
         {},
         config(device_id=ctrl.conf.device_id, color_palette=[BLUE, RED, WHITE]),
+        from_ui=True,
     )
     reloaded = PicoController(pico.hass, conf)
     await reloaded.async_start()
@@ -270,7 +296,7 @@ async def test_modes_and_runtime_never_update_options(pico, mode, expected):
         await gate.wait()
 
     pico.register("light", "turn_on", slow)
-    assert await pico.setup([config(mode=mode, max=2)], {"color_palette": PALETTE})
+    assert await pico.setup_ui([config(mode=mode, max=2)], {"color_palette": PALETTE})
     with patch.object(pico.hass.config_entries, "async_update_entry") as update:
         pico.tap("stop")
         await pico.next_call()
@@ -293,7 +319,7 @@ async def test_slow_pico_does_not_block_another_with_overlapping_targets(pico):
             await gate.wait()
 
     pico.register("light", "turn_on", slow)
-    assert await pico.setup(
+    assert await pico.setup_ui(
         [
             config(device_id="slow", lights=["light.a", "light.slow"]),
             config(device_id="fast", lights=["light.a"]),
@@ -316,7 +342,7 @@ async def test_service_failure_retries_same_color_and_shutdown_cancels(pico):
         raise HomeAssistantError("Light unavailable")
 
     pico.register("light", "turn_on", fail)
-    assert await pico.setup([config(mode="queued")], {"color_palette": PALETTE})
+    assert await pico.setup_ui([config(mode="queued")], {"color_palette": PALETTE})
     pico.tap("stop")
     await pico.next_call()
     await pico.drain()

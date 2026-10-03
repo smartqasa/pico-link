@@ -306,12 +306,15 @@ their built-in behavior instead of disabling it.
 
 #### Cycle light colors
 
+Native color cycling and palette editing are available through the UI only.
+Existing YAML configurations and custom action sequences remain supported.
+
 Color cycling is optional and applies to the **3BRL Stop/middle button** when
 the Pico has lights assigned. Existing settings, scripts, and button actions
 keep their current behavior until you explicitly select it.
 
 1. Open **Shared defaults → Color palette**. The starter order is warm white
-   (2800 K), cool white (4000 K), red, magenta, blue, cyan, and green.
+   (2800 K), cool white (4000 K), red, magenta, purple, blue, cyan, green, and amber.
 2. Change colors with the color picker, or choose **White temperature** and enter
    Kelvin. Add, remove, or move entries up/down to set the order (1–25 entries).
 3. Under **Shared defaults → Button actions**, choose **Tap**, **Hold**, or
@@ -332,12 +335,6 @@ palette** to make an independent copy before restoring it locally. Restoring
 colors stays in the draft until **Save changes**; **Discard changes** restores
 the saved settings. Button assignments and other settings are unaffected, and
 the normal palette-edit rules below still determine the next color.
-
-Older saved palettes with 26–32 entries keep working without losing colors.
-You can save unrelated settings while leaving those palettes unchanged. To save
-an edited or newly copied palette, reduce it to 25 entries or fewer, or use
-**Restore default colors**. Existing YAML palettes remain readable up to the
-former 32-entry limit for compatibility; the editor uses the new 25-entry limit.
 
 Each recognized gesture sends the next color to **all lights assigned to that
 Pico**, in one call. The first gesture selects the first color; after the last,
@@ -367,31 +364,6 @@ Cycling sends only a color or white temperature; brightness is left to the
 lights. Lights that are off turn on. The actual lights must support the
 requested color or temperature; the integration does not add those capabilities.
 Two Picos controlling the same lights can still send competing commands.
-
-For YAML, `color_palette` accepts RGB or Kelvin entries under `defaults` or an
-individual device. Omit a device palette (or set `color_palette: default`) to use
-the shared list. Existing action lists and `middle_button` remain supported:
-
-```yaml
-pico_link:
-  config_method: yaml
-  defaults:
-    color_palette:
-      - color_temp_kelvin: 2800
-      - rgb_color: [255, 0, 0]
-      - rgb_color: [0, 0, 255]
-    stop_tap: color_cycle
-  devices:
-    - name: Kitchen Pico
-      lights: [light.kitchen, light.island]
-      stop_tap: default
-    - name: Office Pico
-      lights: light.office
-      stop_tap: color_cycle
-      color_palette:
-        - rgb_color: [0, 255, 0]
-        - color_temp_kelvin: 4000
-```
 
 #### Save, discard, or remove
 
@@ -1225,9 +1197,8 @@ or device ID per Pico.
 | `lights`, `covers`, `fans`, `media_players`, `switches` | None | Exactly one group for non-4B remotes |
 | `<button>_tap` / `<button>_hold` | Existing behavior | Action list; `[]` disables the gesture |
 | `<button>_double_tap` | Disabled | Action list; enables detection for that button. `[]` consumes double taps without an action |
-| `stop_tap`, `stop_double_tap`, `stop_hold` on a 3BRL | Existing behavior | Action list, `[]` to disable, `default` for the shared action, or `color_cycle` with assigned lights |
-| `stop_tap`, `stop_double_tap`, `stop_hold` under `defaults` | Do nothing | Shared lists or `color_cycle`; used only when a 3BRL explicitly selects `default`. An omitted or empty shared list runs no actions |
-| `color_palette` | Shared palette, or the seven starter colors | Ordered list of 1–25 entries: `rgb_color: [r, g, b]` (0–255) or `color_temp_kelvin` (1000–10000). A device list overrides the shared palette. Older 26–32-entry palettes remain readable as described above |
+| `stop_tap`, `stop_double_tap`, `stop_hold` on a 3BRL | Existing behavior | Action list, `[]` to disable, or `default` for the shared action |
+| `stop_tap`, `stop_double_tap`, `stop_hold` under `defaults` | Do nothing | Shared lists; used only when a 3BRL explicitly selects `default`. An omitted or empty shared list runs no actions |
 | `middle_button` | Domain behavior | Older 3BRL tap setting, still supported; action list, or `default` to opt into the shared list |
 | `buttons` | None | 4B button-to-action mapping |
 | `mode` | `single` | `single`, `restart`, `queued`, or `parallel`; shared across custom sequences on one Pico |
