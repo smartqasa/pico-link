@@ -335,6 +335,12 @@ keep their current behavior until you explicitly select it.
 5. **Save changes**, then test with the physical Pico. Selecting colors in the
    editor does not operate lights.
 
+![A sample Pico's Stop Tap gesture with Cycle light colors selected, editable white-temperature and color entries, and Restore default colors](https://raw.githubusercontent.com/smartqasa/pico-link/v1.0.1/docs/images/ui-color-palette.jpg)
+
+The example above uses a sample remote with a local Tap palette. Choose
+**Cycle light colors** to edit that Pico's colors directly, or **Use shared
+Stop action** to use the matching gesture's palette from **Shared defaults**.
+
 **Restore default colors** restores the built-in palette and order in the editor
 you are editing, for **only the selected gesture**. Other gestures,
 other Picos, and shared settings remain unchanged. Restoring colors stays in
