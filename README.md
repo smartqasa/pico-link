@@ -21,9 +21,10 @@ custom gesture on the same Pico is ignored until the current sequence finishes.
 Choose `parallel` for overlapping sequences or `restart` when the newest
 command should take over. Built-in device controls retain their normal timing.
 
-**On the beta branch:** opt-in [native color cycling](#cycle-light-colors)
+**New in 1.0.1:** opt-in [native color cycling](#cycle-light-colors)
 for the Stop/middle button, with editable palettes and a separate saved position
-for each Pico. This addition is not part of the published 1.0.0 release.
+for each Pico and gesture. Use shared colors or give a Pico its own palette;
+no separate script or helper is needed.
 
 [![HACS Custom](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://hacs.xyz)
 ![GitHub release](https://img.shields.io/github/v/release/smartqasa/pico-link)
