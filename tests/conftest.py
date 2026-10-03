@@ -59,7 +59,7 @@ class PicoHarness:
 
         self.hass.services.async_register(domain, service, record)
 
-    async def setup(self, devices, defaults=None):
+    async def setup(self, devices, defaults=None, *, ui=False):
         """Use short, real timers; tests do not replace gesture calculations."""
         if self.register_detected is not None:
             resolved = []
@@ -76,20 +76,28 @@ class PicoHarness:
                     raw["device_id"] = self.device_ids[alias]
                 resolved.append(raw)
             devices = resolved
+        document = {
+            "defaults": {
+                "hold_time_ms": 100,
+                "step_time_ms": 100,
+                **(defaults or {}),
+            },
+            "devices": devices,
+        }
+        if ui:
+            entry = MockConfigEntry(
+                domain="pico_link", unique_id="pico_link", data=document
+            )
+            entry.add_to_hass(self.hass)
+            return await self.hass.config_entries.async_setup(entry.entry_id)
         return await async_setup_component(
             self.hass,
             "pico_link",
-            {
-                "pico_link": {
-                    "defaults": {
-                        "hold_time_ms": 100,
-                        "step_time_ms": 100,
-                        **(defaults or {}),
-                    },
-                    "devices": devices,
-                }
-            },
+            {"pico_link": document},
         )
+
+    async def setup_ui(self, devices, defaults=None):
+        return await self.setup(devices, defaults, ui=True)
 
     def fire(self, button, action="press", *, device="pico", kind="3BRL", **data):
         self.hass.bus.async_fire(

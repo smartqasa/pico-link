@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from collections.abc import Awaitable, Callable
 from copy import deepcopy
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
@@ -16,6 +17,7 @@ from homeassistant.helpers.script import (
     async_validate_actions_config,
 )
 
+from .color_cycle import get_cycle_store
 from .const import DOMAIN
 
 if TYPE_CHECKING:
@@ -186,6 +188,27 @@ class PicoScriptRunner:
         if self._stopping or not actions:
             return
         prepared = self.sequences[id(actions)]
+        await self._async_run(lambda: self._execute(prepared))
+
+    async def async_run_color_cycle(self, gesture: str) -> None:
+        """Apply the same per-Pico run policy to the opt-in native gesture."""
+        conf = self.ctrl.conf
+
+        async def execute() -> None:
+            try:
+                await get_cycle_store(self.ctrl.hass).async_cycle(
+                    conf.device_id, gesture, conf.lights, conf.color_palettes[gesture]
+                )
+            except Exception:
+                _LOGGER.exception(
+                    "Pico %s (%s): color cycle failed", conf.device_id, gesture
+                )
+
+        await self._async_run(execute)
+
+    async def _async_run(self, execute: Callable[[], Awaitable[None]]) -> None:
+        if self._stopping:
+            return
         mode = self.ctrl.conf.mode
         self._runs = {task for task in self._runs if not task.done()}
         if mode == "single" and self._runs:
@@ -203,9 +226,9 @@ class PicoScriptRunner:
             await self.async_wait_interrupted()
             if mode == "queued":
                 async with self._queue:
-                    await self._execute(prepared)
+                    await execute()
             else:
-                await self._execute(prepared)
+                await execute()
         finally:
             self._runs.discard(task)
 

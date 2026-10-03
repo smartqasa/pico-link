@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 import json
-from copy import deepcopy
 from typing import Any
 
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.script import async_validate_actions_config
 
+from .color_cycle import CYCLE_ACTION, migrate_palette_document, palette_choices
 from .config import (
     PicoConfig,
     _detect_pico_type,
@@ -48,7 +48,9 @@ LOG_LEVELS = ("silent", "debug", "info", "warning", "error", "critical")
 
 def entry_config(entry) -> dict[str, Any]:
     """Options are a complete saved document, never a partial overlay."""
-    return deepcopy(dict(entry.options if "devices" in entry.options else entry.data))
+    return migrate_palette_document(
+        dict(entry.options if "devices" in entry.options else entry.data)
+    )
 
 
 def remote_type(hass, raw) -> str:
@@ -111,14 +113,15 @@ async def validate_document(hass, root) -> list[PicoConfig]:
     if "continue_on_error" in defaults:
         raise ValueError("Continue on error belongs to an action, not shared defaults.")
     for key in ("stop_tap", "stop_hold", "stop_double_tap", "middle_button"):
-        if key in defaults:
+        if key in defaults and defaults[key] != CYCLE_ACTION:
             await validate_actions(hass, defaults[key])
+    palette_choices(defaults)
     configs = []
     seen = set()
     for raw in root["devices"]:
         if not isinstance(raw, dict):
             raise ValueError("Each Pico must be a mapping.")
-        conf = parse_pico_config(hass, defaults, raw)
+        conf = parse_pico_config(hass, defaults, raw, from_ui=True)
         if conf.device_id in seen:
             raise ValueError("The same Pico cannot be added more than once.")
         seen.add(conf.device_id)
@@ -134,7 +137,7 @@ async def validate_document(hass, root) -> list[PicoConfig]:
 
 async def import_document(hass, root) -> dict[str, Any]:
     """Copy YAML only after validating all remotes; pin names to registry IDs."""
-    copied = deepcopy(root)
+    copied = migrate_palette_document(root)
     configs = await validate_document(hass, copied)
     for raw, conf in zip(copied["devices"], configs, strict=True):
         raw["device_id"] = conf.device_id

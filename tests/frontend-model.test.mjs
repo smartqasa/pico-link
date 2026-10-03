@@ -11,12 +11,99 @@ import {
   assignEntities,
   listRows,
   clone,
+  colorPalette,
+  prepareCyclePalette,
+  setPalette,
+  movePaletteColor,
 } from "../custom_components/pico_link/frontend/model.js";
 import {
   actionEditorResult,
   actionEditorValue,
   actionTargetRows,
 } from "../custom_components/pico_link/frontend/action-targets.js";
+
+test("cycling is explicit and does not change old gesture meanings", () => {
+  assert.equal(behavior("color_cycle"), "color_cycle");
+  assert.equal(behavior("color_cycle", true), "color_cycle");
+  assert.equal(behavior(undefined), "normal");
+  assert.equal(behavior("default"), "shared");
+  const raw = { middle_button: "default", stop_hold: [{ delay: 4 }] };
+  setGesture(raw, "stop_tap", "color_cycle");
+  assert.deepEqual(raw, { stop_tap: "color_cycle", stop_hold: [{ delay: 4 }] });
+});
+
+test("local cycling copies shared colors once and preserves them across behavior changes", () => {
+  const starter = [{ color_temp_kelvin: 2800 }];
+  const defaults = {};
+  const pico = {};
+  for (const [i, key] of [
+    "stop_tap",
+    "stop_hold",
+    "stop_double_tap",
+  ].entries()) {
+    setPalette(defaults, key, [{ color_temp_kelvin: 3000 + i * 1000 }]);
+    prepareCyclePalette(pico, defaults, starter, key);
+    setGesture(pico, key, "color_cycle");
+  }
+  const saved = clone(pico);
+  setPalette(defaults, "stop_tap", [{ color_temp_kelvin: 3400 }]);
+  assert.deepEqual(pico.color_palettes.stop_tap, [{ color_temp_kelvin: 3000 }]);
+  for (const key of ["stop_tap", "stop_hold", "stop_double_tap"]) {
+    setGesture(pico, key, "default");
+    assert.deepEqual(pico.color_palettes[key], saved.color_palettes[key]);
+    // A save/reopen while inherited must retain the dormant local palette.
+    const reopened = clone(pico);
+    prepareCyclePalette(reopened, defaults, starter, key);
+    setGesture(reopened, key, "color_cycle");
+    assert.deepEqual(reopened.color_palettes[key], saved.color_palettes[key]);
+  }
+  assert.deepEqual(starter, [{ color_temp_kelvin: 2800 }]);
+});
+
+test("palette reordering preserves colors without mutating shared definitions", () => {
+  const original = [{ color_temp_kelvin: 2800 }, { rgb_color: [255, 0, 0] }];
+  assert.deepEqual(movePaletteColor(original, 0, 1), [
+    original[1],
+    original[0],
+  ]);
+  assert.deepEqual(movePaletteColor(original, 0, -1), original);
+  const copy = colorPalette({}, {}, original, "stop_tap");
+  copy[1].rgb_color[0] = 1;
+  assert.equal(original[1].rgb_color[0], 255);
+});
+
+test("local and shared edits and restores touch only one draft gesture", () => {
+  const keys = ["stop_tap", "stop_hold", "stop_double_tap"];
+  const starter = [{ color_temp_kelvin: 2800 }];
+  const saved = { defaults: {}, devices: [{}] };
+  for (const [i, key] of keys.entries()) {
+    setPalette(saved.defaults, key, [{ color_temp_kelvin: 3000 + i * 1000 }]);
+  }
+  const draft = clone(saved);
+  const pico = draft.devices[0];
+  for (const key of keys)
+    prepareCyclePalette(pico, draft.defaults, starter, key);
+  setPalette(pico, "stop_tap", [{ color_temp_kelvin: 3200 }]);
+  setPalette(pico, "stop_hold", starter);
+  assert.deepEqual(pico.color_palettes, {
+    stop_tap: [{ color_temp_kelvin: 3200 }],
+    stop_hold: starter,
+    stop_double_tap: [{ color_temp_kelvin: 5000 }],
+  });
+  assert.deepEqual(saved.devices, [{}]);
+  // Shared restore is not copied into existing local colors.
+  setPalette(draft.defaults, "stop_double_tap", starter);
+  assert.deepEqual(pico.color_palettes.stop_double_tap, [
+    { color_temp_kelvin: 5000 },
+  ]);
+  assert.deepEqual(saved.defaults.color_palettes.stop_double_tap, [
+    { color_temp_kelvin: 5000 },
+  ]);
+  assert.deepEqual(draft.defaults.color_palettes.stop_tap, [
+    { color_temp_kelvin: 3000 },
+  ]);
+  assert.deepEqual(starter, [{ color_temp_kelvin: 2800 }]);
+});
 
 test("2BRL uses its detected layout and keeps explicit layout precedence", () => {
   const catalog = [{ id: "dimmer", name: "Hall Pico", type: "2BRL" }];

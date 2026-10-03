@@ -17,6 +17,10 @@ const {
   assignEntities,
   deviceMeta,
   listRows,
+  colorPalette,
+  setPalette,
+  prepareCyclePalette,
+  movePaletteColor,
 } = await import(asset("./model.js"));
 const {
   actionEditorResult,
@@ -321,10 +325,13 @@ class PicoLinkPanel extends HTMLElement {
         }
       : deviceMeta(this.remote, this._state.catalog);
     const tabs = this.shared
-      ? ["buttons", "timing", "device", "run"]
+      ? ["buttons", "palette", "timing", "device", "run"]
       : ["buttons", "assignment", "timing", "device", "run"];
+    // Discard can return from shared palettes to the first saved Pico.
+    if (!tabs.includes(this._tab)) this._tab = "buttons";
     const tabNames = {
       buttons: "Button actions",
+      palette: "Color palette",
       assignment: "Remote & targets",
       timing: "Timing",
       device: "Device settings",
@@ -354,6 +361,21 @@ class PicoLinkPanel extends HTMLElement {
       detail.querySelector("#remove").disabled = this._state.read_only;
     const body = detail.querySelector("#tab-content");
     if (this._tab === "buttons") this._buttons(body, meta.type);
+    if (this._tab === "palette") {
+      body.innerHTML = `<div class="section"><h3>Shared Stop palettes</h3><div class="gestures" role="tablist" aria-label="Palette gesture">${["tap", "hold", "double_tap"].map((gesture) => `<button role="tab" aria-selected="${gesture === this._gesture}" data-palette-gesture="${gesture}">${LABELS[gesture]}</button>`).join("")}</div><div class="gesture-palette"></div></div>`;
+      body.querySelectorAll("[data-palette-gesture]").forEach((button) =>
+        button.addEventListener("click", () => {
+          this._gesture = button.dataset.paletteGesture;
+          this._renderDetail();
+        }),
+      );
+      this._palette(
+        body.querySelector(".gesture-palette"),
+        this._draft.defaults,
+        true,
+        `stop_${this._gesture}`,
+      );
+    }
     if (this._tab === "assignment") this._assignment(body);
     if (this._tab === "timing")
       this._numbers(
@@ -433,6 +455,13 @@ class PicoLinkPanel extends HTMLElement {
             : {}),
         };
     const selected = behavior(value, this.shared);
+    if (
+      this._button === "stop" &&
+      (this.shared ||
+        assignment(target, this._draft.defaults) === "light" ||
+        selected === "color_cycle")
+    )
+      choices.color_cycle = "Cycle light colors";
     const behaviorBox = body.querySelector("#behavior");
     behaviorBox.innerHTML = `<label class="field">Behavior<select id="behavior-select">${Object.entries(
       choices,
@@ -447,6 +476,13 @@ class PicoLinkPanel extends HTMLElement {
       "change",
       (e) => {
         const newValue = e.target.value;
+        if (newValue === "color_cycle")
+          prepareCyclePalette(
+            target,
+            this._draft.defaults,
+            this._state.default_color_palette,
+            key,
+          );
         setGesture(
           target,
           key,
@@ -454,7 +490,9 @@ class PicoLinkPanel extends HTMLElement {
             ? undefined
             : newValue === "shared"
               ? "default"
-              : [],
+              : newValue === "color_cycle"
+                ? "color_cycle"
+                : [],
         );
         this._changed();
         this._renderActions(
@@ -471,6 +509,17 @@ class PicoLinkPanel extends HTMLElement {
   }
   _renderActions(host, target, key, selected) {
     const value = gestureValue(target, key);
+    if (selected === "color_cycle") {
+      host.innerHTML =
+        '<div class="behavior-note">This gesture advances one color for all lights assigned to the triggering Pico. Each Pico and gesture keeps its own position across restarts. Brightness is left to the lights; this action turns them on if needed.</div><div class="cycle-palette"></div>';
+      this._palette(
+        host.querySelector(".cycle-palette"),
+        target,
+        this.shared,
+        key,
+      );
+      return;
+    }
     if (selected === "custom") {
       const placeholder = this._state.light_placeholder;
       const placeholderState = this.hass.states[placeholder?.entity_id];
@@ -501,6 +550,10 @@ class PicoLinkPanel extends HTMLElement {
       let text;
       if (selected === "shared") {
         const actions = gestureValue(this._draft.defaults, key);
+        if (actions === "color_cycle") {
+          host.innerHTML = `<div class="behavior-note">Uses the shared ${LABELS[this._gesture].toLowerCase()} color cycle and palette. Edit its colors in Shared defaults. Choose Cycle light colors here to use an editable local palette. Any previous local colors are kept for that choice.</div>`;
+          return;
+        }
         text = actions?.length
           ? `Uses the shared ${LABELS[this._gesture].toLowerCase()} sequence (${actions.length} ${actions.length === 1 ? "action" : "actions"}). Edit it in Shared defaults.`
           : "The shared action is set to Do nothing. This gesture does nothing on this Pico. Change it in Shared defaults to use an action sequence.";
@@ -513,6 +566,80 @@ class PicoLinkPanel extends HTMLElement {
           "Uses the normal behavior or an applicable shared default. No local action override is set.";
       host.innerHTML = `<div class="behavior-note">${esc(text)}</div>`;
     }
+  }
+  _palette(host, target, shared, key) {
+    const starter = this._state.default_color_palette;
+    const limit = this._state.max_palette_colors ?? 25;
+    const palette = colorPalette(target, this._draft.defaults, starter, key);
+    const gestureName = LABELS[key.slice(5)];
+    const rgbHex = (rgb) =>
+      `#${rgb.map((v) => v.toString(16).padStart(2, "0")).join("")}`;
+    host.innerHTML = `<section class="section palette"><h3>${shared ? "Shared " : ""}${gestureName} color palette</h3><p class="hint">Colors run in this order for ${gestureName.toLowerCase()} only. Other gestures keep their own palettes. Existing button actions are unchanged until you choose Cycle light colors. After an edit, cycling continues after the last chosen color if it is still present; otherwise it starts at the first color.</p><div class="palette-colors">${palette.map((color, index) => `<div class="palette-row" data-color="${index}"><span class="palette-number">${index + 1}</span><label class="field"><span class="sr-only">Color ${index + 1} type</span><select class="color-type" aria-label="Color ${index + 1} type"><option value="rgb" ${color.rgb_color ? "selected" : ""}>Color</option><option value="white" ${color.color_temp_kelvin ? "selected" : ""}>White temperature</option></select></label>${color.rgb_color ? `<input class="color-value" aria-label="Color ${index + 1}" type="color" value="${rgbHex(color.rgb_color)}">` : `<label class="field"><span class="sr-only">Temperature ${index + 1}</span><input class="color-value" aria-label="Temperature ${index + 1} in Kelvin" type="number" min="1000" max="10000" step="1" value="${color.color_temp_kelvin}"><small>Kelvin</small></label>`}<div class="palette-tools"><button data-move="-1" aria-label="Move color ${index + 1} up" ${index === 0 ? "disabled" : ""}>↑</button><button data-move="1" aria-label="Move color ${index + 1} down" ${index === palette.length - 1 ? "disabled" : ""}>↓</button><button class="danger" data-delete aria-label="Remove color ${index + 1}" ${palette.length === 1 ? "disabled" : ""}>×</button></div></div>`).join("")}</div><button class="add-color" ${palette.length >= limit ? "disabled" : ""}>＋ Add color</button><p class="hint">Real lights must support the chosen colors or white temperatures. Up to ${limit} entries.</p></section>`;
+    const changed = (next) => {
+      setPalette(target, key, next);
+      this._changed();
+      this._palette(host, target, shared, key);
+    };
+    {
+      const heading = host.querySelector("h3");
+      const header = document.createElement("div");
+      header.className = "section-heading palette-heading";
+      heading.replaceWith(header);
+      const restore = document.createElement("button");
+      restore.textContent = "Restore default colors";
+      restore.title =
+        "Restore the built-in colors and order in this palette. Applies when you save.";
+      restore.addEventListener("click", () => changed(clone(starter)));
+      header.append(heading, restore);
+    }
+    host
+      .querySelector(".add-color")
+      ?.addEventListener("click", () =>
+        changed([...palette, { rgb_color: [255, 255, 255] }]),
+      );
+    host.querySelectorAll("[data-color]").forEach((row) => {
+      const index = Number(row.dataset.color);
+      row.querySelector(".color-type").addEventListener("change", (event) => {
+        palette[index] =
+          event.target.value === "white"
+            ? { color_temp_kelvin: 2800 }
+            : { rgb_color: [255, 0, 0] };
+        changed(palette);
+      });
+      row.querySelector(".color-value").addEventListener("input", (event) => {
+        palette[index] =
+          event.target.type === "color"
+            ? {
+                rgb_color: event.target.value
+                  .slice(1)
+                  .match(/../g)
+                  .map((v) => parseInt(v, 16)),
+              }
+            : { color_temp_kelvin: Number(event.target.value) };
+        // Commit typing to the draft immediately without replacing the focused
+        // input. Save validates its range; blur is not required to capture it.
+        setPalette(target, key, palette);
+        this._changed();
+      });
+      row
+        .querySelectorAll("[data-move]")
+        .forEach((button) =>
+          button.addEventListener("click", () =>
+            changed(
+              movePaletteColor(palette, index, Number(button.dataset.move)),
+            ),
+          ),
+        );
+      row
+        .querySelector("[data-delete]")
+        ?.addEventListener("click", () =>
+          changed(palette.filter((_, i) => i !== index)),
+        );
+    });
+    if (this._state.read_only)
+      host
+        .querySelectorAll("input,select,button")
+        .forEach((element) => (element.disabled = true));
   }
   _editorActions(sequence) {
     return actionEditorValue(

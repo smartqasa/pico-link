@@ -298,7 +298,9 @@ class ButtonOverrides:
             invalidate()
         self._after_stops(
             lambda: self.ctrl.create_task(
-                self.ctrl.utils.execute_button_action(self.actions[key]),
+                self.ctrl.script_runner.async_run_color_cycle(key)
+                if key in self.ctrl.conf.color_cycle_gestures
+                else self.ctrl.utils.execute_button_action(self.actions[key]),
                 f"override-{key}",
             )
         )
